@@ -645,7 +645,16 @@ import { abortableDelay } from '../../../shared/abortable-delay';
         : 3;
       const chatArray = getChatArray_ACU();
       const recentMessages = historyLimit > 0 ? chatArray.slice(-historyLimit) : chatArray;
-      const historyAndUserText = `${recentMessages.map((message: any) => message.mes || '').join('\n')}\n${userMessage || ''}`;
+      const plotExcludeTags = (apiSettings.contextExcludeTags || '').trim();
+      const plotExcludeRules = normalizeExcludeRules_ACU(apiSettings.contextExcludeRules, plotExcludeTags);
+      const sanitizeHistoryMessageForWorldbookScan = (value: any) => {
+        const text = value !== undefined && value !== null ? String(value) : '';
+        return applyExcludeRulesToText_ACU(text, { excludeRules: plotExcludeRules, excludeTags: plotExcludeTags });
+      };
+      const historyAndUserText = [
+        ...recentMessages.map((message: any) => sanitizeHistoryMessageForWorldbookScan(message?.mes || '')),
+        String(userMessage || ''),
+      ].filter(Boolean).join('\n');
       const enabledMap = plotCfg?.enabledEntries;
       const hasAnySelection = enabledMap && typeof enabledMap === 'object' && Object.keys(enabledMap).length > 0;
 
