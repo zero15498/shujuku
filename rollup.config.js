@@ -15,6 +15,10 @@
 import typescript from '@rollup/plugin-typescript';
 import commonjs from '@rollup/plugin-commonjs';
 import nodeResolve from '@rollup/plugin-node-resolve';
+import replace from '@rollup/plugin-replace';
+import vuePlugin from 'unplugin-vue/rollup';
+import sfcStyleInjector from './src/presentation-v2/build/rollup-sfc-style-injector.js';
+import vueScriptTranspiler from './src/presentation-v2/build/rollup-vue-script-transpiler.js';
 import { readFileSync, copyFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
@@ -75,13 +79,50 @@ const nodeBuiltinsShim = {
 };
 
 // ═══════════════════════════════════════════════════════════════
+// Vue 编译与产物常量替换
+// - unplugin-vue/rollup：编译 .vue SFC（template / script / style）
+// - @rollup/plugin-replace：把 process.env.NODE_ENV / Vue feature flags
+//   替换为生产值，避免运行时 console 警告并压缩 gzip 体积。
+//   见 plans/ui_v2/stages/stage--1-spike.md 的关键发现。
+// ═══════════════════════════════════════════════════════════════
+function createVuePlugin() {
+  // isProduction: true → SFC 编译器不输出 __file 字段，避免泄漏构建机绝对路径
+  // root: cwd → 组件 id / 错误位置以 cwd 为根计算
+  // inlineTemplate: false → 避免把 TS 模板渲染函数内联到 <script setup lang="ts">
+  //   虚拟模块；@rollup/plugin-typescript 的 filter 不识别 `?vue&...&lang.ts`
+  //   query 形态的 id，会导致 rollup 直接以 JS 解析 TS 失败
+  return vuePlugin({
+    isProduction: true,
+    root: process.cwd(),
+    sourceMap: false,
+    inlineTemplate: false,
+  });
+}
+
+function createReplacePlugin() {
+  return replace({
+    preventAssignment: true,
+    values: {
+      'process.env.NODE_ENV': JSON.stringify('production'),
+      __VUE_OPTIONS_API__: 'true',
+      __VUE_PROD_DEVTOOLS__: 'false',
+      __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+    },
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════
 // 共享插件配置
 // ═══════════════════════════════════════════════════════════════
 const sharedPlugins = [
   nodeBuiltinsShim,
+  createVuePlugin(),
+  vueScriptTranspiler(),
+  sfcStyleInjector(),
   nodeResolve({
     browser: true,
     preferBuiltins: false,
+    extensions: ['.mjs', '.js', '.json', '.ts', '.vue'],
   }),
   commonjs(),
 ];
@@ -96,6 +137,8 @@ function createTsPlugin() {
       sourceMap: false,
       outDir: 'dist',
     },
+    // SFC 虚拟脚本模块由 vueScriptTranspiler 单独处理（@rollup/pluginutils
+    // 会剥掉 query 串再 glob，导致无法在这里走 include 匹配）。
     include: ['src/**/*.ts', 'src/**/*.js'],
   });
 }
@@ -118,7 +161,7 @@ const userscriptConfig = {
     sourcemap: false,
   },
   treeshake: false,
-  plugins: [...sharedPlugins, createTsPlugin()],
+  plugins: [...sharedPlugins, createTsPlugin(), createReplacePlugin()],
   external: [
     './script.js',
     './scripts/extensions.js',
@@ -140,6 +183,7 @@ const extensionConfig = {
   plugins: [
     ...sharedPlugins,
     createTsPlugin(),
+    createReplacePlugin(),
     // 构建完成后复制 manifest.json 到 dist/extension/
     {
       name: 'copy-manifest',

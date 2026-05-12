@@ -1,5 +1,5 @@
 import { defaultVectorMemoryConfig_ACU } from '../../shared/defaults';
-import { cleanChatName_ACU, normalizePositiveInteger_ACU } from '../../shared/utils';
+import { cleanChatName_ACU, normalizeNonNegativeInteger_ACU, normalizePositiveInteger_ACU } from '../../shared/utils';
 import { globalMeta_ACU, saveGlobalMeta_ACU } from '../../data/repositories/profile-repo';
 import { currentChatFileIdentifier_ACU, settings_ACU } from '../runtime/state-manager';
 import { getCurrentWorldbookConfig_ACU } from '../settings/settings-readers';
@@ -16,6 +16,7 @@ export interface VectorMemoryConfig_ACU {
     archiveTriggerCount: number;
     archiveBatchSize: number;
     archiveMaxConcurrency: number;
+    summaryIndexArchiveMaxConcurrency: number;
     topK: number;
     minScore: number;
     embeddingEndpoint: string;
@@ -122,6 +123,10 @@ export function normalizeVectorMemoryConfig_ACU(rawConfig: any): VectorMemoryCon
         archiveTriggerCount,
         archiveBatchSize,
         archiveMaxConcurrency,
+        summaryIndexArchiveMaxConcurrency: normalizePositiveInteger_ACU(
+            (source as any).summaryIndexArchiveMaxConcurrency,
+            (defaults as any).summaryIndexArchiveMaxConcurrency ?? 30,
+        ),
         topK: normalizePositiveInteger_ACU(source.topK, defaults.topK),
         minScore: normalizeMinScore_ACU(source.minScore, defaults.minScore),
         embeddingEndpoint: normalizeTextField_ACU(source.embeddingEndpoint, defaults.embeddingEndpoint),
@@ -146,7 +151,7 @@ export function normalizeVectorMemoryConfig_ACU(rawConfig: any): VectorMemoryCon
         keywordGenerationMaxAttempts: normalizePositiveInteger_ACU((source as any).keywordGenerationMaxAttempts, (defaults as any).keywordGenerationMaxAttempts || 3),
         keywordPromptGroup: normalizeKeywordPromptGroup_ACU(source.keywordPromptGroup, defaults.keywordPromptGroup),
         recallCandidateLimit: normalizePositiveInteger_ACU(source.recallCandidateLimit, defaults.recallCandidateLimit),
-        recentFixedInjectCount: normalizePositiveInteger_ACU(
+        recentFixedInjectCount: normalizeNonNegativeInteger_ACU(
             (source as any).recentFixedInjectCount,
             (defaults as any).recentFixedInjectCount || 50,
         ),
@@ -194,6 +199,17 @@ export function getCurrentVectorMemoryConfig_ACU(): VectorMemoryConfig_ACU {
     settings_ACU.vectorMemoryConfig = globalMeta_ACU.vectorMemoryConfigGlobal;
     saveGlobalMeta_ACU();
     return globalMeta_ACU.vectorMemoryConfigGlobal as VectorMemoryConfig_ACU;
+}
+
+export function patchCurrentVectorMemoryConfig_ACU(patch: Record<string, any>): VectorMemoryConfig_ACU {
+    const vectorMemoryConfig = getCurrentVectorMemoryConfig_ACU();
+    Object.keys(patch || {}).forEach((field) => {
+        (vectorMemoryConfig as any)[field] = patch[field];
+    });
+    settings_ACU.vectorMemoryConfig = vectorMemoryConfig;
+    globalMeta_ACU.vectorMemoryConfigGlobal = vectorMemoryConfig;
+    saveGlobalMeta_ACU();
+    return vectorMemoryConfig;
 }
 
 export function getVectorMemoryNamespace_ACU(chatFileIdentifier?: string | null): string {
@@ -250,6 +266,9 @@ function collectVectorMemoryCommonErrors_ACU(config: VectorMemoryConfig_ACU): st
     }
     if (config.archiveMaxConcurrency < 1) {
         errors.push('archiveMaxConcurrency 必须大于 0');
+    }
+    if (config.summaryIndexArchiveMaxConcurrency < 1) {
+        errors.push('summaryIndexArchiveMaxConcurrency 必须大于 0');
     }
     if (config.summaryChunkSentenceCount < 1) {
         errors.push('summaryChunkSentenceCount 必须大于 0');
@@ -314,14 +333,14 @@ export function getEffectiveSummaryVectorIndexConfig_ACU(configInput?: any): Sum
         defaults.summaryChunkSentenceCount || 2,
     );
     const summaryIndexArchiveMaxConcurrency = normalizePositiveInteger_ACU(
-        (config as any).summaryIndexArchiveMaxConcurrency,
+        config.summaryIndexArchiveMaxConcurrency,
         Number(defaults.summaryIndexArchiveMaxConcurrency) || 30,
     );
     const summaryIndexKeywordMinRows = normalizePositiveInteger_ACU(
         (config as any).summaryIndexKeywordMinRows,
         Number((defaults as any).summaryIndexKeywordMinRows) || 100,
     );
-    const recentFixedInjectCount = normalizePositiveInteger_ACU(
+    const recentFixedInjectCount = normalizeNonNegativeInteger_ACU(
         (config as any).recentFixedInjectCount,
         Number((defaults as any).recentFixedInjectCount) || 50,
     );

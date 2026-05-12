@@ -154,6 +154,8 @@ export let settings_ACU: any = {
     streamingEnabled: false,
     tavernProfile: '',
     apiPresets: [],
+    defaultApiPresetName: '',
+    apiPresetBindingsByChat: {} as Record<string, { presetName: string; updatedAt: number }>,
     tableApiPreset: '',
     plotApiPreset: '',
     // [剧情推进] 按剧情任务ID保存的任务级 API 预设覆盖（key=taskId, value=presetName）

@@ -1,0 +1,150 @@
+<template>
+  <div class="acu-prompt-segs">
+    <div class="acu-prompt-segs__add">
+      <AcuButton size="sm" class="acu-prompt-segs__add-btn" @click="$emit('add', 'top')">
+        <i class="fa-solid fa-plus"></i> 在最上方插入
+      </AcuButton>
+    </div>
+    <ol class="acu-prompt-segs__list">
+      <li v-for="(seg, index) in segments" :key="index" class="acu-prompt-segs__item">
+        <header class="acu-prompt-segs__item-head">
+          <span class="acu-prompt-segs__index">#{{ index + 1 }}</span>
+          <AcuSelect
+            class="acu-prompt-segs__role"
+            size="sm"
+            :options="roleOptions"
+            :model-value="seg.role"
+            @update:model-value="$emit('update', index, { role: $event })"
+          />
+          <AcuSelect
+            v-if="showSlot"
+            class="acu-prompt-segs__slot"
+            size="sm"
+            :options="slotOptions"
+            :model-value="seg.mainSlot || ''"
+            title="主插槽 A=主提示词；B=拦截任务详细指令"
+            @update:model-value="onSlot(index, $event)"
+          />
+          <AcuIconButton
+            icon="fa-solid fa-trash-can"
+            variant="danger"
+            size="sm"
+            :disabled="seg.deletable === false"
+            :title="seg.deletable === false ? '该段不可删除' : '删除该段'"
+            @click="$emit('delete', index)"
+          />
+        </header>
+        <AcuTextarea
+          :model-value="seg.content"
+          :rows="rows"
+          placeholder="提示词内容..."
+          @update:model-value="$emit('update', index, { content: $event })"
+        />
+      </li>
+      <li v-if="!segments.length" class="acu-prompt-segs__empty">
+        {{ emptyText }}
+      </li>
+    </ol>
+    <div class="acu-prompt-segs__add">
+      <AcuButton size="sm" class="acu-prompt-segs__add-btn" @click="$emit('add', 'bottom')">
+        <i class="fa-solid fa-plus"></i> 在最下方插入
+      </AcuButton>
+    </div>
+  </div>
+</template>
+
+<script lang="ts">
+import type { AcuSelectOption } from './AcuSelect.vue';
+
+export interface PromptSegment {
+  role: string;
+  content: string;
+  deletable?: boolean;
+  mainSlot?: 'A' | 'B' | '';
+  isMain?: boolean;
+  isMain2?: boolean;
+}
+
+const DEFAULT_ROLE_OPTIONS: AcuSelectOption[] = [
+  { value: 'SYSTEM', label: 'SYSTEM' },
+  { value: 'USER', label: 'USER' },
+  { value: 'assistant', label: 'ASSISTANT' },
+];
+
+const DEFAULT_SLOT_OPTIONS: AcuSelectOption[] = [
+  { value: '', label: '普通段' },
+  { value: 'A', label: '主插槽 A' },
+  { value: 'B', label: '主插槽 B' },
+];
+</script>
+
+<script setup lang="ts">
+import AcuButton from './AcuButton.vue';
+import AcuIconButton from './AcuIconButton.vue';
+import AcuSelect from './AcuSelect.vue';
+import AcuTextarea from './AcuTextarea.vue';
+
+withDefaults(defineProps<{
+  segments: PromptSegment[];
+  roleOptions?: AcuSelectOption[];
+  slotOptions?: AcuSelectOption[];
+  showSlot?: boolean;
+  rows?: number;
+  emptyText?: string;
+}>(), {
+  roleOptions: () => DEFAULT_ROLE_OPTIONS,
+  slotOptions: () => DEFAULT_SLOT_OPTIONS,
+  showSlot: true,
+  rows: 6,
+  emptyText: '暂无提示词段。点击下方按钮添加第一段。',
+});
+
+const emit = defineEmits<{
+  (e: 'add', position: 'top' | 'bottom'): void;
+  (e: 'delete', index: number): void;
+  (e: 'update', index: number, patch: Partial<PromptSegment>): void;
+}>();
+
+function onSlot(index: number, raw: string): void {
+  const value = raw === 'A' || raw === 'B' ? raw : '';
+  emit('update', index, { mainSlot: value });
+}
+</script>
+
+<style scoped>
+.acu-prompt-segs { display: flex; flex-direction: column; gap: 10px; }
+.acu-prompt-segs__add { display: flex; justify-content: center; }
+
+.acu-prompt-segs__list {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.acu-prompt-segs__item {
+  border: 0; border-radius: var(--acu-radius-sm);
+  background: var(--acu-bg-2); padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+.acu-prompt-segs__item-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+
+.acu-prompt-segs__index {
+  font-size: 11px; color: var(--acu-text-3);
+  min-width: 26px;
+  font-family: Consolas, 'Courier New', monospace;
+}
+
+.acu-prompt-segs__role { min-width: 110px; }
+.acu-prompt-segs__slot { min-width: 120px; }
+
+.acu-prompt-segs__item-head :deep(.acu-icon-btn) {
+  margin-left: auto;
+}
+
+.acu-prompt-segs__empty {
+  padding: 12px; text-align: center;
+  color: var(--acu-text-3); font-size: 12px;
+}
+</style>

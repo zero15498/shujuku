@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm ls *)",
+      "Bash(npm install *)",
+      "Bash(npm run *)",
+      "Bash(npx vitest *)",
+      "Bash(node scripts/check-arch.mjs)",
+      "Bash(npx tsc *)",
+      "Bash(git stash *)",
+      "Bash(npx vue-tsc *)",
+      "Bash(npm test *)",
+      "Bash(python \".claude/generate_ui_v2_docs.py\")",
+      "Bash(python -c \"from pathlib import Path; files=list\\(Path\\('plans/ui_v2'\\).rglob\\('*.md'\\)\\)+[Path\\('.claude/skills/ui-v2-principles/SKILL.md'\\)]; print\\('\\\\n'.join\\(f'{p}: {sum\\(1 for _ in p.open\\(encoding=\\\\\"utf-8\\\\\"\\)\\)}' for p in files\\)\\)\")"
+    ]
+  }
+}

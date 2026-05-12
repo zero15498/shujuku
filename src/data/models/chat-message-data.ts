@@ -9,7 +9,7 @@ import type { Sheet_ACU } from '../../shared/models/table-data';
 import type {
     ChatSummaryVectorIndexManifest_ACU,
     ChatSummaryVectorIndexState_ACU,
-} from '../../service/vector/summary-vector-index-types';
+} from '../../shared/models/summary-vector-index-types';
 
 // ── 新版按标签分组存储 ──
 
@@ -33,7 +33,7 @@ export type {
     ChatSummaryVectorIndexManifest_ACU,
     ChatSummaryVectorIndexRow_ACU,
     ChatSummaryVectorIndexState_ACU,
-} from '../../service/vector/summary-vector-index-types';
+} from '../../shared/models/summary-vector-index-types';
 
 /** 按标签分组的容器（TavernDB_ACU_IsolatedData 的类型） */
 export interface IsolatedDataContainer_ACU {

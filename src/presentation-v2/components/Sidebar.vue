@@ -1,0 +1,162 @@
+<template>
+  <nav :class="['acu-v2-sidebar', `acu-v2-sidebar--${variant}`]" aria-label="一级页导航">
+    <div class="acu-v2-sidebar__brand">
+      <span class="acu-v2-sidebar__brand-mark" aria-hidden="true">SP</span>
+      <span class="acu-v2-sidebar__brand-copy">
+        <span class="acu-v2-sidebar__brand-title">SP·数据库 III</span>
+        <span class="acu-v2-sidebar__brand-tag">新 UI · 开发版</span>
+      </span>
+    </div>
+
+    <template v-for="group in router.groups" :key="group.id">
+      <div
+        v-if="(router.visiblePagesByGroup[group.id] || []).length"
+        class="acu-v2-sidebar__group"
+      >
+        <div class="acu-v2-sidebar__group-title">{{ group.title }}</div>
+        <button
+          v-for="page in router.visiblePagesByGroup[group.id]"
+          :key="page.id"
+          type="button"
+          :class="[
+            'acu-v2-sidebar__item',
+            page.id === router.activePageId ? 'acu-v2-sidebar__item--active' : '',
+          ]"
+          :aria-current="page.id === router.activePageId ? 'page' : undefined"
+          :data-page-id="page.id"
+          @click="setActivePage(page.id)"
+        >
+          {{ page.title }}
+        </button>
+      </div>
+    </template>
+  </nav>
+</template>
+
+<script setup lang="ts">
+import { useRouterStore } from '../stores/router-store';
+
+withDefaults(defineProps<{
+  variant?: 'desktop' | 'drawer';
+}>(), {
+  variant: 'desktop',
+});
+
+const emit = defineEmits<{
+  (event: 'navigate'): void;
+}>();
+
+const router = useRouterStore();
+
+function setActivePage(pageId: string): void {
+  router.setActivePage(pageId);
+  emit('navigate');
+}
+</script>
+
+<style scoped>
+.acu-v2-sidebar {
+  min-width: 0;
+  min-height: 0;
+  background: var(--acu-bg-0);
+  padding: 24px 12px 16px;
+  overflow-y: auto;
+}
+
+.acu-v2-sidebar--desktop {
+  width: 220px;
+  flex: 0 0 220px;
+  border-right: 1px solid var(--acu-border);
+}
+
+.acu-v2-sidebar--drawer {
+  width: 100%;
+  flex: 1 1 auto;
+}
+
+.acu-v2-sidebar__brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 20px;
+  border-bottom: 1px solid var(--acu-border);
+  margin-bottom: 14px;
+}
+
+.acu-v2-sidebar__brand-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--acu-radius-md);
+  background: var(--acu-accent);
+  color: var(--acu-on-accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.acu-v2-sidebar__brand-copy {
+  min-width: 0;
+  display: block;
+}
+
+.acu-v2-sidebar__brand-title {
+  display: block;
+  font-size: 15px;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--acu-text-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acu-v2-sidebar__brand-tag {
+  display: block;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--acu-text-3);
+}
+
+.acu-v2-sidebar__group {
+  margin-bottom: 12px;
+}
+
+.acu-v2-sidebar__group-title {
+  padding: 7px 12px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--acu-text-3);
+  text-transform: uppercase;
+}
+
+.acu-v2-sidebar__item {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  font-size: 13px;
+  color: var(--acu-text-2);
+  cursor: pointer;
+  border-radius: var(--acu-radius-sm);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.acu-v2-sidebar__item:hover {
+  background: var(--acu-bg-2);
+  color: var(--acu-text-1);
+}
+
+.acu-v2-sidebar__item--active {
+  background: var(--acu-accent);
+  color: var(--acu-on-accent);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--acu-on-accent) 72%, transparent);
+}
+</style>

@@ -20,13 +20,13 @@ export {
 import { getChatArray_ACU, saveChatToHost_ACU, setChatMessages_ACU, emitMessageUpdated_ACU } from '../../data/gateways/chat-gateway';
 import { logDebug_ACU, logError_ACU, logWarn_ACU, isSummaryOrOutlineTable_ACU } from '../../shared/utils';
 import { getLastOptimizationBase_ACU, setLastOptimizationBase_ACU } from '../optimization/content-optimization';
-import { settings_ACU, currentJsonTableData_ACU, getCurrentIsolationKey_ACU } from '../runtime/state-manager';
+import { settings_ACU, currentChatFileIdentifier_ACU, currentJsonTableData_ACU, getCurrentIsolationKey_ACU } from '../runtime/state-manager';
 import { sanitizeSheetForStorage_ACU } from '../template/chat-scope';
-import { clearTableFieldsForIsolation_ACU } from '../../data/repositories/chat-message-data-repo';
+import { clearTableFieldsForIsolation_ACU, readIsolatedTagData_ACU, writeIsolatedTagData_ACU } from '../../data/repositories/chat-message-data-repo';
 import { persistTablesToChatMessage_ACU } from '../table/table-service';
 import { getLatestAiMessageIndexFromChat_ACU, resolveTableHistoryStateFromChat_ACU } from '../table/table-history';
-import { deleteSummaryVectorIndexExternal_ACU } from '../vector/summary-vector-index-storage-service';
-import { assignSummaryVectorIndexStateToTagData_ACU } from '../vector/summary-vector-index-state-service';
+import { deleteSummaryVectorIndexExternal_ACU, deleteSummaryVectorIndexExternalByScope_ACU } from '../vector/summary-vector-index-storage-service';
+import { assignSummaryVectorIndexStateToTagData_ACU, getAggregatedSummaryVectorIndexSnapshot_ACU } from '../vector/summary-vector-index-state-service';
 
 // ─── 业务逻辑函数（从 presentation 层搬迁） ───
 
@@ -75,6 +75,56 @@ async function deleteVectorIndexManifestsFromMessage_ACU(msg: any): Promise<numb
         }
     }
     return deletedCount;
+}
+
+function getCurrentSummaryVectorIndexSourceTableKey_ACU(): string {
+    const tables = currentJsonTableData_ACU && typeof currentJsonTableData_ACU === 'object'
+        ? currentJsonTableData_ACU
+        : null;
+    if (!tables) return 'summary';
+    return Object.keys(tables).find((key) => {
+        const table = tables[key];
+        return !!table?.name && isSummaryOrOutlineTable_ACU(String(table.name || ''));
+    }) || 'summary';
+}
+
+export async function deleteCurrentSummaryVectorIndexFromChat_ACU(): Promise<boolean> {
+    const snapshot = getAggregatedSummaryVectorIndexSnapshot_ACU();
+    const chat = getChatArray_ACU();
+    const sourceTableKeys = new Set<string>();
+    let changed = false;
+
+    if (snapshot?.layers?.length) {
+        for (const layer of snapshot.layers) {
+            const message = chat[layer.messageIndex];
+            if (!message || message.is_user) continue;
+            const tagData = readIsolatedTagData_ACU(message, layer.isolationKey);
+            const manifest = tagData?.summaryVectorIndexManifest || tagData?.summaryVectorIndexState?.manifest || null;
+            if (manifest) {
+                sourceTableKeys.add(manifest.sourceTableKey || 'summary');
+                await deleteSummaryVectorIndexExternal_ACU(manifest);
+            }
+            if (tagData) {
+                assignSummaryVectorIndexStateToTagData_ACU(tagData, null);
+                writeIsolatedTagData_ACU(message, layer.isolationKey, tagData);
+                changed = true;
+            }
+        }
+    }
+
+    sourceTableKeys.add(getCurrentSummaryVectorIndexSourceTableKey_ACU());
+    let orphanDeleted = false;
+    for (const sourceTableKey of sourceTableKeys) {
+        const removedPaths = await deleteSummaryVectorIndexExternalByScope_ACU({
+            chatKey: currentChatFileIdentifier_ACU,
+            isolationKey: getCurrentIsolationKey_ACU(),
+            sourceTableKey,
+        });
+        if (removedPaths.length > 0) orphanDeleted = true;
+    }
+
+    if (changed) await saveChatToHost_ACU();
+    return changed || orphanDeleted;
 }
 
 function tableListContainsSummaryOrOutline_ACU(targetSheetKeys: string[]): boolean {
