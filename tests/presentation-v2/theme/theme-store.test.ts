@@ -52,11 +52,11 @@ describe('theme-store', () => {
   });
 
   it('localStorage 中已有合法 id 时按持久化值初始化', async () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: { activeId: 'github-dark' } }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: { activeId: 'strawberry-dragon' } }));
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
-    expect(store.activeId).toBe('github-dark');
+    expect(store.activeId).toBe('strawberry-dragon');
   });
 
   it('非法 id 落回默认主题', async () => {
@@ -71,11 +71,11 @@ describe('theme-store', () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
-    store.setTheme('classical-silk');
-    expect(store.activeId).toBe('classical-silk');
+    store.setTheme('default-light');
+    expect(store.activeId).toBe('default-light');
     const raw = localStorage.getItem(STORAGE_KEY);
     expect(raw).not.toBeNull();
-    expect(JSON.parse(raw!)).toEqual({ theme: { activeId: 'classical-silk' } });
+    expect(JSON.parse(raw!)).toEqual({ theme: { activeId: 'default-light' } });
   });
 
   it('setTheme 拒绝非法 id（不变更 state）', async () => {
@@ -87,25 +87,39 @@ describe('theme-store', () => {
     expect(store.activeId).toBe(before);
   });
 
-  it('包含 GitHub Dark 主题并使用 Primer dark token 映射', async () => {
+  it('只暴露当前维护的三个内置主题', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
-    const githubDark = store.themes.find(t => t.id === 'github-dark');
-    expect(githubDark).toMatchObject({
-      name: 'GitHub Dark',
+    expect(store.themes.map(t => t.id)).toEqual([
+      'default-light',
+      'default-dark',
+      'strawberry-dragon',
+    ]);
+  });
+
+  it('深色管理台使用低饱和橙色 accent', async () => {
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    const defaultDark = store.themes.find(t => t.id === 'default-dark');
+    expect(defaultDark).toMatchObject({
+      name: '深色管理台',
       colorScheme: 'dark',
       tokens: {
-        bg0: '#0d1117',
-        bg1: '#151b23',
-        border: '#3d444d',
-        text1: '#f0f6fc',
-        accent: '#4493f8',
+        bg0: '#10110f',
+        bg1: '#171814',
+        sidebarBg: '#171814',
+        text1: '#f4f0e8',
+        accent: '#D97757',
+        accent2: '#C96B4A',
+        onAccent: '#10110f',
+        accentGlow: 'rgba(217, 119, 87, 0.22)',
       },
     });
   });
 
-  it('包含从旧 UI 模板迁移的草莓奶龙主题', async () => {
+  it('包含收敛后的草莓奶龙主题', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
@@ -114,13 +128,15 @@ describe('theme-store', () => {
       name: '草莓奶龙',
       colorScheme: 'light',
       tokens: {
-        bg0: '#F4E2E5',
-        bg1: '#FFFFFF',
-        bg2: '#FFF5F7',
-        border: 'transparent',
-        text1: '#78685E',
-        accent: '#ECC9CF',
-        onAccent: '#78685E',
+        bg0: '#FAEEF1',
+        bg1: '#FFFCFC',
+        bg2: '#F9E7EB',
+        sidebarBg: '#FAECEF',
+        border: 'rgba(120, 104, 94, 0.08)',
+        text1: '#6F5F56',
+        accent: '#6F5F56',
+        onAccent: '#FFF7F8',
+        hoverOverlay: 'rgba(207, 157, 168, 0.22)',
       },
     });
 
@@ -144,20 +160,27 @@ describe('theme-injector', () => {
     expect(style1!.textContent).toContain(`#${APP_ROOT_ID} {`);
     expect(style1!.textContent).not.toContain(`#${APP_ROOT_ID} *`);
     expect(style1!.textContent).toContain('--acu-bg-0:');
+    expect(style1!.textContent).toContain('--acu-sidebar-bg:');
+    expect(style1!.textContent).not.toContain('--acu-bg-3:');
+    expect(style1!.textContent).toContain('--acu-hover-overlay:');
     expect(style1!.textContent).toContain('--acu-accent:');
+    expect(style1!.textContent).not.toContain('--acu-accent-glow-2:');
+    expect(style1!.textContent).toContain('--acu-font-ui:');
+    expect(style1!.textContent).toContain('--acu-font-mono:');
 
     store.setTheme('default-light');
     m.injector.applyTheme(store.activeTheme);
     const style2 = document.getElementById(STYLE_NODE_ID) as HTMLStyleElement | null;
     expect(style2).toBe(style1); // 同一个节点，textContent 被替换
-    expect(style2!.textContent).toContain('#f5f7fa'); // light 的 bg-0
+    expect(style2!.textContent).toContain('#f8f5ee'); // light 的 bg-0
 
-    store.setTheme('github-dark');
+    store.setTheme('strawberry-dragon');
     m.injector.applyTheme(store.activeTheme);
     const style3 = document.getElementById(STYLE_NODE_ID) as HTMLStyleElement | null;
     expect(style3).toBe(style1);
-    expect(style3!.textContent).toContain('#0d1117'); // GitHub Dark 的 bg-0
-    expect(style3!.textContent).toContain('#4493f8'); // GitHub Dark 的 accent
+    expect(style3!.textContent).toContain('#FAEEF1'); // 草莓奶龙的 bg-0
+    expect(style3!.textContent).toContain('#6F5F56'); // 草莓奶龙的 accent
+    expect(style3!.textContent).toContain('rgba(207, 157, 168, 0.22)'); // 草莓奶龙的 hover overlay
   });
 
   it('applyTheme 设置根容器 colorScheme', async () => {
@@ -172,7 +195,7 @@ describe('theme-injector', () => {
     m.injector.applyTheme(store.activeTheme);
     expect(root.style.colorScheme).toBe('light');
 
-    store.setTheme('github-dark');
+    store.setTheme('default-dark');
     m.injector.applyTheme(store.activeTheme);
     expect(root.style.colorScheme).toBe('dark');
   });

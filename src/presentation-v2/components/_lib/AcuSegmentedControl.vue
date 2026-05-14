@@ -100,8 +100,8 @@ function move(delta: number): void {
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.acu-segmented__item:hover:not(:disabled) {
-  background: var(--acu-bg-3);
+.acu-segmented__item:not(.acu-segmented__item--active):hover:not(:disabled) {
+  background: var(--acu-hover-overlay);
   color: var(--acu-text-1);
 }
 

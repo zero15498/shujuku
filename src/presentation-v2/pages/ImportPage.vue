@@ -54,24 +54,24 @@
         title="状态 / 操作区"
         description="操作顺序：先按「1. 选择并拆分 TXT 文件」载入文件，再按「2. 注入」把内容写入世界书。「清空导入暂存缓存」只丢弃拆分后但还没注入的内容；红色的「删除注入条目」会移除已经写入世界书的条目。"
       >
-      <div class="acu-v2-import-page__status" :class="statusClass">
-        {{ store.statusText }}
-      </div>
+        <AcuMessage :kind="statusKind">
+          {{ store.statusText }}
+        </AcuMessage>
 
-      <AcuMessage v-if="message" :kind="message.kind">{{ message.text }}</AcuMessage>
+        <AcuMessage v-if="message" :kind="message.kind">{{ message.text }}</AcuMessage>
 
-      <div class="acu-v2-import-page__action-row">
-        <AcuFileButton variant="primary" accept=".txt" :disabled="store.busy" @file="onFileSelected">1. 选择并拆分 TXT 文件</AcuFileButton>
-        <AcuButton :disabled="!store.canInject" :loading="store.busy" @click="inject">
-          {{ injectLabel }}
-          <template #loading-text>注入中...</template>
-        </AcuButton>
-      </div>
-      <div class="acu-v2-import-page__action-row">
-        <AcuButton :disabled="store.busy" @click="onClearStaging">清空导入暂存缓存</AcuButton>
-        <AcuButton variant="danger" :disabled="store.busy" @click="onDelete">删除注入条目</AcuButton>
-      </div>
-    </AcuPanel>
+        <div class="acu-v2-import-page__action-row">
+          <AcuFileButton variant="primary" accept=".txt" :disabled="store.busy" @file="onFileSelected">1. 选择并拆分 TXT 文件</AcuFileButton>
+          <AcuButton :disabled="!store.canInject" :loading="store.busy" @click="inject">
+            {{ injectLabel }}
+            <template #loading-text>注入中...</template>
+          </AcuButton>
+        </div>
+        <div class="acu-v2-import-page__action-row">
+          <AcuButton :disabled="store.busy" @click="onClearStaging">清空导入暂存缓存</AcuButton>
+          <AcuButton variant="danger" :disabled="store.busy" @click="onDelete">删除注入条目</AcuButton>
+        </div>
+      </AcuPanel>
     </div>
   </section>
 </template>
@@ -106,14 +106,14 @@ const wb = useWorldbookSelector();
 
 const message = computed(() => flow.message.value);
 
-const statusClass = computed(() => {
-  if (store.busy) return 'is-busy';
-  if (!store.staging.hasChunks) return 'is-idle';
-  if (store.hasTableSelection && store.selectedSheetKeys.length === 0) return 'is-warning';
+const statusKind = computed(() => {
+  if (store.busy) return 'info';
+  if (!store.staging.hasChunks) return 'info';
+  if (store.hasTableSelection && store.selectedSheetKeys.length === 0) return 'warning';
   if (store.staging.processedIndex != null
     && store.staging.processedIndex > 0
-    && store.staging.processedIndex < store.staging.chunkCount) return 'is-paused';
-  return 'is-ready';
+    && store.staging.processedIndex < store.staging.chunkCount) return 'warning';
+  return 'success';
 });
 
 const injectLabel = computed(() => {
@@ -154,16 +154,6 @@ async function onClearStaging(): Promise<void> { await flow.clearStaging(); }
   gap: 16px;
   align-items: stretch;
 }
-
-.acu-v2-import-page__status {
-  padding: 10px 12px; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2); color: var(--acu-text-2); font-size: 13px; font-weight: 500;
-}
-.acu-v2-import-page__status.is-ready { color: var(--acu-success); }
-.acu-v2-import-page__status.is-paused { color: var(--acu-warning); }
-.acu-v2-import-page__status.is-warning { color: var(--acu-warning); }
-.acu-v2-import-page__status.is-busy { color: var(--acu-text-1); }
-.acu-v2-import-page__status.is-idle { color: var(--acu-text-3); }
 
 .acu-v2-import-page__action-row { display: flex; flex-wrap: wrap; gap: 8px; }
 

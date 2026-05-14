@@ -232,9 +232,9 @@ watch(() => flow.visibleLogs.value.length, scrollLogListToTop, { flush: 'post' }
   min-height: 360px;
   max-height: 58vh;
   overflow: auto;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
   border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  background: transparent;
 }
 
 .acu-v2-log-viewer-page__empty {
@@ -252,7 +252,7 @@ watch(() => flow.visibleLogs.value.length, scrollLogListToTop, { flush: 'post' }
   gap: 8px;
   align-items: baseline;
   padding: 7px 10px;
-  border-bottom: 1px solid var(--acu-border);
+  border-bottom: 1px solid var(--acu-border-2);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -273,7 +273,7 @@ watch(() => flow.visibleLogs.value.length, scrollLogListToTop, { flush: 'post' }
 .acu-v2-log-viewer-page__tag,
 .acu-v2-log-viewer-page__message {
   min-width: 0;
-  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-family: var(--acu-font-mono);
 }
 
 .acu-v2-log-viewer-page__time {

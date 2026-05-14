@@ -91,8 +91,10 @@ onBeforeUnmount(() => {
   font: inherit; font-size: 12px; cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
-.acu-select__trigger:hover { background: var(--acu-bg-3); }
-.acu-select__trigger:focus { outline: none; box-shadow: 0 0 0 2px var(--acu-accent-glow); }
+.acu-select__trigger:hover {
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+}
+.acu-select__trigger:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--acu-accent-glow); }
 .acu-select__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .acu-select__label {
@@ -116,7 +118,7 @@ onBeforeUnmount(() => {
   color: var(--acu-text-2); transition: background 0.1s ease;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.acu-select__item:hover { background: var(--acu-bg-2); color: var(--acu-text-1); }
+.acu-select__item:hover { background: var(--acu-hover-overlay); color: var(--acu-text-1); }
 .acu-select__item--active { color: var(--acu-on-accent); background: var(--acu-accent); }
 
 .acu-select__empty { padding: 12px; text-align: center; color: var(--acu-text-3); font-size: 12px; }

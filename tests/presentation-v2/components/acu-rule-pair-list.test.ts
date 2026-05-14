@@ -70,7 +70,8 @@ function getBody(el: HTMLElement): HTMLElement | null {
 
 function isVisible(node: HTMLElement | null): boolean {
   if (!node) return false;
-  return node.style.display !== 'none';
+  return node.getAttribute('aria-hidden') !== 'true'
+    && !node.classList.contains('acu-disclosure-group__body--collapsed');
 }
 
 describe('AcuRulePairList', () => {
@@ -95,7 +96,7 @@ describe('AcuRulePairList', () => {
     // 折叠态下添加按钮也不应可见
     const addBtn = getAddButton(el);
     if (addBtn) {
-      // 按钮存在于 DOM 但其祖先 body 被 v-show 隐藏
+      // 按钮存在于 DOM，但其祖先 body 处于可动画折叠态。
       const bodyAncestor = addBtn.closest('.acu-rule-pair-list__body') as HTMLElement | null;
       expect(isVisible(bodyAncestor)).toBe(false);
     }

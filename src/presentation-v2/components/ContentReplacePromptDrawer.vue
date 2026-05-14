@@ -98,7 +98,7 @@ function requestClose(): void {
   border-radius: var(--acu-radius-sm);
   background: var(--acu-bg-2);
   color: var(--acu-text-2);
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
   font-size: 11px;
 }
 

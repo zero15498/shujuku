@@ -43,7 +43,7 @@ function onInput(ev: Event): void {
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .acu-textarea:hover:not(:disabled) {
-  background: var(--acu-bg-3) !important;
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2) !important;
 }
 .acu-textarea:focus {
   outline: none;

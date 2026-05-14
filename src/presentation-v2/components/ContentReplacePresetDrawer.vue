@@ -101,13 +101,13 @@ defineEmits<{
   gap: 10px;
   padding: 10px 12px;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
-  transition: background 0.1s ease;
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
-.acu-v2-manage-item:hover {
-  background: var(--acu-bg-3);
+.acu-v2-manage-item:last-child {
+  border-bottom: 0;
 }
 
 .acu-v2-manage-item__info {

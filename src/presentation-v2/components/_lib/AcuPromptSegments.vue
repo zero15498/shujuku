@@ -25,14 +25,32 @@
             title="主插槽 A=主提示词；B=拦截任务详细指令"
             @update:model-value="onSlot(index, $event)"
           />
-          <AcuIconButton
-            icon="fa-solid fa-trash-can"
-            variant="danger"
-            size="sm"
-            :disabled="seg.deletable === false"
-            :title="seg.deletable === false ? '该段不可删除' : '删除该段'"
-            @click="$emit('delete', index)"
-          />
+          <div class="acu-prompt-segs__actions">
+            <template v-if="allowMove">
+              <AcuIconButton
+                icon="fa-solid fa-arrow-up"
+                size="sm"
+                :disabled="index === 0"
+                :title="index === 0 ? '已经是第一段' : '上移该段'"
+                @click="$emit('move', index, -1)"
+              />
+              <AcuIconButton
+                icon="fa-solid fa-arrow-down"
+                size="sm"
+                :disabled="index === segments.length - 1"
+                :title="index === segments.length - 1 ? '已经是最后一段' : '下移该段'"
+                @click="$emit('move', index, 1)"
+              />
+            </template>
+            <AcuIconButton
+              icon="fa-solid fa-trash-can"
+              variant="danger"
+              size="sm"
+              :disabled="seg.deletable === false"
+              :title="seg.deletable === false ? '该段不可删除' : '删除该段'"
+              @click="$emit('delete', index)"
+            />
+          </div>
         </header>
         <AcuTextarea
           :model-value="seg.content"
@@ -89,12 +107,14 @@ withDefaults(defineProps<{
   roleOptions?: AcuSelectOption[];
   slotOptions?: AcuSelectOption[];
   showSlot?: boolean;
+  allowMove?: boolean;
   rows?: number;
   emptyText?: string;
 }>(), {
   roleOptions: () => DEFAULT_ROLE_OPTIONS,
   slotOptions: () => DEFAULT_SLOT_OPTIONS,
   showSlot: true,
+  allowMove: false,
   rows: 6,
   emptyText: '暂无提示词段。点击下方按钮添加第一段。',
 });
@@ -102,6 +122,7 @@ withDefaults(defineProps<{
 const emit = defineEmits<{
   (e: 'add', position: 'top' | 'bottom'): void;
   (e: 'delete', index: number): void;
+  (e: 'move', index: number, delta: -1 | 1): void;
   (e: 'update', index: number, patch: Partial<PromptSegment>): void;
 }>();
 
@@ -121,9 +142,15 @@ function onSlot(index: number, raw: string): void {
 }
 
 .acu-prompt-segs__item {
-  border: 0; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2); padding: 10px;
+  border: 0; border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent; padding: 0 0 12px;
   display: flex; flex-direction: column; gap: 8px;
+}
+
+.acu-prompt-segs__item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .acu-prompt-segs__item-head {
@@ -133,18 +160,24 @@ function onSlot(index: number, raw: string): void {
 .acu-prompt-segs__index {
   font-size: 11px; color: var(--acu-text-3);
   min-width: 26px;
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
 }
 
 .acu-prompt-segs__role { min-width: 110px; }
 .acu-prompt-segs__slot { min-width: 120px; }
 
-.acu-prompt-segs__item-head :deep(.acu-icon-btn) {
+.acu-prompt-segs__actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .acu-prompt-segs__empty {
-  padding: 12px; text-align: center;
+  padding: 10px 0; text-align: center;
   color: var(--acu-text-3); font-size: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
 }
 </style>

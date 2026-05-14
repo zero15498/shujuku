@@ -35,13 +35,13 @@ const iconClass = computed(() => {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--acu-radius-sm);
+  padding: 8px 0 8px 10px;
+  border-radius: 0;
   font-size: 13px;
   line-height: 1.55;
-  background: var(--acu-bg-2);
+  background: transparent;
   color: var(--acu-text-2);
-  border-left: 0;
+  border-left: 2px solid color-mix(in srgb, var(--acu-text-3) 28%, transparent);
   min-width: 0;
 }
 
@@ -59,21 +59,25 @@ const iconClass = computed(() => {
 }
 
 .acu-info-banner--info {
-  background: var(--acu-bg-2);
+  background: transparent;
 }
 .acu-info-banner--info .acu-info-banner__icon {
-  color: var(--acu-text-2);
+  color: var(--acu-text-3);
 }
 
 .acu-info-banner--tip {
-  background: var(--acu-bg-2);
+  background: transparent;
+  border-left-color: color-mix(in srgb, var(--acu-accent) 42%, transparent);
 }
 .acu-info-banner--tip .acu-info-banner__icon {
   color: var(--acu-text-2);
 }
 
 .acu-info-banner--warning {
-  background: color-mix(in srgb, var(--acu-warning) 8%, var(--acu-bg-2));
+  padding-right: 12px;
+  border-radius: var(--acu-radius-sm);
+  border-left-color: var(--acu-warning);
+  background: color-mix(in srgb, var(--acu-warning) 8%, transparent);
 }
 .acu-info-banner--warning .acu-info-banner__icon {
   color: var(--acu-warning);

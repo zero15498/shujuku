@@ -194,6 +194,7 @@ describe('VectorIndexPage', () => {
     expect(text).not.toContain('向量服务引用');
     expect(text).not.toContain('Embedding 服务');
     expect(text).not.toContain('Rerank 服务（可选）');
+    expect(text).toContain('Embedding / Rerank');
     expect(text).not.toContain('召回参数');
     expect(text).not.toContain('归档与分块');
     expect(text).toContain('关键词生成');
@@ -358,34 +359,35 @@ describe('VectorIndexPage', () => {
       .find(el => /配置不完整/.test(el.textContent || ''));
     expect(warning).not.toBeUndefined();
     expect(warning!.textContent).toContain('缺少 embeddingModel');
-    const apiButton = Array.from(warning!.querySelectorAll('button'))
-      .find(btn => btn.textContent?.includes('去 API 页配置')) as HTMLButtonElement | undefined;
-    expect(apiButton).not.toBeUndefined();
-
-    apiButton!.click();
-    await new Promise(r => setTimeout(r, 0));
-
-    const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-    expect(persisted?.router?.activePageId).toBe('api');
+    expect(warning!.querySelector('button')).toBeNull();
+    expect(warning!.textContent).toContain('Embedding / Rerank');
 
     mount.__resetAcuV2MountForTests();
   });
 
-  it('交火页不再渲染向量服务引用面板或 Embedding / Rerank 配置明细', async () => {
+  it('交火页渲染 Embedding / Rerank 配置并可保存向量服务', async () => {
     const { mount, config, saveSettings } = await mountVectorIndexPage();
 
-    const text = document.querySelector('.acu-v2-vector-index-page')?.textContent || '';
-    expect(text).not.toContain('向量服务引用');
-    expect(text).not.toContain('Embedding Endpoint');
-    expect(text).not.toContain('Embedding Model');
-    expect(text).not.toContain('text-embedding-3-large');
-    expect(document.querySelector('.acu-v2-vector-index-page .acu-stats code')).toBeNull();
+    const page = document.querySelector('.acu-v2-vector-index-page') as HTMLElement;
+    const text = page.textContent || '';
+    expect(text).toContain('Embedding / Rerank');
+    expect(text).toContain('Embedding');
+    expect(text).toContain('Rerank');
 
-    const inputs = Array.from(document.querySelectorAll('.acu-v2-vector-index-page input')) as HTMLInputElement[];
-    expect(inputs.some(i => i.placeholder?.includes('embeddings'))).toBe(false);
+    const embeddingEndpoint = page.querySelector('input[placeholder*="embeddings"]') as HTMLInputElement | null;
+    expect(embeddingEndpoint).not.toBeNull();
+    embeddingEndpoint!.value = ' https://new-emb.test ';
+    embeddingEndpoint!.dispatchEvent(new Event('input', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 0));
 
-    expect(config.embeddingEndpoint).toBe('https://emb');
-    expect(saveSettings).not.toHaveBeenCalled();
+    const saveButton = Array.from(page.querySelectorAll('button'))
+      .find(btn => btn.textContent?.includes('保存向量服务')) as HTMLButtonElement | undefined;
+    expect(saveButton).not.toBeUndefined();
+    saveButton!.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    expect(config.embeddingEndpoint).toBe('https://new-emb.test');
+    expect(saveSettings).toHaveBeenCalled();
 
     mount.__resetAcuV2MountForTests();
   });

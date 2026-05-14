@@ -141,4 +141,16 @@ describe('AcuCheckbox', () => {
     await nextTick();
     expect(button.getAttribute('aria-checked')).toBe('false');
   });
+
+  it('勾选图标节点常驻，避免切换状态时改变控件高度', async () => {
+    const el = mountCheckbox(false);
+    const button = el.querySelector<HTMLButtonElement>('button[role="checkbox"]')!;
+    const icon = el.querySelector('.acu-checkbox__icon');
+
+    expect(icon).not.toBeNull();
+
+    button.click();
+    await nextTick();
+    expect(el.querySelector('.acu-checkbox__icon')).toBe(icon);
+  });
 });

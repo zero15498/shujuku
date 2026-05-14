@@ -30,12 +30,18 @@ withDefaults(defineProps<{
 
 <style scoped>
 .acu-stats {
-  margin: 0; padding: 12px;
-  background: var(--acu-bg-2); border-radius: var(--acu-radius-sm);
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;
+  margin: 0;
+  padding: 2px 0 0;
+  background: transparent;
+  border-radius: 0;
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0 16px;
 }
 
-.acu-stats__item { min-width: 0; }
+.acu-stats__item {
+  min-width: 0;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+}
 
 .acu-stats dt {
   margin: 0 0 2px; font-size: 11px; color: var(--acu-text-3);
@@ -46,9 +52,9 @@ withDefaults(defineProps<{
 
 .acu-stats--mono code {
   display: inline-block; max-width: 100%;
-  font-family: Consolas, 'Courier New', monospace; font-size: 12px;
-  background: var(--acu-bg-0); color: var(--acu-text-1);
-  padding: 2px 8px; border-radius: var(--acu-radius-sm);
+  font-family: var(--acu-font-mono); font-size: 12px;
+  background: transparent; color: var(--acu-text-1);
+  padding: 0; border-radius: 0;
 }
 
 @media (max-width: 720px) {

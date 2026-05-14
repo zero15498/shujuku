@@ -4,8 +4,7 @@
 
     <AcuInfoBanner v-if="vector.hasValidationErrors.value" tone="warning">
       <div class="acu-v2-vector-index-page__warning-content">
-        <span>配置不完整，发送前的纪要召回不会启用。请补全：{{ vector.validationErrors.value.join('；') }}</span>
-        <AcuButton size="sm" @click="goToApiPage">去 API 页配置</AcuButton>
+        <span>配置不完整，发送前的纪要召回不会启用。请在下方「Embedding / Rerank」面板补全：{{ vector.validationErrors.value.join('；') }}</span>
       </div>
     </AcuInfoBanner>
 
@@ -60,6 +59,48 @@
       </AcuPanel>
 
       <div class="acu-v2-vector-index-page__side-stack">
+        <AcuPanel
+          title="Embedding / Rerank"
+          description="这是交火模式专用的向量服务配置。Embedding 会把用户输入和纪要 chunk 转成向量用于召回；Rerank 会对候选纪要重新排序，属于可选增强。这里与 API 页的文本生成预设不共用，填错时只影响交火模式。"
+        >
+          <form class="acu-v2-vector-api-form" @submit.prevent="saveVectorApiConfig">
+            <fieldset class="acu-v2-vector-api-form__section">
+              <legend>Embedding</legend>
+              <AcuFormRow label="Endpoint">
+                <AcuInput v-model="vectorApiConfig.form.embeddingEndpoint" type="text" placeholder="https://example.com/embeddings" />
+              </AcuFormRow>
+              <AcuFormRow label="Model">
+                <AcuInput v-model="vectorApiConfig.form.embeddingModel" type="text" placeholder="text-embedding-3-large" />
+              </AcuFormRow>
+              <AcuFormRow label="API Key">
+                <AcuInput v-model="vectorApiConfig.form.embeddingApiKey" type="password" autocomplete="off" />
+              </AcuFormRow>
+            </fieldset>
+
+            <fieldset class="acu-v2-vector-api-form__section">
+              <legend>Rerank</legend>
+              <AcuFormRow label="Endpoint">
+                <AcuInput v-model="vectorApiConfig.form.rerankEndpoint" type="text" placeholder="https://example.com/rerank" />
+              </AcuFormRow>
+              <AcuFormRow label="Model">
+                <AcuInput v-model="vectorApiConfig.form.rerankModel" type="text" placeholder="bge-reranker-v2-m3" />
+              </AcuFormRow>
+              <AcuFormRow label="API Key">
+                <AcuInput v-model="vectorApiConfig.form.rerankApiKey" type="password" autocomplete="off" />
+              </AcuFormRow>
+            </fieldset>
+
+            <AcuMessage v-if="vectorApiConfig.errors.value.length" kind="error">
+              <p v-for="error in vectorApiConfig.errors.value" :key="error">{{ error }}</p>
+            </AcuMessage>
+            <AcuMessage v-else-if="vectorApiConfig.savedAt.value" kind="success">已保存</AcuMessage>
+
+            <div class="acu-v2-vector-api-form__actions">
+              <AcuButton variant="primary" native-type="submit">保存向量服务</AcuButton>
+            </div>
+          </form>
+        </AcuPanel>
+
         <AcuPanel
           title="关键词生成"
           description="发送前先让一个轻量 AI 把当前用户输入和最近上下文转成「召回关键词」，再去匹配纪要 chunk。一般用比当前活动 API 更便宜的预设；失败时会回退到用户输入本身参与召回，不阻断原始发送。"
@@ -263,14 +304,14 @@ import VectorIndexPromptDrawer from '../components/VectorIndexPromptDrawer.vue';
 import { useChatChangedTick } from '../composables/useChatChangedListener';
 import { useDevOptions } from '../composables/useDevOptions';
 import { useUiCloseGuard } from '../composables/useUiCloseGuard';
+import { useVectorApiConfig } from '../composables/useVectorApiConfig';
 import { useVectorIndexConfig } from '../composables/useVectorIndexConfig';
 import { useApiPresetStore } from '../stores/api-preset-store';
-import { useRouterStore } from '../stores/router-store';
 
 const vector = useVectorIndexConfig();
+const vectorApiConfig = useVectorApiConfig();
 const devOptions = useDevOptions();
 const apiStore = useApiPresetStore();
-const routerStore = useRouterStore();
 const promptDrawerOpen = ref(false);
 
 const ROLE_OPTIONS: AcuSelectOption[] = [
@@ -315,12 +356,13 @@ function onPromptUpdate(index: number, patch: Partial<PromptSegment>): void {
 
 function refreshAll(): void {
   vector.refresh();
+  vectorApiConfig.refresh();
   void vector.refreshIndexStatus(false);
   apiStore.refreshFromSettings();
 }
 
-function goToApiPage(): void {
-  routerStore.setActivePage('api');
+function saveVectorApiConfig(): void {
+  if (vectorApiConfig.save()) vector.refresh();
 }
 
 function onDeleteCurrentIndex(): void {
@@ -375,6 +417,45 @@ useUiCloseGuard(confirmPromptClose);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 10px;
+}
+
+.acu-v2-vector-api-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.acu-v2-vector-api-form__section {
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 14px;
+  border: 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.acu-v2-vector-api-form__section:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.acu-v2-vector-api-form__section legend {
+  padding: 0;
+  color: var(--acu-text-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.acu-v2-vector-api-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
 }
 
 .acu-v2-vector-index-page__main-grid > :deep(.acu-panel:first-child .acu-stats) {

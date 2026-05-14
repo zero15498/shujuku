@@ -49,10 +49,11 @@ function emitRate(field: PlotRateField, value: number): void {
 <style scoped>
 .acu-v2-plot-match-fields {
   margin: 0;
-  padding: 12px;
+  padding: 0 0 14px;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -60,7 +61,7 @@ function emitRate(field: PlotRateField, value: number): void {
 }
 
 .acu-v2-plot-match-fields legend {
-  padding: 0 6px;
+  padding: 0;
   color: var(--acu-text-2);
   font-size: 12px;
   font-weight: 600;

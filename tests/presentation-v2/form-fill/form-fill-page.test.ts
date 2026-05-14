@@ -69,6 +69,18 @@ async function mountFormFillPage(settings = createSettings(), activePageId = 'fo
   }));
   vi.doMock('../../../src/service/settings/settings-service', () => ({
     saveSettings_ACU: saveSettings,
+    setGlobalPlotEnabled_ACU: vi.fn((enabled: boolean) => { settings.plotSettings = { ...(settings.plotSettings || {}), enabled }; }),
+    setZeroTkOccupyMode_ACU: vi.fn((enabled: boolean) => { settings.zeroTkOccupyModeDefault = enabled; }),
+    setSummaryVectorIndexMode_ACU: vi.fn((enabled: boolean) => { settings.summaryVectorIndexModeDefault = enabled; }),
+  }));
+  vi.doMock('../../../src/service/chat/chat-service', () => ({
+    getChatArray_ACU: () => [
+      { is_user: true, mes: 'u1' },
+      { is_user: false, mes: 'a1' },
+      { is_user: true, mes: 'u2' },
+      { is_user: false, mes: 'a2' },
+      { is_user: false, mes: 'a3' },
+    ],
   }));
   vi.doMock('../../../src/service/settings/settings-readers', () => ({
     getCurrentWorldbookConfig_ACU: () => worldbookConfig,
@@ -80,8 +92,23 @@ async function mountFormFillPage(settings = createSettings(), activePageId = 'fo
   vi.doMock('../../../src/service/template/chat-scope', () => ({
     getSortedSheetKeys_ACU: (data: any) => Object.keys(data).filter(k => k.startsWith('sheet_')),
   }));
+  vi.doMock('../../../src/service/template/template-preset-service', () => ({
+    getActiveTemplatePresetMeta_ACU: () => ({ displayName: '默认预设', scopeLabel: '全局' }),
+  }));
+  vi.doMock('../../../src/service/table/table-history', () => ({
+    resolveTableHistoryStateFromChat_ACU: (_chat: any[], options: any) => ({
+      latestAiMessageIndex: 4,
+      latestDataMessageIndex: 3,
+      lastTrackedUpdateMessageIndex: options.sheetKey === 'sheet_a' ? 1 : -1,
+      latestDataAiFloor: 2,
+      lastTrackedUpdateAiFloor: options.sheetKey === 'sheet_a' ? 1 : 0,
+      hasAnyData: true,
+      hasTrackedUpdate: options.sheetKey === 'sheet_a',
+    }),
+  }));
   vi.doMock('../../../src/service/table/table-storage-strategy', () => ({
     reloadStorageProvider: vi.fn(async () => {}),
+    switchStorageMode: vi.fn(async (mode: string) => { settings.storageMode = mode; }),
   }));
   vi.doMock('../../../src/service/table/update-orchestrator', () => ({
     orchestrateManualUpdate_ACU: orchestrate,
@@ -128,6 +155,10 @@ describe('FormFillPage', () => {
     expect(page).not.toBeNull();
     const text = page!.textContent || '';
     expect(text).toContain('更新参数');
+    expect(text).toContain('数据库状态');
+    expect(text).toContain('角色状态');
+    expect(text).toContain('事件记录');
+    expect(text).toContain('就绪:角色状态');
     expect(text).toContain('更新节奏');
     expect(text).toContain('标签筛选');
     expect(text).not.toContain('内容过滤');
@@ -152,7 +183,7 @@ describe('FormFillPage', () => {
     expect(page!.querySelector('.acu-prompt-segs')).toBeNull();
     const panelTitles = Array.from(page!.querySelectorAll('.acu-v2-form-fill-page__grid > .acu-panel .acu-panel__title'))
       .map(title => (title.textContent || '').trim());
-    expect(panelTitles).toEqual(['更新节奏', '标签筛选', '质量门槛', '填表提示词']);
+    expect(panelTitles).toEqual(['数据库状态', '更新节奏', '标签筛选', '质量门槛', '填表提示词']);
 
     mount.__resetAcuV2MountForTests();
   });

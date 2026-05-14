@@ -79,13 +79,11 @@
           目前已选: <strong>{{ currentWorldbookLabel }}</strong>
         </p>
 
-        <div class="acu-v2-plot-page__entry-toolbar">
-          <AcuButton size="sm" @click="wbEntries.selectAll()">全选</AcuButton>
-          <AcuButton size="sm" @click="wbEntries.deselectAll()">全不选</AcuButton>
-          <AcuFormRow class="acu-v2-plot-page__entry-filter-row">
-            <AcuInput v-model="entryFilter" type="text" placeholder="搜索条目..." />
-          </AcuFormRow>
-        </div>
+        <WorldbookEntryToolbar
+          v-model:filter="entryFilter"
+          @select-all="wbEntries.selectAll()"
+          @deselect-all="wbEntries.deselectAll()"
+        />
         <WorldbookEntryList
           :groups="wbEntries.groups.value"
           :filter="entryFilter"
@@ -134,7 +132,6 @@ import AcuPanel from '../components/_lib/AcuPanel.vue';
 import AcuButton from '../components/_lib/AcuButton.vue';
 import AcuFileButton from '../components/_lib/AcuFileButton.vue';
 import AcuFormRow from '../components/_lib/AcuFormRow.vue';
-import AcuInput from '../components/_lib/AcuInput.vue';
 import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
 import AcuSelect from '../components/_lib/AcuSelect.vue';
 import type { AcuSelectOption } from '../components/_lib/AcuSelect.vue';
@@ -142,6 +139,7 @@ import AcuPresetDropdown from '../components/_lib/AcuPresetDropdown.vue';
 import type { PresetDropdownItem } from '../components/_lib/AcuPresetDropdown.vue';
 import WorldbookSelector from '../components/WorldbookSelector.vue';
 import WorldbookEntryList from '../components/WorldbookEntryList.vue';
+import WorldbookEntryToolbar from '../components/WorldbookEntryToolbar.vue';
 import PlotPresetDrawer from '../components/PlotPresetDrawer.vue';
 import { usePlotPresetStore } from '../stores/plot-preset-store';
 import { usePlotPresetManagement } from '../composables/usePlotPresetManagement';
@@ -314,12 +312,6 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
 
 .acu-v2-plot-page__hint { margin: 0; font-size: 11px; color: var(--acu-text-3); }
 .acu-v2-plot-page__hint strong { color: var(--acu-text-1); font-weight: 500; }
-
-.acu-v2-plot-page__entry-toolbar {
-  display: flex; align-items: center; gap: 6px;
-  margin-top: 10px; padding-top: 10px;
-}
-.acu-v2-plot-page__entry-filter-row { flex: 1; min-width: 0; }
 
 @media (max-width: 860px) {
   .acu-v2-plot-page { padding: 14px; }

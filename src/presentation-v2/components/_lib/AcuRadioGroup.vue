@@ -140,7 +140,7 @@ function move(delta: number, focusedValue: string): void {
 }
 
 .acu-radio-group__item:hover:not(:disabled) .acu-radio-group__dot {
-  background: var(--acu-bg-3);
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
 }
 
 .acu-radio-group__item:focus-visible {

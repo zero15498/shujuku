@@ -40,7 +40,10 @@
               >
                 <span
                   class="acu-v2-app__theme-swatch"
-                  :style="{ background: t.tokens.accent }"
+                  :style="{
+                    '--acu-theme-swatch-bg': t.tokens.bg0,
+                    '--acu-theme-swatch-accent': t.tokens.accent,
+                  }"
                 ></span>
                 {{ t.name }}
               </li>
@@ -76,18 +79,6 @@
           aria-label="一级页导航"
           @click.stop
         >
-          <header class="acu-v2-app__mobile-nav-header">
-            <span>导航</span>
-            <button
-              type="button"
-              class="acu-v2-app__mobile-nav-close"
-              title="关闭导航"
-              aria-label="关闭导航"
-              @click="closeMobileNav"
-            >
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </header>
           <Sidebar variant="drawer" @navigate="closeMobileNav" />
         </aside>
       </div>
@@ -177,13 +168,24 @@ async function closeApp(): Promise<void> {
   overflow: hidden;
   background: var(--acu-bg-0);
   color: var(--acu-text-1);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--acu-font-ui);
   font-size: 12px;
 }
 
 .acu-v2-app,
 .acu-v2-app * {
   box-sizing: border-box;
+}
+
+.acu-v2-app :deep(button) {
+  appearance: none;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.acu-v2-app :deep(button:focus:not(:focus-visible)) {
+  outline: none;
+  box-shadow: none;
 }
 
 .acu-v2-app__header {
@@ -211,6 +213,14 @@ async function closeApp(): Promise<void> {
   display: none;
   flex: 0 0 auto;
   font-size: 14px;
+  background: transparent;
+  color: var(--acu-text-2);
+  box-shadow: none;
+}
+
+.acu-v2-app__menu:hover:not(:disabled) {
+  background: transparent;
+  color: var(--acu-text-1);
 }
 
 .acu-v2-app__close {
@@ -226,7 +236,7 @@ async function closeApp(): Promise<void> {
 }
 
 .acu-v2-app__close:hover {
-  background: var(--acu-bg-2);
+  background: var(--acu-hover-overlay);
   color: var(--acu-text-1);
 }
 
@@ -268,39 +278,10 @@ async function closeApp(): Promise<void> {
   flex: 0 0 min(300px, calc(100dvw - 48px));
   display: flex;
   flex-direction: column;
-  background: var(--acu-bg-1);
+  background: var(--acu-sidebar-bg);
   border-right: 0;
   box-shadow: var(--acu-shadow);
   overflow: hidden;
-}
-
-.acu-v2-app__mobile-nav-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
-  padding: 8px 12px 8px 16px;
-  border-bottom: 0;
-  color: var(--acu-text-1);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.acu-v2-app__mobile-nav-close {
-  width: 32px;
-  height: 32px;
-  border: 0;
-  background: transparent;
-  color: var(--acu-text-2);
-  border-radius: var(--acu-radius-sm);
-  cursor: pointer;
-}
-
-.acu-v2-app__mobile-nav-close:hover {
-  background: var(--acu-bg-2);
-  color: var(--acu-text-1);
 }
 
 /* ── Theme switcher ── */
@@ -326,7 +307,7 @@ async function closeApp(): Promise<void> {
 }
 
 .acu-v2-app__theme-btn:hover {
-  background: var(--acu-bg-2);
+  background: var(--acu-hover-overlay);
   color: var(--acu-text-1);
 }
 
@@ -358,7 +339,7 @@ async function closeApp(): Promise<void> {
 }
 
 .acu-v2-app__theme-option:hover {
-  background: var(--acu-bg-2);
+  background: var(--acu-hover-overlay);
   color: var(--acu-text-1);
 }
 
@@ -369,11 +350,21 @@ async function closeApp(): Promise<void> {
 }
 
 .acu-v2-app__theme-swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--acu-radius-sm);
-  flex: 0 0 14px;
-  border: 0;
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  flex: 0 0 18px;
+  background: linear-gradient(
+    135deg,
+    var(--acu-theme-swatch-bg) 0 56%,
+    var(--acu-theme-swatch-accent) 56% 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-border-2) 72%, transparent);
+}
+
+.acu-v2-app__theme-option.is-active .acu-v2-app__theme-swatch {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-on-accent) 62%, transparent);
 }
 
 /* ── Theme menu transitions ── */

@@ -103,13 +103,11 @@
             目前已选: <strong>{{ entriesSourceLabel }}</strong>
           </p>
 
-          <div class="acu-v2-table-page__entry-toolbar">
-            <AcuButton size="sm" @click="entries.selectAll()">全选</AcuButton>
-            <AcuButton size="sm" @click="entries.deselectAll()">全不选</AcuButton>
-            <AcuFormRow class="acu-v2-table-page__entry-filter-row">
-              <AcuInput v-model="entryFilter" type="text" placeholder="搜索条目..." />
-            </AcuFormRow>
-          </div>
+          <WorldbookEntryToolbar
+            v-model:filter="entryFilter"
+            @select-all="entries.selectAll()"
+            @deselect-all="entries.deselectAll()"
+          />
           <WorldbookEntryList
             :groups="entries.groups.value"
             :filter="entryFilter"
@@ -143,8 +141,6 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import AcuButton from '../components/_lib/AcuButton.vue';
 import AcuFileButton from '../components/_lib/AcuFileButton.vue';
-import AcuFormRow from '../components/_lib/AcuFormRow.vue';
-import AcuInput from '../components/_lib/AcuInput.vue';
 import AcuMessage from '../components/_lib/AcuMessage.vue';
 import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
 import AcuPanel from '../components/_lib/AcuPanel.vue';
@@ -152,6 +148,7 @@ import AcuPresetDropdown from '../components/_lib/AcuPresetDropdown.vue';
 import TablePresetDrawer from '../components/TablePresetDrawer.vue';
 import WorldbookSelector from '../components/WorldbookSelector.vue';
 import WorldbookEntryList from '../components/WorldbookEntryList.vue';
+import WorldbookEntryToolbar from '../components/WorldbookEntryToolbar.vue';
 import { useChatChangedTick } from '../composables/useChatChangedListener';
 import { useTableTemplatePresets } from '../composables/useTableTemplatePresets';
 import { useTablePresetManagement } from '../composables/useTablePresetManagement';
@@ -295,20 +292,6 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
 .acu-v2-table-page__hint strong {
   color: var(--acu-text-1);
   font-weight: 500;
-}
-
-.acu-v2-table-page__entry-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding-top: 10px;
-  flex-wrap: wrap;
-}
-
-.acu-v2-table-page__entry-filter-row {
-  flex: 1;
-  min-width: 160px;
 }
 
 @media (max-width: 860px) {

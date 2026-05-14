@@ -46,6 +46,7 @@
 浏览器原生 input/select 的 focus outline 在深色主题下几乎不可见。
 
 - 每个 input/select/textarea 必须自定义 `:focus` 样式：`border-color` 变为 accent + `box-shadow` 做 focus ring
+- 自绘 button 型控件（如下拉触发器、分段选择、checkbox/radio/toggle）使用 `:focus-visible` 展示 focus ring；触屏或鼠标点击后的普通 `:focus` 不应残留视觉外框
 - focus 样式必须有 `transition`，突然出现的 ring 显得廉价
 - checkbox/radio 如果在可见区域使用，需要自定义样式（toggle switch / 自定义 radio dot），原生控件在深色主题和不同系统下表现差异太大
 
@@ -78,6 +79,7 @@
 ## 7. 色彩对比度和层次
 
 - 同一页面内不要出现超过 3 个层级的背景色（`bg-0` / `bg-1` / `bg-2` 够用了），否则会变得混乱
+- hover/pressed 不使用“背景层级 +1”表达；普通 hover 使用 `--acu-hover-overlay`、文字色变化、轻量阴影或明确的 active/accent 状态
 - 文字颜色严格分层使用：
   - `text-1`：标题和关键信息
   - `text-2`：正文和表单标签

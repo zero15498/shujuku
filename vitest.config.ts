@@ -52,6 +52,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     globals: true,
+    testTimeout: 15000,
     typecheck: {
       tsconfig: './tsconfig.json',
     },

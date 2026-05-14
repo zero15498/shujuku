@@ -186,10 +186,11 @@ function presetMeta(preset: AcuV2ApiPreset): string {
 .acu-v2-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .acu-v2-manage-item {
   display: flex; align-items: center; gap: 10px; padding: 10px 12px;
-  border: 0; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2); transition: background 0.1s ease;
+  border: 0; border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
-.acu-v2-manage-item:hover { background: var(--acu-bg-3); }
+.acu-v2-manage-item:last-child { border-bottom: 0; }
 .acu-v2-manage-item__info { flex: 1; min-width: 0; }
 .acu-v2-manage-item__name { display: block; font-weight: 500; font-size: 13px; color: var(--acu-text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .acu-v2-manage-item__meta { display: block; font-size: 11px; color: var(--acu-text-3); margin-top: 2px; }
@@ -197,8 +198,9 @@ function presetMeta(preset: AcuV2ApiPreset): string {
 
 /* form */
 .acu-v2-form { display: flex; flex-direction: column; gap: 14px; }
-.acu-v2-form__section { min-width: 0; margin: 0; padding: 12px; border: 0; border-radius: var(--acu-radius-sm); background: var(--acu-bg-2); display: flex; flex-direction: column; gap: 10px; }
-.acu-v2-form__section legend { padding: 0 4px; color: var(--acu-text-2); font-size: 12px; font-weight: 600; }
+.acu-v2-form__section { min-width: 0; margin: 0; padding: 0 0 14px; border: 0; border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent); border-radius: 0; background: transparent; display: flex; flex-direction: column; gap: 10px; }
+.acu-v2-form__section:last-of-type { padding-bottom: 0; border-bottom: 0; }
+.acu-v2-form__section legend { padding: 0; color: var(--acu-text-2); font-size: 12px; font-weight: 600; }
 .acu-v2-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .acu-v2-inline-action { display: flex; align-items: center; gap: 10px; }
 .acu-v2-text-muted { color: var(--acu-text-3); font-size: 12px; }

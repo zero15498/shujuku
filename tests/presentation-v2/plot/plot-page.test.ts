@@ -175,6 +175,27 @@ describe('PlotPage', () => {
     mount.__resetAcuV2MountForTests();
   });
 
+  it('编辑预设抽屉的任务提示词段提供图标式上移和下移按钮', async () => {
+    const { mount } = await mountPlotPage();
+
+    const editButton = Array.from(document.querySelectorAll('button'))
+      .find(b => b.getAttribute('title') === '编辑当前预设') as HTMLButtonElement | undefined;
+    expect(editButton).not.toBeUndefined();
+    editButton!.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const promptSegments = document.querySelector('.acu-v2-drawer .acu-prompt-segs') as HTMLElement | null;
+    expect(promptSegments).not.toBeNull();
+    const moveUpButton = promptSegments!.querySelector('button[title="上移该段"]') as HTMLButtonElement | null;
+    const moveDownButton = promptSegments!.querySelector('button[title="下移该段"]') as HTMLButtonElement | null;
+    expect(moveUpButton).not.toBeNull();
+    expect(moveDownButton).not.toBeNull();
+    expect(moveUpButton!.textContent?.trim()).toBe('');
+    expect(moveDownButton!.textContent?.trim()).toBe('');
+
+    mount.__resetAcuV2MountForTests();
+  });
+
   it('编辑预设抽屉包含标签筛选，并将规则保存进预设', async () => {
     const { mount, settings } = await mountPlotPage();
 
@@ -456,7 +477,7 @@ describe('PlotPage', () => {
     const { mount } = await mountPlotPage();
     await new Promise(r => setTimeout(r, 50));
 
-    const toolbar = document.querySelector('.acu-v2-plot-page__entry-toolbar');
+    const toolbar = document.querySelector('.acu-v2-wb-entry-toolbar');
     expect(toolbar).not.toBeNull();
     const buttons = Array.from(toolbar!.querySelectorAll('button')).map(b => b.textContent?.trim());
     expect(buttons).toContain('全选');
@@ -469,7 +490,7 @@ describe('PlotPage', () => {
     const { mount } = await mountPlotPage();
     await new Promise(r => setTimeout(r, 50));
 
-    const filterInput = document.querySelector('.acu-v2-plot-page__entry-filter-row .acu-input') as HTMLInputElement | null;
+    const filterInput = document.querySelector('.acu-v2-wb-entry-toolbar__filter .acu-input') as HTMLInputElement | null;
     expect(filterInput).not.toBeNull();
     expect(filterInput!.placeholder).toContain('搜索');
 

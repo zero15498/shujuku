@@ -51,7 +51,7 @@ function onClick(): void {
 .acu-toggle__track {
   position: relative; flex-shrink: 0;
   width: 36px; height: 20px;
-  background: var(--acu-bg-3);
+  background: var(--acu-bg-2);
   border: 0;
   border-radius: 10px;
   transition: background 0.2s ease, box-shadow 0.2s ease;
@@ -63,7 +63,7 @@ function onClick(): void {
 
 .acu-toggle__thumb {
   position: absolute; top: 2px; left: 2px;
-  width: 14px; height: 14px;
+  width: 16px; height: 16px;
   background: #fff;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);

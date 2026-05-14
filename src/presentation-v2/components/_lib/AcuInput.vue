@@ -114,7 +114,9 @@ function onWheel(ev: WheelEvent): void {
 .acu-input-shell--number .acu-input--md { padding-right: 30px !important; }
 .acu-input-shell--number .acu-input--sm { padding-right: 25px !important; }
 
-.acu-input:hover:not(:disabled) { background: var(--acu-bg-3) !important; }
+.acu-input:hover:not(:disabled) {
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2) !important;
+}
 
 .acu-input:focus {
   outline: none;

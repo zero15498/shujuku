@@ -35,7 +35,7 @@ export function applyConnectionMode(draft: ApiPresetDraft, mode: ConnectionMode)
   }
 }
 
-function createEmptyDraft(): ApiPresetDraft {
+export function createEmptyApiPresetDraft(): ApiPresetDraft {
   return {
     name: '',
     apiMode: 'custom',
@@ -49,7 +49,7 @@ function createEmptyDraft(): ApiPresetDraft {
   };
 }
 
-function draftFromPreset(preset: AcuV2ApiPreset): ApiPresetDraft {
+export function apiPresetDraftFromPreset(preset: AcuV2ApiPreset): ApiPresetDraft {
   return {
     name: preset.name,
     apiMode: preset.apiMode,
@@ -63,7 +63,7 @@ function draftFromPreset(preset: AcuV2ApiPreset): ApiPresetDraft {
   };
 }
 
-function presetFromDraft(draft: ApiPresetDraft): AcuV2ApiPreset {
+export function apiPresetFromDraft(draft: ApiPresetDraft): AcuV2ApiPreset {
   return {
     name: draft.name.trim(),
     apiMode: draft.apiMode,
@@ -85,7 +85,7 @@ export function useApiPresetManagement() {
   const store = useApiPresetStore();
   const drawerView = ref<DrawerView>('closed');
   const originalName = ref('');
-  const draft = reactive<ApiPresetDraft>(createEmptyDraft());
+  const draft = reactive<ApiPresetDraft>(createEmptyApiPresetDraft());
   const error = ref('');
   const initialSnapshot = ref('');
 
@@ -104,7 +104,7 @@ export function useApiPresetManagement() {
   });
 
   function replaceDraft(next: ApiPresetDraft): void {
-    Object.assign(draft, createEmptyDraft(), next);
+    Object.assign(draft, createEmptyApiPresetDraft(), next);
   }
 
   function takeSnapshot(): void {
@@ -119,7 +119,7 @@ export function useApiPresetManagement() {
   }
 
   function openCreate(): void {
-    replaceDraft(createEmptyDraft());
+    replaceDraft(createEmptyApiPresetDraft());
     originalName.value = '';
     error.value = '';
     drawerView.value = 'create';
@@ -127,7 +127,7 @@ export function useApiPresetManagement() {
   }
 
   function openEdit(preset: AcuV2ApiPreset): void {
-    replaceDraft(draftFromPreset(preset));
+    replaceDraft(apiPresetDraftFromPreset(preset));
     originalName.value = preset.name;
     error.value = '';
     drawerView.value = 'edit';
@@ -158,7 +158,7 @@ export function useApiPresetManagement() {
   }
 
   function discardDraft(): void {
-    replaceDraft(createEmptyDraft());
+    replaceDraft(createEmptyApiPresetDraft());
     originalName.value = '';
     error.value = '';
     drawerView.value = 'manage';
@@ -191,7 +191,7 @@ export function useApiPresetManagement() {
 
   function saveDraft(): boolean {
     if (!validateDraft()) return false;
-    const ok = store.savePreset(presetFromDraft(draft), originalName.value);
+    const ok = store.savePreset(apiPresetFromDraft(draft), originalName.value);
     if (!ok) {
       error.value = '预设保存失败。';
       return false;

@@ -129,22 +129,24 @@ describe('DashboardPage', () => {
     expect(source).not.toContain('grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);');
   });
 
-  it('默认渲染数据库状态、状态条、基础开关；header 不再有 subtitle / 刷新按钮 / API 三件套', async () => {
+  it('默认渲染基础配置、基础开关；header 不再有 subtitle / 刷新按钮 / API 三件套', async () => {
     const { mount } = await mountDashboardPage();
 
     const page = document.querySelector('.acu-v2-dashboard-page');
     expect(page).not.toBeNull();
     const text = page!.textContent || '';
 
-    // 数据库状态面板与表格行
-    expect(text).toContain('数据库状态');
-    expect(text).toContain('角色状态');
-    expect(text).toContain('事件记录');
-
-    // 顶部状态条三项
+    // 基础配置监测项
+    expect(text).toContain('基础配置');
     expect(text).toContain('API');
     expect(text).toContain('表格模板');
     expect(text).toContain('剧情推进');
+    expect(text).toContain('存储模式');
+    expect(text).toContain('当前使用 table-fast');
+    expect(text).toContain('默认预设（全局）');
+    expect(text).toContain('当前使用 原生 JSON');
+    expect(page!.querySelector('.acu-v2-dashboard-page__status-table')).toBeNull();
+    expect(text).not.toContain('事件记录');
 
     // 基础设置默认呈现
     expect(text).toContain('基础设置');
@@ -154,12 +156,13 @@ describe('DashboardPage', () => {
     expect(text).toContain('静默提示框');
 
     // 默认在基础设置视图下，功能 / 高级字段不可见
-    expect(text).not.toContain('启用剧情推进');
+    expect(document.querySelector('button[data-acu-toggle-key="plotEnabled"]')).toBeNull();
     expect(text).not.toContain('启用条件模板功能');
     expect(text).not.toContain('启用向量混合增强交火方案');
     expect(text).not.toContain('启用开发者选项');
-    // 存储模式在高级设置下，默认不可见
-    expect(text).not.toMatch(/原生 JSON|SQLite/);
+    // 存储模式的 radio 默认收起，只保留监测摘要
+    expect(text).not.toContain('决定表格数据如何持久化');
+    expect(text).not.toContain('SQLite');
 
     // 旧设计已删除：subtitle / 刷新按钮 / API 三件套面板 / 规范填表 toggle
     expect(text).not.toContain('数据库运行态');
@@ -186,7 +189,7 @@ describe('DashboardPage', () => {
     mount.__resetAcuV2MountForTests();
   });
 
-  it('切换到高级设置后能看到高级开关、开发者总开关与存储模式 radio', async () => {
+  it('切换到高级设置后能看到高级开关与开发者总开关', async () => {
     const { mount } = await mountDashboardPage();
 
     // 找到 segmented control 的"高级设置"按钮
@@ -201,7 +204,26 @@ describe('DashboardPage', () => {
     expect(text).toContain('0TK 占用模式');
     expect(text).not.toContain('启用向量混合增强交火方案');
     expect(text).toContain('启用开发者选项');
-    expect(text).toContain('存储模式');
+    expect(text).not.toContain('决定表格数据如何持久化');
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('基础配置面板里的存储模式默认折叠，点击调整后显示 radio', async () => {
+    const { mount } = await mountDashboardPage();
+
+    const page = document.querySelector('.acu-v2-dashboard-page') as HTMLElement;
+    expect(page.textContent || '').toContain('当前使用 原生 JSON');
+    expect(page.textContent || '').not.toContain('SQLite');
+
+    const storageButton = Array.from(page.querySelectorAll('button'))
+      .find(btn => (btn.textContent || '').trim() === '调整') as HTMLButtonElement;
+    expect(storageButton).toBeDefined();
+    storageButton.click();
+    await Promise.resolve();
+
+    const text = page.textContent || '';
+    expect(text).toContain('决定表格数据如何持久化');
     expect(text).toContain('原生 JSON');
     expect(text).toContain('SQLite');
 

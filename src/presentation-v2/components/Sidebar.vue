@@ -58,7 +58,7 @@ function setActivePage(pageId: string): void {
 .acu-v2-sidebar {
   min-width: 0;
   min-height: 0;
-  background: var(--acu-bg-0);
+  background: var(--acu-sidebar-bg);
   padding: 24px 12px 16px;
   overflow-y: auto;
 }
@@ -66,7 +66,7 @@ function setActivePage(pageId: string): void {
 .acu-v2-sidebar--desktop {
   width: 220px;
   flex: 0 0 220px;
-  border-right: 1px solid var(--acu-border);
+  border-right: 1px solid var(--acu-border-2);
 }
 
 .acu-v2-sidebar--drawer {
@@ -79,7 +79,6 @@ function setActivePage(pageId: string): void {
   align-items: center;
   gap: 10px;
   padding: 4px 4px 20px;
-  border-bottom: 1px solid var(--acu-border);
   margin-bottom: 14px;
 }
 
@@ -148,8 +147,8 @@ function setActivePage(pageId: string): void {
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.acu-v2-sidebar__item:hover {
-  background: var(--acu-bg-2);
+.acu-v2-sidebar__item:not(.acu-v2-sidebar__item--active):hover {
+  background: var(--acu-hover-overlay);
   color: var(--acu-text-1);
 }
 
@@ -157,6 +156,5 @@ function setActivePage(pageId: string): void {
   background: var(--acu-accent);
   color: var(--acu-on-accent);
   font-weight: 600;
-  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--acu-on-accent) 72%, transparent);
 }
 </style>

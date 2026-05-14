@@ -70,7 +70,7 @@ describe('usePlotTaskEditing', () => {
     expect(e.tasks.value.map(t => t.id)).toEqual(['a', 'b', 'c']);
   });
 
-  it('addSegment + updateSegment + deleteSegment 操作 promptGroup', async () => {
+  it('addSegment + updateSegment + moveSegment + deleteSegment 操作 promptGroup', async () => {
     const { usePlotTaskEditing } = await setup();
     const e = usePlotTaskEditing();
     e.loadFromRaw([{ id: 'x', name: 'X', stage: 1, order: 0 }], '');
@@ -89,6 +89,17 @@ describe('usePlotTaskEditing', () => {
     e.updateSegment(1, { mainSlot: 'A' });
     expect(e.currentTask.value!.promptGroup[1].mainSlot).toBe('A');
     expect(e.currentTask.value!.promptGroup[0].mainSlot).toBe('');
+
+    e.updateSegment(0, { content: 'first' });
+    e.updateSegment(1, { content: 'second' });
+    e.moveSegment(1, -1);
+    expect(e.currentTask.value!.promptGroup[0].content).toBe('second');
+    expect(e.currentTask.value!.promptGroup[1].content).toBe('first');
+    e.moveSegment(0, -1);
+    expect(e.currentTask.value!.promptGroup[0].content).toBe('second');
+    e.moveSegment(0, 1);
+    expect(e.currentTask.value!.promptGroup[0].content).toBe('first');
+    expect(e.currentTask.value!.promptGroup[1].content).toBe('second');
 
     e.deleteSegment(0);
     expect(e.currentTask.value!.promptGroup.length).toBe(startLen);

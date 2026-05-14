@@ -4,6 +4,49 @@
 
     <div class="acu-v2-form-fill-page__grid">
       <AcuPanel
+        title="数据库状态"
+        description="读取当前聊天已加载的表格数据，并按 AI 回复楼层计算每张表的上次更新、未记录楼层与下一次自动触发点。调整更新节奏时先看这里：如果某张表长期不到触发点，通常需要检查频率、跳过楼层或表级配置。"
+      >
+        <AcuStatsList :items="dashboard.stats.value" />
+        <AcuMessage kind="info">
+          {{ dashboard.hasTables.value ? dashboard.nextUpdateText.value : '当前尚未加载数据库表格。' }}
+        </AcuMessage>
+
+        <div class="acu-v2-form-fill-page__table-wrap">
+          <table class="acu-v2-form-fill-page__status-table">
+            <thead>
+              <tr>
+                <th>表格</th>
+                <th>频率</th>
+                <th>未记录</th>
+                <th>上次更新</th>
+                <th>下次触发</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="!dashboard.tableRows.value.length">
+                <td colspan="5" class="acu-v2-form-fill-page__empty">暂无数据</td>
+              </tr>
+              <tr
+                v-for="row in dashboard.tableRows.value"
+                :key="row.key"
+                :class="{ 'acu-v2-form-fill-page__status-row--ready': row.ready }"
+              >
+                <td>{{ row.name }}</td>
+                <td>{{ row.frequencyLabel }}</td>
+                <td>{{ row.unrecordedLabel }}</td>
+                <td>{{ row.lastUpdatedLabel }}</td>
+                <td>
+                  <AcuBadge v-if="row.ready" variant="success">就绪</AcuBadge>
+                  <span v-else>{{ row.nextTriggerLabel }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </AcuPanel>
+
+      <AcuPanel
         title="更新节奏"
         description="这些数值会影响自动填表、手动填表和分批处理。每个字段在失焦或确认修改后立即保存；如果改错了，可以按原数值填回再触发保存。"
       >
@@ -124,9 +167,11 @@ import AcuMessage from '../components/_lib/AcuMessage.vue';
 import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
 import AcuPanel from '../components/_lib/AcuPanel.vue';
 import AcuRulePairList from '../components/_lib/AcuRulePairList.vue';
+import AcuStatsList from '../components/_lib/AcuStatsList.vue';
 import AcuToggle from '../components/_lib/AcuToggle.vue';
 import FormFillPromptDrawer from '../components/FormFillPromptDrawer.vue';
 import { useChatChangedTick } from '../composables/useChatChangedListener';
+import { useDashboardPage } from '../composables/useDashboardPage';
 import { useUiCloseGuard } from '../composables/useUiCloseGuard';
 import {
   useFormFillSettings,
@@ -135,6 +180,7 @@ import {
 } from '../composables/useFormFillSettings';
 
 const settings = useFormFillSettings();
+const dashboard = useDashboardPage();
 const promptDrawerOpen = ref(false);
 
 const cadenceKeys = new Set<NumberSettingKey>([
@@ -176,12 +222,13 @@ function updatePromptSegment(index: number, patch: Partial<FormFillPromptSegment
   settings.updatePromptSegment(index, patch);
 }
 
-function refreshAll(): void {
+async function refreshAll(): Promise<void> {
   settings.refresh();
+  await dashboard.refresh();
 }
 
-onMounted(() => { refreshAll(); });
-watch(useChatChangedTick(), () => { refreshAll(); });
+onMounted(() => { void refreshAll(); });
+watch(useChatChangedTick(), () => { void refreshAll(); });
 useUiCloseGuard(confirmPromptClose);
 </script>
 
@@ -212,6 +259,51 @@ useUiCloseGuard(confirmPromptClose);
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.acu-v2-form-fill-page__table-wrap {
+  min-width: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: var(--acu-radius-sm);
+  background: var(--acu-bg-0);
+}
+
+.acu-v2-form-fill-page__status-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+  font-size: 12px;
+}
+
+.acu-v2-form-fill-page__status-table th,
+.acu-v2-form-fill-page__status-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--acu-border-2);
+  text-align: left;
+}
+
+.acu-v2-form-fill-page__status-table th {
+  color: var(--acu-text-3);
+  font-weight: 600;
+  background: var(--acu-bg-1);
+}
+
+.acu-v2-form-fill-page__status-table td {
+  color: var(--acu-text-2);
+}
+
+.acu-v2-form-fill-page__status-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.acu-v2-form-fill-page__status-row--ready td {
+  color: var(--acu-text-1);
+}
+
+.acu-v2-form-fill-page__empty {
+  text-align: center !important;
+  color: var(--acu-text-3) !important;
 }
 
 .acu-v2-form-fill-page__actions {

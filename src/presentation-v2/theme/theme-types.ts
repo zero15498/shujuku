@@ -9,22 +9,20 @@
 export type AcuV2ThemeId =
   | 'default-light'
   | 'default-dark'
-  | 'github-dark'
-  | 'classical-ink'
-  | 'classical-silk'
   | 'strawberry-dragon';
 
 export type AcuV2ColorScheme = 'light' | 'dark';
 
 /**
- * 主题 token 表（仅 D14 锁定的"主集合"）。
- * 按属性分组：背景 / 边框 / 文本 / 强调 / 状态 / 圆角 / 阴影。
+ * 主题 token 表（v2 稳定主题契约）。
+ * 按属性分组：背景 / 交互 / 边框 / 文本 / 强调 / 状态 / 字体 / 圆角 / 阴影。
  */
 export interface AcuV2ThemeTokens {
   bg0: string;
   bg1: string;
   bg2: string;
-  bg3: string;
+  sidebarBg: string;
+  hoverOverlay: string;
   border: string;
   border2: string;
   text1: string;
@@ -34,10 +32,11 @@ export interface AcuV2ThemeTokens {
   accent2: string;
   onAccent: string;
   accentGlow: string;
-  accentGlow2: string;
   success: string;
   warning: string;
   danger: string;
+  fontUi: string;
+  fontMono: string;
   radiusLg: string;
   radiusMd: string;
   radiusSm: string;
@@ -56,7 +55,8 @@ export const TOKEN_VAR_MAP: Record<keyof AcuV2ThemeTokens, string> = {
   bg0: '--acu-bg-0',
   bg1: '--acu-bg-1',
   bg2: '--acu-bg-2',
-  bg3: '--acu-bg-3',
+  sidebarBg: '--acu-sidebar-bg',
+  hoverOverlay: '--acu-hover-overlay',
   border: '--acu-border',
   border2: '--acu-border-2',
   text1: '--acu-text-1',
@@ -66,10 +66,11 @@ export const TOKEN_VAR_MAP: Record<keyof AcuV2ThemeTokens, string> = {
   accent2: '--acu-accent-2',
   onAccent: '--acu-on-accent',
   accentGlow: '--acu-accent-glow',
-  accentGlow2: '--acu-accent-glow-2',
   success: '--acu-success',
   warning: '--acu-warning',
   danger: '--acu-danger',
+  fontUi: '--acu-font-ui',
+  fontMono: '--acu-font-mono',
   radiusLg: '--acu-radius-lg',
   radiusMd: '--acu-radius-md',
   radiusSm: '--acu-radius-sm',

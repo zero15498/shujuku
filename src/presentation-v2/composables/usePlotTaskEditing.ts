@@ -195,6 +195,15 @@ export function usePlotTaskEditing() {
     patchCurrent({ promptGroup: segments });
   }
 
+  function moveSegment(index: number, delta: -1 | 1): void {
+    if (!currentTask.value) return;
+    const segments = currentTask.value.promptGroup.slice();
+    const target = index + delta;
+    if (index < 0 || index >= segments.length || target < 0 || target >= segments.length) return;
+    [segments[index], segments[target]] = [segments[target], segments[index]];
+    patchCurrent({ promptGroup: ensureMainSlotIntegrity(segments) });
+  }
+
   function updateSegment(index: number, patch: Partial<PlotPromptSegment>): void {
     if (!currentTask.value) return;
     const segments = currentTask.value.promptGroup.slice();
@@ -251,6 +260,7 @@ export function usePlotTaskEditing() {
     patchCurrent,
     addSegment,
     deleteSegment,
+    moveSegment,
     updateSegment,
     serializeIntoPresetRaw,
   };

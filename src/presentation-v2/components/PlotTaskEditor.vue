@@ -67,6 +67,7 @@
         :segments="task.promptGroup"
         @add="$emit('segment-add', $event)"
         @delete="$emit('segment-delete', $event)"
+        @move="(index, delta) => $emit('segment-move', index, delta)"
         @update="(index, patch) => $emit('segment-update', index, patch)"
       />
     </fieldset>
@@ -108,6 +109,7 @@ const emit = defineEmits<{
   (e: 'update-rate', field: PlotRateField, value: number): void;
   (e: 'segment-add', position: 'top' | 'bottom'): void;
   (e: 'segment-delete', index: number): void;
+  (e: 'segment-move', index: number, delta: -1 | 1): void;
   (e: 'segment-update', index: number, patch: Partial<PlotPromptSegment>): void;
 }>();
 
@@ -128,14 +130,19 @@ function patch(value: Partial<PlotTaskDraft>): void {
 }
 
 .acu-v2-plot-task-editor__section {
-  margin: 0; padding: 12px;
-  border: 0; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  margin: 0; padding: 0 0 14px;
+  border: 0; border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent;
   display: flex; flex-direction: column; gap: 10px;
   min-width: 0;
 }
+.acu-v2-plot-task-editor__section:last-of-type {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
 .acu-v2-plot-task-editor__section legend {
-  padding: 0 6px; font-size: 12px; font-weight: 600; color: var(--acu-text-2);
+  padding: 0; font-size: 12px; font-weight: 600; color: var(--acu-text-2);
 }
 
 .acu-v2-plot-task-editor__grid {
@@ -150,9 +157,12 @@ function patch(value: Partial<PlotTaskDraft>): void {
 }
 
 .acu-v2-plot-task-editor__empty {
-  padding: 24px;
-  border: 0; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  padding: 18px 0;
+  border: 0;
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
   text-align: center; color: var(--acu-text-3); font-size: 12px;
 }
 </style>

@@ -22,24 +22,25 @@ const visible = computed(() => props.visible);
 
 <style scoped>
 .acu-message {
-  padding: 8px 12px; border-radius: var(--acu-radius-sm); font-size: 12px;
+  padding: 8px 0 8px 10px;
+  border-radius: 0;
+  font-size: 12px;
   border: 0;
+  border-left: 2px solid color-mix(in srgb, var(--acu-text-3) 28%, transparent);
   line-height: 1.5;
+  background: transparent;
+  color: var(--acu-text-2);
 }
 .acu-message--info {
-  background: var(--acu-bg-2);
-  color: var(--acu-text-1);
+  border-left-color: color-mix(in srgb, var(--acu-text-3) 28%, transparent);
 }
 .acu-message--success {
-  background: color-mix(in srgb, var(--acu-success) 10%, transparent);
-  color: var(--acu-success);
+  border-left-color: var(--acu-success);
 }
 .acu-message--warning {
-  background: color-mix(in srgb, var(--acu-warning) 10%, transparent);
-  color: var(--acu-warning);
+  border-left-color: var(--acu-warning);
 }
 .acu-message--error {
-  background: color-mix(in srgb, var(--acu-danger) 10%, transparent);
-  color: var(--acu-danger);
+  border-left-color: var(--acu-danger);
 }
 </style>

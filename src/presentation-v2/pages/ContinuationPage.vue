@@ -210,10 +210,12 @@ watch(useChatChangedTick(), refreshAll);
 
 .acu-v2-continuation-page__empty {
   margin: 0;
-  padding: 10px;
+  padding: 10px 0;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .acu-v2-continuation-page__prompt-list {
@@ -226,10 +228,16 @@ watch(useChatChangedTick(), refreshAll);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 10px;
+  padding: 0 0 12px;
   border: 0;
-  border-radius: var(--acu-radius-md);
-  background: var(--acu-bg-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent;
+}
+
+.acu-v2-continuation-page__prompt-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
 }
 
 .acu-v2-continuation-page__prompt-head {
@@ -247,10 +255,11 @@ watch(useChatChangedTick(), refreshAll);
 
 .acu-v2-continuation-page__status {
   min-height: 38px;
-  padding: 9px 10px;
+  padding: 8px 0 8px 10px;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-left: 2px solid color-mix(in srgb, var(--acu-text-3) 28%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .acu-v2-continuation-page__status-label {

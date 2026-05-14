@@ -69,7 +69,7 @@ function toggleDescription(): void {
 .acu-panel {
   min-width: 0; padding: 16px;
   background: var(--acu-bg-1);
-  border: 0;
+  border: 1px solid var(--acu-border);
   border-radius: var(--acu-radius-md);
   display: flex; flex-direction: column; gap: 0;
   height: 100%;

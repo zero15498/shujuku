@@ -4,90 +4,72 @@
 
     <div class="acu-v2-dashboard-page__grid">
       <AcuPanel
-        title="数据库状态"
-        description="读取当前聊天已加载的表格数据，并按 AI 回复楼层计算每张表的上次更新、未记录楼层与下一次自动触发点。"
+        title="基础配置"
+        description="这里检查当前聊天运行数据库所需的基础配置。缺失项会展开显示处理入口；配置完成后会收起为状态摘要。如果切换聊天后状态不对，请进入对应页面重新选择或导入。"
       >
-        <div class="acu-v2-dashboard-page__status-row" role="list">
-          <span role="listitem" class="acu-v2-dashboard-page__status-item">
-            <span class="acu-v2-dashboard-page__status-label">API</span>
-            <button
-              type="button"
-              class="acu-v2-dashboard-page__status-link"
-              :class="{ 'acu-v2-dashboard-page__status-link--empty': !apiStore.activePresetName }"
-              @click="goTo('api')"
-            >
-              {{ apiStore.activePresetName || '未设置' }}
-              <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-            </button>
-          </span>
-          <span role="listitem" class="acu-v2-dashboard-page__status-item">
-            <span class="acu-v2-dashboard-page__status-label">表格模板</span>
-            <button
-              type="button"
-              class="acu-v2-dashboard-page__status-link"
-              :class="{ 'acu-v2-dashboard-page__status-link--empty': !templatePreset.displayName }"
-              @click="goTo('table')"
-            >
-              {{ templatePresetText }}
-              <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-            </button>
-          </span>
-          <span role="listitem" class="acu-v2-dashboard-page__status-item">
-            <span class="acu-v2-dashboard-page__status-label">剧情推进</span>
-            <button
-              type="button"
-              class="acu-v2-dashboard-page__status-link"
-              :class="{ 'acu-v2-dashboard-page__status-link--empty': !plotStore.activePresetName }"
-              @click="goTo('plot')"
-            >
-              {{ plotStore.activePresetName || '未设置' }}
-              <i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i>
-            </button>
-          </span>
-        </div>
+        <div class="acu-v2-dashboard-page__setup-list">
+          <section
+            v-for="item in setupItems"
+            :key="item.key"
+            class="acu-v2-dashboard-page__setup-item"
+            :class="{ 'acu-v2-dashboard-page__setup-item--pending': !item.complete }"
+          >
+            <div class="acu-v2-dashboard-page__setup-main">
+              <span class="acu-v2-dashboard-page__setup-icon" aria-hidden="true">
+                <i :class="item.icon"></i>
+              </span>
+              <div class="acu-v2-dashboard-page__setup-copy">
+                <span class="acu-v2-dashboard-page__setup-title">{{ item.label }}</span>
+                <span class="acu-v2-dashboard-page__setup-status">{{ item.status }}</span>
+                <p v-if="!item.complete" class="acu-v2-dashboard-page__setup-desc">
+                  {{ item.description }}
+                </p>
+              </div>
+              <AcuBadge :variant="item.complete ? 'success' : 'warning'">
+                {{ item.complete ? '已就绪' : '需处理' }}
+              </AcuBadge>
+            </div>
 
-        <AcuStatsList :items="dashboard.stats.value" />
-        <AcuMessage :kind="dashboard.hasTables.value ? 'info' : 'warning'">
-          {{ dashboard.hasTables.value ? dashboard.nextUpdateText.value : '当前尚未加载数据库表格。' }}
-        </AcuMessage>
-
-        <div class="acu-v2-dashboard-page__table-wrap">
-          <table class="acu-v2-dashboard-page__status-table">
-            <thead>
-              <tr>
-                <th>表格</th>
-                <th>频率</th>
-                <th>未记录</th>
-                <th>上次更新</th>
-                <th>下次触发</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!dashboard.tableRows.value.length">
-                <td colspan="5" class="acu-v2-dashboard-page__empty">暂无数据</td>
-              </tr>
-              <tr
-                v-for="row in dashboard.tableRows.value"
-                :key="row.key"
-                :class="{ 'acu-v2-dashboard-page__status-row--ready': row.ready }"
+            <div
+              v-if="!item.complete || item.key === 'storage'"
+              class="acu-v2-dashboard-page__setup-actions"
+            >
+              <AcuButton
+                size="sm"
+                :variant="item.complete ? 'default' : 'primary'"
+                @click="handleSetupAction(item.key)"
               >
-                <td>{{ row.name }}</td>
-                <td>{{ row.frequencyLabel }}</td>
-                <td>{{ row.unrecordedLabel }}</td>
-                <td>{{ row.lastUpdatedLabel }}</td>
-                <td>
-                  <AcuBadge v-if="row.ready" variant="success">就绪</AcuBadge>
-                  <span v-else>{{ row.nextTriggerLabel }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                {{ item.actionLabel }}
+              </AcuButton>
+            </div>
+          </section>
         </div>
+
+        <div v-if="storageControlsOpen" class="acu-v2-dashboard-page__radio-block">
+          <span class="acu-v2-dashboard-page__radio-title">存储模式</span>
+          <p class="acu-v2-dashboard-page__radio-desc">
+            决定表格数据如何持久化。切换会重载存储提供者，已有数据按当前模式重新解释；填表提示词会同步重置为对应模式的默认提示词。切换后如果填表异常，请先回到原模式再检查模板。
+          </p>
+          <AcuRadioGroup
+            name="acu-v2-storage-mode"
+            :options="dashboard.storageOptions"
+            :model-value="dashboard.storageMode.value"
+            direction="vertical"
+            @update:model-value="onStorageModeChange"
+          />
+          <AcuMessage v-if="dashboard.storageMessage.value" :kind="dashboard.storageMessage.value.kind">
+            {{ dashboard.storageMessage.value.text }}
+          </AcuMessage>
+        </div>
+
+        <AcuMessage kind="info">
+          {{ dashboard.hasTables.value ? dashboard.nextUpdateText.value : '当前尚未加载数据库表格。配置表格模板后，更新状态会在“更新参数”页显示。' }}
+        </AcuMessage>
       </AcuPanel>
 
       <AcuPanel
         title="开关"
-        description="基础设置：同一聊天里你可能临时开关的功能。高级设置：配置后基本不动，修改后可能影响功能正常运行，请谨慎调整。"
+        description="基础设置：同一聊天里你可能临时开关的功能。功能开关：控制对应一级页是否显示并允许运行。高级设置：配置后基本不动，修改后可能影响功能正常运行，请谨慎调整。"
       >
         <AcuSegmentedControl
           v-model="activeGroup"
@@ -127,23 +109,6 @@
               :item="developerToggleItem"
               @change="setDeveloperOptionsEnabled($event)"
             />
-
-            <div class="acu-v2-dashboard-page__radio-block">
-              <span class="acu-v2-dashboard-page__radio-title">存储模式</span>
-              <p class="acu-v2-dashboard-page__radio-desc">
-                决定表格数据如何持久化。切换会重载存储提供者，已有数据按当前模式重新解释；填表提示词会同步重置为对应模式的默认提示词（两种模式必须用各自的默认提示词才能被正确填写）。
-              </p>
-              <AcuRadioGroup
-                name="acu-v2-storage-mode"
-                :options="dashboard.storageOptions"
-                :model-value="dashboard.storageMode.value"
-                direction="vertical"
-                @update:model-value="onStorageModeChange"
-              />
-              <AcuMessage v-if="dashboard.storageMessage.value" :kind="dashboard.storageMessage.value.kind">
-                {{ dashboard.storageMessage.value.text }}
-              </AcuMessage>
-            </div>
           </template>
         </div>
       </AcuPanel>
@@ -154,12 +119,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import AcuBadge from '../components/_lib/AcuBadge.vue';
+import AcuButton from '../components/_lib/AcuButton.vue';
 import AcuMessage from '../components/_lib/AcuMessage.vue';
 import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
 import AcuPanel from '../components/_lib/AcuPanel.vue';
 import AcuRadioGroup from '../components/_lib/AcuRadioGroup.vue';
 import AcuSegmentedControl from '../components/_lib/AcuSegmentedControl.vue';
-import AcuStatsList from '../components/_lib/AcuStatsList.vue';
 import ToggleRow from '../components/DashboardToggleRow.vue';
 import { useApiPresetStore } from '../stores/api-preset-store';
 import { usePlotPresetStore } from '../stores/plot-preset-store';
@@ -170,8 +135,20 @@ import {
   FEATURE_GATE_VECTOR_INDEX,
 } from '../router/page-registry';
 import { useChatChangedTick } from '../composables/useChatChangedListener';
-import { useDashboardPage, readActiveTemplatePresetSnapshot, type TemplatePresetSnapshot } from '../composables/useDashboardPage';
+import { readActiveTemplatePresetSnapshot, useDashboardPage, type TemplatePresetSnapshot } from '../composables/useDashboardPage';
 import { useDevOptions } from '../composables/useDevOptions';
+
+type SetupItemKey = 'api' | 'table' | 'plot' | 'storage';
+
+interface SetupItem {
+  key: SetupItemKey;
+  label: string;
+  status: string;
+  description: string;
+  icon: string;
+  complete: boolean;
+  actionLabel: string;
+}
 
 const dashboard = useDashboardPage();
 const apiStore = useApiPresetStore();
@@ -180,6 +157,7 @@ const routerStore = useRouterStore();
 const { developerOptionsEnabled, setDeveloperOptionsEnabled } = useDevOptions();
 
 const activeGroup = ref<'basic' | 'feature' | 'advanced'>('basic');
+const storageControlsOpen = ref(false);
 const groupOptions = [
   { value: 'basic', label: '基础设置' },
   { value: 'feature', label: '功能开关' },
@@ -193,6 +171,57 @@ const templatePresetText = computed(() => {
   return templatePreset.value.scopeLabel
     ? `${templatePreset.value.displayName}（${templatePreset.value.scopeLabel}）`
     : templatePreset.value.displayName;
+});
+
+const storageModeLabel = computed(() =>
+  dashboard.storageMode.value === 'sqlite' ? 'SQLite' : '原生 JSON',
+);
+
+const setupItems = computed<SetupItem[]>(() => {
+  const apiReady = !!apiStore.activePresetName;
+  const tableReady = dashboard.hasTables.value || templatePreset.value.displayName !== '默认预设';
+  const plotReady = plotStore.enabled === true;
+
+  return [
+    {
+      key: 'api',
+      label: 'API',
+      status: apiReady ? `当前使用 ${apiStore.activePresetName}` : '未选择 API 预设',
+      description: 'API 是剧情推进、填表和续写调用 AI 的基础配置。没有可用 API 时，大部分自动功能无法正常运行。',
+      icon: 'fa-solid fa-plug',
+      complete: apiReady,
+      actionLabel: apiReady ? '查看' : '配置 API',
+    },
+    {
+      key: 'table',
+      label: '表格模板',
+      status: tableReady ? templatePresetText.value : '尚未加载表格模板',
+      description: '表格模板决定数据库有哪些表和字段。导入或选择模板后，当前聊天才能按这些表格写入数据。',
+      icon: 'fa-solid fa-table-cells',
+      complete: tableReady,
+      actionLabel: tableReady ? '查看' : '导入或选择',
+    },
+    {
+      key: 'plot',
+      label: '剧情推进',
+      status: plotReady
+        ? `已启用，当前使用 ${plotStore.activePresetName || '默认预设'}`
+        : '未启用',
+      description: '剧情推进会在发送消息时运行额外任务。需要使用时先打开功能开关，再导入或选择适合当前玩法的预设。',
+      icon: 'fa-solid fa-route',
+      complete: plotReady,
+      actionLabel: plotReady ? '查看' : '启用或配置',
+    },
+    {
+      key: 'storage',
+      label: '存储模式',
+      status: `当前使用 ${storageModeLabel.value}`,
+      description: '存储模式决定表格数据如何落盘。原生 JSON 兼容性最好；SQLite 适合复杂表和多表关联。',
+      icon: 'fa-solid fa-database',
+      complete: true,
+      actionLabel: storageControlsOpen.value ? '收起' : '调整',
+    },
+  ];
 });
 
 const developerToggleItem = computed(() => ({
@@ -215,6 +244,22 @@ async function refreshAll(): Promise<void> {
 async function onStorageModeChange(value: string): Promise<void> {
   await dashboard.setStorageMode(value);
   routerStore.setSqliteMode(dashboard.storageMode.value === 'sqlite');
+}
+
+function handleSetupAction(key: SetupItemKey): void {
+  if (key === 'api') {
+    goTo('api');
+  } else if (key === 'table') {
+    goTo('table');
+  } else if (key === 'plot') {
+    if (plotStore.enabled) {
+      goTo('plot');
+    } else {
+      activeGroup.value = 'feature';
+    }
+  } else if (key === 'storage') {
+    storageControlsOpen.value = !storageControlsOpen.value;
+  }
 }
 
 function goTo(pageId: string): void {
@@ -260,108 +305,91 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   align-items: stretch;
 }
 
-.acu-v2-dashboard-page__status-row {
+.acu-v2-dashboard-page__setup-list {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
-  font-size: 12px;
-  color: var(--acu-text-3);
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 
-.acu-v2-dashboard-page__status-item {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
+.acu-v2-dashboard-page__setup-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
 }
 
-.acu-v2-dashboard-page__status-label {
-  color: var(--acu-text-3);
-  flex-shrink: 0;
+.acu-v2-dashboard-page__setup-item:first-child {
+  padding-top: 0;
 }
 
-.acu-v2-dashboard-page__status-link {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 4px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  font-size: 12px;
-  color: var(--acu-text-1);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--acu-border-2);
-  text-underline-offset: 3px;
-  transition: color 0.15s ease, text-decoration-color 0.15s ease;
-  min-width: 0;
-}
-
-.acu-v2-dashboard-page__status-link:hover,
-.acu-v2-dashboard-page__status-link:focus-visible {
-  color: var(--acu-text-1);
-  text-decoration-color: var(--acu-text-1);
-  outline: none;
-}
-
-.acu-v2-dashboard-page__status-link--empty {
-  color: var(--acu-text-3);
-}
-
-.acu-v2-dashboard-page__status-link i {
-  font-size: 10px;
-  opacity: 0.7;
-}
-
-.acu-v2-dashboard-page__table-wrap {
-  min-width: 0;
-  overflow: auto;
-  border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-0);
-}
-
-.acu-v2-dashboard-page__status-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 560px;
-  font-size: 12px;
-}
-
-.acu-v2-dashboard-page__status-table th,
-.acu-v2-dashboard-page__status-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--acu-border);
-  text-align: left;
-}
-
-.acu-v2-dashboard-page__status-table th {
-  color: var(--acu-text-3);
-  font-weight: 600;
-  background: var(--acu-bg-2);
-}
-
-.acu-v2-dashboard-page__status-table td {
-  color: var(--acu-text-2);
-}
-
-.acu-v2-dashboard-page__status-table tr:last-child td {
+.acu-v2-dashboard-page__setup-item:last-child {
   border-bottom: 0;
 }
 
-.acu-v2-dashboard-page__status-row--ready td {
+.acu-v2-dashboard-page__setup-item--pending {
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--acu-warning) 26%, transparent);
+  border-radius: var(--acu-radius-sm);
+  background: color-mix(in srgb, var(--acu-warning) 6%, transparent);
+}
+
+.acu-v2-dashboard-page__setup-main {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.acu-v2-dashboard-page__setup-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--acu-radius-sm);
+  background: var(--acu-bg-2);
+  color: var(--acu-text-2);
+  font-size: 12px;
+}
+
+.acu-v2-dashboard-page__setup-copy {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 3px 8px;
+  align-items: baseline;
+}
+
+.acu-v2-dashboard-page__setup-title {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--acu-text-1);
 }
 
-.acu-v2-dashboard-page__empty {
-  text-align: center !important;
-  color: var(--acu-text-3) !important;
+.acu-v2-dashboard-page__setup-status {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--acu-text-3);
+}
+
+.acu-v2-dashboard-page__setup-desc {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--acu-text-2);
+}
+
+.acu-v2-dashboard-page__setup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 .acu-v2-dashboard-page__toggle-list {
@@ -375,10 +403,11 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding-top: 12px;
-  background: var(--acu-bg-2);
-  border-radius: var(--acu-radius-sm);
-  padding: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  background: transparent;
+  border-radius: 0;
+  margin: 2px 0 12px;
 }
 
 .acu-v2-dashboard-page__radio-title {
@@ -401,6 +430,15 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
 
   .acu-v2-dashboard-page__grid {
     grid-template-columns: 1fr;
+  }
+
+  .acu-v2-dashboard-page__setup-main {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .acu-v2-dashboard-page__setup-main .acu-badge {
+    grid-column: 2;
+    justify-self: start;
   }
 }
 </style>

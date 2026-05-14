@@ -60,7 +60,9 @@ const sizeClass = computed(() => `acu-btn--${props.size}`);
 .acu-btn--icon-only { min-width: 32px; padding: 6px 8px; }
 .acu-btn--icon-only.acu-btn--sm { min-width: 28px; padding: 4px 8px; }
 
-.acu-btn:hover:not(:disabled) { background: var(--acu-bg-3); }
+.acu-btn:hover:not(:disabled) {
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+}
 .acu-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .acu-btn--primary {

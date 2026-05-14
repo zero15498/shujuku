@@ -431,10 +431,12 @@ useUiCloseGuard(confirmPromptClose);
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 8px 0;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .acu-v2-content-replace-page__mini-status strong {
@@ -444,7 +446,7 @@ useUiCloseGuard(confirmPromptClose);
   white-space: nowrap;
   color: var(--acu-text-2);
   font-size: 12px;
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
 }
 
 .acu-v2-content-replace-page__status-line {
@@ -464,7 +466,7 @@ useUiCloseGuard(confirmPromptClose);
   white-space: nowrap;
   color: var(--acu-text-1);
   font-size: 12px;
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
 }
 
 .acu-v2-content-replace-page__badge {
@@ -499,12 +501,14 @@ useUiCloseGuard(confirmPromptClose);
   margin: 0;
   max-height: 280px;
   overflow: auto;
-  padding: 10px;
+  padding: 10px 0;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
   color: var(--acu-text-2);
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
   font-size: 11px;
   line-height: 1.55;
   white-space: pre-wrap;

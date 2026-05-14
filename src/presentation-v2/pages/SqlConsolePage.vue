@@ -197,7 +197,7 @@ onMounted(consoleFlow.refresh);
 }
 
 .acu-v2-sql-console-page__textarea {
-  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-family: var(--acu-font-mono);
   min-height: 210px;
   white-space: pre;
 }
@@ -250,12 +250,11 @@ onMounted(consoleFlow.refresh);
   border-radius: var(--acu-radius-sm);
   background: var(--acu-bg-2);
   cursor: pointer;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition: color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .acu-v2-sql-console-page__history-item:hover,
-.acu-v2-sql-console-page__history-item:focus {
-  background: var(--acu-bg-2);
+.acu-v2-sql-console-page__history-item:focus-visible {
   box-shadow: 0 0 0 2px var(--acu-accent-glow);
   outline: none;
 }
@@ -272,7 +271,7 @@ onMounted(consoleFlow.refresh);
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--acu-text-2);
-  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-family: var(--acu-font-mono);
   font-size: 12px;
 }
 
@@ -285,8 +284,10 @@ onMounted(consoleFlow.refresh);
   font-size: 12px;
   text-align: center;
   border: 0;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
+  border-radius: 0;
+  background: transparent;
 }
 
 .acu-v2-sql-console-page__empty--compact {
@@ -316,15 +317,15 @@ onMounted(consoleFlow.refresh);
 .acu-v2-sql-console-page__table-wrap {
   max-height: 330px;
   overflow: auto;
-  border: 0;
+  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
   border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  background: transparent;
 }
 
 .acu-v2-sql-console-page__result-table {
   width: 100%;
   border-collapse: collapse;
-  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-family: var(--acu-font-mono);
   font-size: 12px;
 }
 
@@ -332,7 +333,7 @@ onMounted(consoleFlow.refresh);
 .acu-v2-sql-console-page__result-table td {
   max-width: 300px;
   padding: 7px 10px;
-  border-bottom: 1px solid var(--acu-border);
+  border-bottom: 1px solid var(--acu-border-2);
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -343,13 +344,13 @@ onMounted(consoleFlow.refresh);
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--acu-bg-2);
+  background: var(--acu-bg-1);
   color: var(--acu-text-1);
   font-weight: 600;
 }
 
 .acu-v2-sql-console-page__result-table tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--acu-bg-2) 45%, transparent);
+  background: color-mix(in srgb, var(--acu-text-3) 5%, transparent);
 }
 
 .acu-v2-sql-console-page__cell-null,
@@ -375,7 +376,7 @@ onMounted(consoleFlow.refresh);
   color: var(--acu-danger);
   white-space: pre-wrap;
   word-break: break-word;
-  font-family: Consolas, Menlo, Monaco, "Courier New", monospace;
+  font-family: var(--acu-font-mono);
   font-size: 12px;
   line-height: 1.55;
 }

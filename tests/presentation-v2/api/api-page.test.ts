@@ -75,21 +75,29 @@ beforeEach(() => {
 });
 
 describe('ApiPage', () => {
-  it('渲染 API 页双列区域，包含 API 预设和向量配置', async () => {
+  it('渲染 API 页双列区域，包含 API 预设和交火向量服务摘要', async () => {
     const { mount } = await mountApiPage();
 
     const page = document.querySelector('.acu-v2-api-page');
     expect(page).not.toBeNull();
-    expect(page!.textContent).toContain('API 预设');
-    expect(page!.textContent).toContain('Embedding / Rerank');
+    expect(page!.textContent).toContain('当前 API 配置');
+    expect(page!.textContent).toContain('交火模式向量服务');
+    expect(page!.textContent).toContain('Embedding Endpoint');
+    expect(page!.textContent).toContain('https://embed.test');
+    expect(page!.textContent).toContain('去交火模式配置');
+    expect(page!.querySelector('input[placeholder*="embeddings"]')).toBeNull();
     expect(page!.textContent).not.toContain('重载');
 
     // Active preset shown in status line
     expect(page!.textContent).toContain('beta');
     expect(page!.textContent).toContain('流式输出');
+    expect(page!.textContent).toContain('预设名称');
+    expect(page!.textContent).toContain('连接方式');
+    expect(page!.textContent).toContain('保存当前预设');
+    expect(page!.querySelector('button[title="编辑当前预设"]')).toBeNull();
 
     const apiPanel = Array.from(page!.querySelectorAll<HTMLElement>('.acu-panel'))
-      .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('API 预设'))!;
+      .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('当前 API 配置'))!;
     expect(apiPanel.querySelector('.acu-panel__actions .acu-toggle')).toBeNull();
     expect(apiPanel.querySelector('.acu-panel__body .acu-toggle')).not.toBeNull();
 
@@ -126,6 +134,32 @@ describe('ApiPage', () => {
     expect(footerButtons[0].textContent?.trim()).toBe('关闭');
     expect(footerButtons[0].classList.contains('acu-btn--default')).toBe(true);
     expect(drawer!.textContent || '').not.toContain('丢弃草稿');
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('当前 API 配置表单可直接保存活动预设并同步当前聊天绑定', async () => {
+    const { mount, settings } = await mountApiPage();
+
+    const page = document.querySelector('.acu-v2-api-page') as HTMLElement;
+    const nameRow = Array.from(page.querySelectorAll('.acu-form-row'))
+      .find(row => (row.textContent || '').includes('预设名称')) as HTMLElement;
+    const nameInput = nameRow.querySelector('input') as HTMLInputElement;
+    expect(nameInput.value).toBe('beta');
+
+    nameInput.value = 'beta-renamed';
+    nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+    await Promise.resolve();
+
+    const saveButton = Array.from(page.querySelectorAll('button'))
+      .find(btn => btn.textContent?.includes('保存当前预设')) as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(false);
+    saveButton.click();
+    await Promise.resolve();
+
+    expect(settings.apiPresets.some((preset: any) => preset.name === 'beta-renamed')).toBe(true);
+    expect(settings.apiPresetBindingsByChat['chat-page'].presetName).toBe('beta-renamed');
+    expect(page.textContent || '').toContain('已保存当前 API 预设');
 
     mount.__resetAcuV2MountForTests();
   });

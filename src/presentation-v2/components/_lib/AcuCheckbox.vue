@@ -10,7 +10,9 @@
     @click="onClick"
   >
     <span class="acu-checkbox__box" aria-hidden="true">
-      <i v-if="modelValue" class="fa-solid fa-check acu-checkbox__icon" />
+      <svg class="acu-checkbox__icon" viewBox="0 0 16 16" focusable="false">
+        <path d="M3.75 8.25 6.75 11.25 12.25 5.45" />
+      </svg>
     </span>
     <span v-if="label" class="acu-checkbox__label">{{ label }}</span>
     <slot v-else />
@@ -64,13 +66,28 @@ function onClick(): void {
 }
 
 .acu-checkbox__icon {
-  font-size: 10px; color: #fff;
+  display: block;
+  width: 12px; height: 12px;
+  color: #fff;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transform: scale(0.82);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.acu-checkbox--checked .acu-checkbox__icon {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .acu-checkbox__label { min-width: 0; }
 
 .acu-checkbox:hover:not(:disabled) .acu-checkbox__box {
-  background: var(--acu-bg-3);
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
 }
 .acu-checkbox--checked:hover:not(:disabled) .acu-checkbox__box {
   background: var(--acu-accent-2);

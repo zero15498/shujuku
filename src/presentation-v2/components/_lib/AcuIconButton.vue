@@ -47,7 +47,8 @@ defineEmits<{
 .acu-icon-btn--sm { width: 22px; height: 22px; font-size: 10px; background: var(--acu-bg-2); }
 
 .acu-icon-btn--default:hover:not(:disabled) {
-  background: var(--acu-bg-2); color: var(--acu-text-1);
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+  color: var(--acu-text-1);
 }
 
 .acu-icon-btn--danger:hover:not(:disabled) {

@@ -57,14 +57,15 @@ function canMove(delta: -1 | 1): boolean {
 
 <style scoped>
 .acu-v2-plot-tasks {
-  margin: 0; padding: 12px;
-  border: 0; border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
+  margin: 0; padding: 0 0 14px;
+  border: 0; border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-radius: 0;
+  background: transparent;
   display: flex; flex-direction: column; gap: 10px;
   min-width: 0;
 }
 .acu-v2-plot-tasks > legend {
-  padding: 0 4px;
+  padding: 0;
   font-size: 12px; font-weight: 600; color: var(--acu-text-2);
   display: flex; align-items: center; gap: 10px;
 }
@@ -83,12 +84,12 @@ function canMove(delta: -1 | 1): boolean {
   display: flex; flex-direction: column; gap: 6px;
   padding: 10px 12px;
   border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-1);
+  background: var(--acu-bg-2);
   border: 0;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  transition: box-shadow 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
-.acu-v2-plot-tasks__card:hover { background: var(--acu-bg-3); }
+.acu-v2-plot-tasks__card:hover { box-shadow: 0 0 0 2px var(--acu-accent-glow); }
 .acu-v2-plot-tasks__card--active {
   background: var(--acu-accent);
   color: var(--acu-on-accent);
@@ -116,7 +117,7 @@ function canMove(delta: -1 | 1): boolean {
 
 .acu-v2-plot-tasks__stage {
   font-size: 11px; color: var(--acu-text-3);
-  font-family: Consolas, 'Courier New', monospace;
+  font-family: var(--acu-font-mono);
 }
 
 .acu-v2-plot-tasks__seg-count {

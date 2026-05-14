@@ -105,6 +105,7 @@ describe('mount — 当前文档场景', () => {
     const drawer = document.querySelector('.acu-v2-app__mobile-nav');
     expect(drawer).not.toBeNull();
     expect(menuButton!.getAttribute('aria-expanded')).toBe('true');
+    expect(drawer!.querySelector('.acu-v2-app__mobile-nav-header')).toBeNull();
     expect(drawer!.textContent).toContain('SP·数据库 III');
 
     const formFillButton = drawer!.querySelector('[data-page-id="form-fill"]') as HTMLButtonElement | null;

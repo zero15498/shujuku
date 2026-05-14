@@ -114,8 +114,10 @@ onBeforeUnmount(() => {
   font: inherit; font-size: 12px; cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
-.acu-preset-dd__trigger:hover { background: var(--acu-bg-3); }
-.acu-preset-dd__trigger:focus { outline: none; box-shadow: 0 0 0 2px var(--acu-accent-glow); }
+.acu-preset-dd__trigger:hover {
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+}
+.acu-preset-dd__trigger:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--acu-accent-glow); }
 .acu-preset-dd__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 .acu-preset-dd--disabled { pointer-events: none; opacity: 0.5; }
 .acu-preset-dd__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
@@ -133,7 +135,7 @@ onBeforeUnmount(() => {
   padding: 8px 12px; cursor: pointer; font-size: 13px;
   color: var(--acu-text-2); transition: background 0.1s ease;
 }
-.acu-preset-dd__item:hover { background: var(--acu-bg-2); color: var(--acu-text-1); }
+.acu-preset-dd__item:hover { background: var(--acu-hover-overlay); color: var(--acu-text-1); }
 .acu-preset-dd__item--active { color: var(--acu-on-accent); background: var(--acu-accent); }
 .acu-preset-dd__item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
 .acu-preset-dd__item-meta { font-size: 11px; color: var(--acu-text-3); white-space: nowrap; }
@@ -142,7 +144,7 @@ onBeforeUnmount(() => {
   border: 0; background: transparent; color: var(--acu-text-3); cursor: pointer;
   border-radius: var(--acu-radius-sm); font-size: 12px; transition: color 0.15s ease;
 }
-.acu-preset-dd__star:hover { color: var(--acu-text-1); background: var(--acu-bg-3); }
+.acu-preset-dd__star:hover { color: var(--acu-text-1); background: var(--acu-hover-overlay); }
 .acu-preset-dd__star--active { color: var(--acu-text-1); }
 .acu-preset-dd__item--active .acu-preset-dd__item-meta,
 .acu-preset-dd__item--active .acu-preset-dd__star,
