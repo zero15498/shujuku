@@ -10,7 +10,6 @@ import type { AcuV2Page } from './page-types';
 
 import DashboardPage from '../pages/DashboardPage.vue';
 import FormFillPage from '../pages/FormFillPage.vue';
-import ManualFormFillPage from '../pages/ManualFormFillPage.vue';
 import TablePage from '../pages/TablePage.vue';
 import ApiPage from '../pages/ApiPage.vue';
 import PlotPage from '../pages/PlotPage.vue';
@@ -42,7 +41,6 @@ export const ACU_V2_PAGE_REGISTRY: readonly AcuV2Page[] = Object.freeze([
   { id: 'api', title: 'API', group: 'config', component: markRaw(ApiPage) },
 
   // 功能
-  { id: 'manual-form-fill', title: '手动填表', group: 'feature', component: markRaw(ManualFormFillPage) },
   { id: 'continuation', title: '智能续写', group: 'feature', component: markRaw(ContinuationPage) },
   { id: 'import', title: '外部导入', group: 'feature', component: markRaw(ImportPage) },
   { id: 'vector-index', title: '交火模式', group: 'feature', component: markRaw(VectorIndexPage), featureGate: FEATURE_GATE_VECTOR_INDEX },

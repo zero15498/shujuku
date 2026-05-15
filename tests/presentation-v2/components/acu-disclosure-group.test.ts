@@ -78,6 +78,8 @@ describe('AcuDisclosureGroup', () => {
     expect(header.getAttribute('aria-expanded')).toBe('true');
     expect(chevron.classList.contains('acu-disclosure-group__chevron--open')).toBe(true);
     expect(chevron.classList.contains('legacy-chevron-open')).toBe(true);
+
+    await new Promise(resolve => setTimeout(resolve, 180));
   });
 
   it('bodyMode=if 时只在展开态挂载 body', async () => {
@@ -90,5 +92,25 @@ describe('AcuDisclosureGroup', () => {
     await Promise.resolve();
 
     expect(el.querySelector('.acu-disclosure-group__body')).not.toBeNull();
+
+    await new Promise(resolve => setTimeout(resolve, 180));
+  });
+
+  it('bodyMode=if 收起时保留 body 到离场动画结束后再卸载', async () => {
+    const { el } = mountGroup({ expanded: true, bodyMode: 'if' });
+
+    const header = el.querySelector('.acu-disclosure-group__header') as HTMLButtonElement;
+    expect(el.querySelector('.acu-disclosure-group__body')).not.toBeNull();
+
+    header.click();
+    await Promise.resolve();
+
+    const leavingBody = el.querySelector('.acu-disclosure-group__body') as HTMLElement | null;
+    expect(leavingBody).not.toBeNull();
+    expect(leavingBody?.getAttribute('aria-hidden')).toBe('true');
+
+    await new Promise(resolve => setTimeout(resolve, 180));
+
+    expect(el.querySelector('.acu-disclosure-group__body')).toBeNull();
   });
 });

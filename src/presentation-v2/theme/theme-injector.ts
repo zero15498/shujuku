@@ -21,7 +21,37 @@ function buildCss(theme: AcuV2Theme): string {
   // CSS custom properties inherit from the app root. Avoid a universal
   // descendant selector here; it expands style recalculation on every UI
   // state change and is especially expensive on mobile WebViews.
-  return `#${APP_ROOT_ID} {\n${lines.join('\n')}\n}\n`;
+  return `#${APP_ROOT_ID} {
+${lines.join('\n')}
+  scrollbar-color: color-mix(in srgb, var(--acu-text-3) 55%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+#${APP_ROOT_ID} ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+#${APP_ROOT_ID} ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#${APP_ROOT_ID} ::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--acu-text-3) 42%, transparent);
+  background-clip: content-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+#${APP_ROOT_ID} ::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--acu-accent) 62%, var(--acu-text-3));
+  background-clip: content-box;
+}
+
+#${APP_ROOT_ID} ::-webkit-scrollbar-corner {
+  background: transparent;
+}
+`;
 }
 
 export function applyTheme(theme: AcuV2Theme): void {

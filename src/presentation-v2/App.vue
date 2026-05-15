@@ -22,33 +22,32 @@
           >
             <i class="fa-solid fa-palette"></i>
           </button>
-          <Transition name="theme-menu">
-            <ul
-              v-if="isThemeMenuOpen"
-              class="acu-v2-app__theme-menu"
-              role="listbox"
-              :aria-label="'选择主题'"
+          <ul
+            v-if="isThemeMenuRendered"
+            class="acu-v2-app__theme-menu"
+            :class="{ 'is-closing': isThemeMenuClosing }"
+            role="listbox"
+            :aria-label="'选择主题'"
+          >
+            <li
+              v-for="t in themeStore.themes"
+              :key="t.id"
+              role="option"
+              :aria-selected="t.id === themeStore.activeId"
+              class="acu-v2-app__theme-option"
+              :class="{ 'is-active': t.id === themeStore.activeId }"
+              @click="selectTheme(t.id)"
             >
-              <li
-                v-for="t in themeStore.themes"
-                :key="t.id"
-                role="option"
-                :aria-selected="t.id === themeStore.activeId"
-                class="acu-v2-app__theme-option"
-                :class="{ 'is-active': t.id === themeStore.activeId }"
-                @click="selectTheme(t.id)"
-              >
-                <span
-                  class="acu-v2-app__theme-swatch"
-                  :style="{
-                    '--acu-theme-swatch-bg': t.tokens.bg0,
-                    '--acu-theme-swatch-accent': t.tokens.accent,
-                  }"
-                ></span>
-                {{ t.name }}
-              </li>
-            </ul>
-          </Transition>
+              <span
+                class="acu-v2-app__theme-swatch"
+                :style="{
+                  '--acu-theme-swatch-bg': t.tokens.bg0,
+                  '--acu-theme-swatch-accent': t.tokens.accent,
+                }"
+              ></span>
+              {{ t.name }}
+            </li>
+          </ul>
         </div>
         <button
           type="button"
@@ -66,23 +65,22 @@
       <MainArea />
     </div>
 
-    <Transition name="mobile-nav">
-      <div
-        v-if="isMobileNavOpen"
-        class="acu-v2-app__mobile-nav-layer"
-        @click="closeMobileNav"
+    <div
+      v-if="isMobileNavRendered"
+      class="acu-v2-app__mobile-nav-layer"
+      :class="{ 'is-closing': isMobileNavClosing }"
+      @click.self="closeMobileNav"
+    >
+      <aside
+        class="acu-v2-app__mobile-nav"
+        role="dialog"
+        aria-modal="true"
+        aria-label="一级页导航"
+        @click.stop
       >
-        <aside
-          class="acu-v2-app__mobile-nav"
-          role="dialog"
-          aria-modal="true"
-          aria-label="一级页导航"
-          @click.stop
-        >
-          <Sidebar variant="drawer" @navigate="closeMobileNav" />
-        </aside>
-      </div>
-    </Transition>
+        <Sidebar variant="drawer" @navigate="closeMobileNav" />
+      </aside>
+    </div>
   </div>
 </template>
 
@@ -98,31 +96,53 @@ import { useRootShellStore } from "./stores/root-shell-store";
 import { useRouterStore } from "./stores/router-store";
 import { useThemeStore } from "./stores/theme-store";
 import type { AcuV2ThemeId } from "./theme/theme-types";
+import { getAcuHostDocument } from "./bootstrap/host-document";
 
 const emit = defineEmits<{ (event: "close"): void }>();
 const rootShell = useRootShellStore();
 const router = useRouterStore();
 const themeStore = useThemeStore();
 const isMobileNavOpen = ref(false);
+const isMobileNavRendered = ref(false);
+const isMobileNavClosing = ref(false);
 const isThemeMenuOpen = ref(false);
+const isThemeMenuRendered = ref(false);
+const isThemeMenuClosing = ref(false);
+const THEME_MENU_LEAVE_MS = 120;
+const MOBILE_NAV_LEAVE_MS = 150;
+let themeMenuCloseTimer: ReturnType<typeof setTimeout> | undefined;
+let mobileNavCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
 function toggleThemeMenu(): void {
-  isThemeMenuOpen.value = !isThemeMenuOpen.value;
+  if (isThemeMenuOpen.value) closeThemeMenu();
+  else openThemeMenu();
 }
 
 function selectTheme(id: AcuV2ThemeId): void {
   themeStore.setTheme(id);
-  isThemeMenuOpen.value = false;
+  closeThemeMenu();
 }
 
-function onDocClick(e: MouseEvent): void {
+function onDocPointer(e: Event): void {
   if (!(e.target as HTMLElement)?.closest(".acu-v2-app__theme-switcher")) {
-    isThemeMenuOpen.value = false;
+    closeThemeMenu();
   }
 }
 
-onMounted(() => document.addEventListener("click", onDocClick, true));
-onBeforeUnmount(() => document.removeEventListener("click", onDocClick, true));
+onMounted(() => {
+  const doc = getAcuHostDocument();
+  doc.addEventListener("pointerdown", onDocPointer, true);
+  doc.addEventListener("touchstart", onDocPointer, true);
+  doc.addEventListener("click", onDocPointer, true);
+});
+onBeforeUnmount(() => {
+  const doc = getAcuHostDocument();
+  doc.removeEventListener("pointerdown", onDocPointer, true);
+  doc.removeEventListener("touchstart", onDocPointer, true);
+  doc.removeEventListener("click", onDocPointer, true);
+  clearThemeMenuCloseTimer();
+  clearMobileNavCloseTimer();
+});
 
 onMounted(() => {
   rootShell.markMounted();
@@ -138,27 +158,78 @@ watch(() => devOptions.developerOptionsEnabled.value, () => {
 onMounted(() => router.ensureActiveVisible());
 
 function openMobileNav(): void {
+  clearMobileNavCloseTimer();
   isMobileNavOpen.value = true;
+  isMobileNavRendered.value = true;
+  isMobileNavClosing.value = false;
 }
 
 function closeMobileNav(): void {
+  if (!isMobileNavOpen.value && !isMobileNavRendered.value) return;
   isMobileNavOpen.value = false;
+  if (!isMobileNavRendered.value) return;
+  isMobileNavClosing.value = true;
+  clearMobileNavCloseTimer();
+  mobileNavCloseTimer = setTimeout(() => {
+    isMobileNavRendered.value = false;
+    isMobileNavClosing.value = false;
+    mobileNavCloseTimer = undefined;
+  }, MOBILE_NAV_LEAVE_MS);
 }
 
 async function closeApp(): Promise<void> {
   if (!(await canCloseUi())) return;
+  closeThemeMenu();
   closeMobileNav();
   emit("close");
+}
+
+function openThemeMenu(): void {
+  clearThemeMenuCloseTimer();
+  isThemeMenuOpen.value = true;
+  isThemeMenuRendered.value = true;
+  isThemeMenuClosing.value = false;
+}
+
+function closeThemeMenu(): void {
+  if (!isThemeMenuOpen.value && !isThemeMenuRendered.value) return;
+  isThemeMenuOpen.value = false;
+  if (!isThemeMenuRendered.value) return;
+  isThemeMenuClosing.value = true;
+  clearThemeMenuCloseTimer();
+  themeMenuCloseTimer = setTimeout(() => {
+    isThemeMenuRendered.value = false;
+    isThemeMenuClosing.value = false;
+    themeMenuCloseTimer = undefined;
+  }, THEME_MENU_LEAVE_MS);
+}
+
+function clearThemeMenuCloseTimer(): void {
+  if (themeMenuCloseTimer === undefined) return;
+  clearTimeout(themeMenuCloseTimer);
+  themeMenuCloseTimer = undefined;
+}
+
+function clearMobileNavCloseTimer(): void {
+  if (mobileNavCloseTimer === undefined) return;
+  clearTimeout(mobileNavCloseTimer);
+  mobileNavCloseTimer = undefined;
 }
 </script>
 
 <style scoped>
 .acu-v2-app {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 9000;
+  width: 100%;
   width: 100vw;
   width: 100dvw;
+  height: 100%;
   height: 100vh;
   height: 100dvh;
   min-width: 0;
@@ -250,9 +321,15 @@ async function closeApp(): Promise<void> {
 
 .acu-v2-app__mobile-nav-layer {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
+  width: 100%;
   width: 100vw;
   width: 100dvw;
+  height: 100%;
   height: 100vh;
   height: 100dvh;
   min-height: 100vh;
@@ -265,23 +342,55 @@ async function closeApp(): Promise<void> {
   background: rgba(0, 0, 0, 0.58);
   pointer-events: auto;
   overscroll-behavior: contain;
+  animation: mobile-nav-layer-in 0.18s ease-out both;
+}
+
+.acu-v2-app__mobile-nav-layer.is-closing {
+  pointer-events: auto;
+  animation: mobile-nav-layer-out 0.15s ease-in both;
 }
 
 .acu-v2-app__mobile-nav {
-  width: min(300px, calc(100dvw - 48px));
-  height: 100vh;
-  height: 100dvh;
-  max-height: 100dvh;
+  width: 280px;
+  max-width: calc(100vw - 72px);
+  height: 100%;
+  max-height: 100vh;
   min-width: 0;
   min-height: 0;
   align-self: stretch;
-  flex: 0 0 min(300px, calc(100dvw - 48px));
+  flex: 0 1 280px;
   display: flex;
   flex-direction: column;
   background: var(--acu-sidebar-bg);
   border-right: 0;
   box-shadow: var(--acu-shadow);
   overflow: hidden;
+  pointer-events: auto;
+  animation: mobile-nav-drawer-in 0.18s ease-out both;
+}
+
+.acu-v2-app__mobile-nav-layer.is-closing .acu-v2-app__mobile-nav {
+  animation: mobile-nav-drawer-out 0.15s ease-in both;
+}
+
+@supports (width: min(280px, calc(100vw - 72px))) {
+  .acu-v2-app__mobile-nav {
+    width: min(280px, calc(100vw - 72px));
+    flex: 0 0 min(280px, calc(100vw - 72px));
+  }
+}
+
+@supports (width: 100dvw) {
+  .acu-v2-app__mobile-nav {
+    max-width: calc(100dvw - 72px);
+  }
+}
+
+@supports (height: 100dvh) {
+  .acu-v2-app__mobile-nav {
+    height: 100dvh;
+    max-height: 100dvh;
+  }
 }
 
 /* ── Theme switcher ── */
@@ -324,6 +433,12 @@ async function closeApp(): Promise<void> {
   border: 1px solid var(--acu-border);
   border-radius: var(--acu-radius-md);
   box-shadow: var(--acu-shadow);
+  animation: theme-menu-in 0.12s ease-out both;
+}
+
+.acu-v2-app__theme-menu.is-closing {
+  pointer-events: none;
+  animation: theme-menu-out 0.12s ease-in both;
 }
 
 .acu-v2-app__theme-option {
@@ -367,42 +482,46 @@ async function closeApp(): Promise<void> {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-on-accent) 62%, transparent);
 }
 
-/* ── Theme menu transitions ── */
-.theme-menu-enter-active,
-.theme-menu-leave-active {
-  transition:
-    opacity 0.12s ease,
-    transform 0.12s ease;
+@keyframes theme-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.theme-menu-enter-from,
-.theme-menu-leave-to {
-  opacity: 0;
-  transform: translateY(-4px);
+@keyframes theme-menu-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
-/* ── Mobile nav transitions (guidelines §5) ── */
-.mobile-nav-enter-active,
-.mobile-nav-leave-active {
-  transition: opacity 0.18s ease;
+@keyframes mobile-nav-layer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-.mobile-nav-enter-active .acu-v2-app__mobile-nav {
-  transition: transform 0.18s ease-out;
+@keyframes mobile-nav-drawer-in {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
 }
 
-.mobile-nav-leave-active .acu-v2-app__mobile-nav {
-  transition: transform 0.15s ease-in;
+@keyframes mobile-nav-layer-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
-.mobile-nav-enter-from,
-.mobile-nav-leave-to {
-  opacity: 0;
-}
-
-.mobile-nav-enter-from .acu-v2-app__mobile-nav,
-.mobile-nav-leave-to .acu-v2-app__mobile-nav {
-  transform: translateX(-100%);
+@keyframes mobile-nav-drawer-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
 }
 
 @media (max-width: 720px) {

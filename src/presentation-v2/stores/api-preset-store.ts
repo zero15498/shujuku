@@ -35,6 +35,8 @@ interface ApiPresetState {
   presets: AcuV2ApiPreset[];
   defaultApiPresetName: string;
   activePresetName: string;
+  currentConfigReady: boolean;
+  currentConfigLabel: string;
   currentChatKey: string;
   streamingEnabled: boolean;
   tavernProfiles: Array<{ id: string; name: string }>;
@@ -126,11 +128,53 @@ function getCurrentConfigAsPreset(name: string): AcuV2ApiPreset {
   };
 }
 
+function findPresetMatchingCurrentConfig(presets: AcuV2ApiPreset[]): AcuV2ApiPreset | null {
+  const current = getCurrentConfigAsPreset('');
+  return presets.find(preset => {
+    if (preset.apiMode !== current.apiMode) return false;
+    if (preset.tavernProfile !== current.tavernProfile) return false;
+    return (
+      preset.apiConfig.useMainApi === current.apiConfig.useMainApi &&
+      preset.apiConfig.url === current.apiConfig.url &&
+      preset.apiConfig.apiKey === current.apiConfig.apiKey &&
+      preset.apiConfig.model === current.apiConfig.model &&
+      preset.apiConfig.max_tokens === current.apiConfig.max_tokens &&
+      preset.apiConfig.temperature === current.apiConfig.temperature
+    );
+  }) ?? null;
+}
+
+function resolveCurrentConfigStatus(): { ready: boolean; label: string } {
+  const mode = normalizeApiMode(settings_ACU.apiMode);
+  const config = normalizeApiConfig(settings_ACU.apiConfig);
+  const tavernProfile = typeof settings_ACU.tavernProfile === 'string'
+    ? settings_ACU.tavernProfile.trim()
+    : '';
+
+  if (mode === 'tavern') {
+    return tavernProfile
+      ? { ready: true, label: `酒馆连接预设 ${tavernProfile}` }
+      : { ready: false, label: '未选择酒馆连接预设' };
+  }
+
+  if (config.useMainApi) {
+    return { ready: true, label: '酒馆主 API' };
+  }
+
+  if (config.url.trim() && config.model.trim()) {
+    return { ready: true, label: config.model.trim() };
+  }
+
+  return { ready: false, label: '当前 API 配置不完整' };
+}
+
 export const useApiPresetStore = defineStore('acu-v2-api-presets', {
   state: (): ApiPresetState => ({
     presets: [],
     defaultApiPresetName: '',
     activePresetName: '',
+    currentConfigReady: false,
+    currentConfigLabel: '当前 API 配置不完整',
     currentChatKey: getCurrentChatKey(),
     streamingEnabled: false,
     tavernProfiles: [],
@@ -171,7 +215,11 @@ export const useApiPresetStore = defineStore('acu-v2-api-presets', {
       const boundName = binding && findPresetByName(this.presets, binding.presetName)
         ? binding.presetName
         : '';
-      this.activePresetName = boundName || defaultName;
+      const matchedCurrentName = findPresetMatchingCurrentConfig(this.presets)?.name ?? '';
+      this.activePresetName = boundName || defaultName || matchedCurrentName;
+      const currentConfig = resolveCurrentConfigStatus();
+      this.currentConfigReady = currentConfig.ready;
+      this.currentConfigLabel = currentConfig.label;
       this.streamingEnabled = settings_ACU.streamingEnabled === true;
     },
     persist(): void {

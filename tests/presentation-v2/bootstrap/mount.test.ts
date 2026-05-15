@@ -91,6 +91,28 @@ describe('mount — 当前文档场景', () => {
     mount.__resetAcuV2MountForTests();
   });
 
+  it('主题按钮可以打开主题菜单，并在外部点击后关闭', async () => {
+    const { mount } = await freshImport();
+    await mount.openAcuV2App();
+
+    const themeButton = document.querySelector('.acu-v2-app__theme-btn') as HTMLButtonElement | null;
+    expect(themeButton).not.toBeNull();
+
+    themeButton!.click();
+    await Promise.resolve();
+
+    const menu = document.querySelector('.acu-v2-app__theme-menu') as HTMLElement | null;
+    expect(menu).not.toBeNull();
+    expect(menu!.textContent).toContain('浅色管理台');
+
+    document.body.click();
+    await Promise.resolve();
+
+    expect(menu!.classList.contains('is-closing')).toBe(true);
+
+    mount.__resetAcuV2MountForTests();
+  });
+
   it('汉堡按钮打开移动端导航抽屉，点击页面项后关闭抽屉并切换页面', async () => {
     const { mount } = await freshImport();
     await mount.openAcuV2App();
@@ -113,12 +135,33 @@ describe('mount — 当前文档场景', () => {
     formFillButton!.click();
     await Promise.resolve();
 
-    // With Vue <Transition>, the element stays in DOM during the leave animation.
-    // In jsdom (no real transitionend), we verify the leave class was applied.
     const layer = document.querySelector('.acu-v2-app__mobile-nav-layer');
-    expect(layer?.classList.contains('mobile-nav-leave-active')).toBe(true);
+    expect(layer?.classList.contains('is-closing')).toBe(true);
     expect(menuButton!.getAttribute('aria-expanded')).toBe('false');
     expect(document.querySelector('[data-acu-main]')!.textContent).toContain('更新参数');
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('移动端导航抽屉通过遮罩 click 关闭并避免穿透底层控件', async () => {
+    const { mount } = await freshImport();
+    await mount.openAcuV2App();
+
+    const menuButton = document.querySelector('.acu-v2-app__menu') as HTMLButtonElement | null;
+    expect(menuButton).not.toBeNull();
+
+    menuButton!.click();
+    await Promise.resolve();
+
+    const layer = document.querySelector('.acu-v2-app__mobile-nav-layer') as HTMLElement | null;
+    expect(layer).not.toBeNull();
+    expect(menuButton!.getAttribute('aria-expanded')).toBe('true');
+
+    layer!.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(menuButton!.getAttribute('aria-expanded')).toBe('false');
+    expect(layer!.classList.contains('is-closing')).toBe(true);
 
     mount.__resetAcuV2MountForTests();
   });
@@ -161,6 +204,29 @@ describe('mount — 父文档场景（iframe 模拟）', () => {
       `style[${STYLE_DATA_ATTR}]`,
     );
     expect(childStyles.length).toBe(0);
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('父文档挂载时，主题菜单响应父文档外部点击关闭', async () => {
+    const { mount } = await freshImport();
+
+    await mount.openAcuV2App();
+
+    const parentDoc = parentDom.window.document;
+    const themeButton = parentDoc.querySelector('.acu-v2-app__theme-btn') as HTMLButtonElement | null;
+    expect(themeButton).not.toBeNull();
+
+    themeButton!.click();
+    await Promise.resolve();
+
+    const menu = parentDoc.querySelector('.acu-v2-app__theme-menu') as HTMLElement | null;
+    expect(menu).not.toBeNull();
+
+    parentDoc.body.dispatchEvent(new parentDom.window.Event('pointerdown', { bubbles: true }));
+    await Promise.resolve();
+
+    expect(menu!.classList.contains('is-closing')).toBe(true);
 
     mount.__resetAcuV2MountForTests();
   });

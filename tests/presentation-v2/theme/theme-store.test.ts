@@ -98,7 +98,7 @@ describe('theme-store', () => {
     ]);
   });
 
-  it('深色管理台使用低饱和橙色 accent', async () => {
+  it('深色管理台使用灰蓝底色与冷薄荷 accent', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
@@ -107,14 +107,24 @@ describe('theme-store', () => {
       name: '深色管理台',
       colorScheme: 'dark',
       tokens: {
-        bg0: '#10110f',
-        bg1: '#171814',
-        sidebarBg: '#171814',
-        text1: '#f4f0e8',
-        accent: '#D97757',
-        accent2: '#C96B4A',
-        onAccent: '#10110f',
-        accentGlow: 'rgba(217, 119, 87, 0.22)',
+        bg0: '#1F2428',
+        bg1: '#24292E',
+        bg2: '#2D343B',
+        sidebarBg: '#1F2428',
+        hoverOverlay: 'rgba(201, 209, 217, 0.08)',
+        border: 'rgba(205, 217, 229, 0.08)',
+        border2: 'rgba(205, 217, 229, 0.14)',
+        text1: '#F0F3F6',
+        text2: '#C9D1D9',
+        text3: '#8B949E',
+        accent: '#7FD6CA',
+        accent2: '#69C7BC',
+        onAccent: '#1F2428',
+        accentGlow: 'rgba(127, 214, 202, 0.26)',
+        success: '#8DBA9A',
+        warning: '#C9A35E',
+        danger: '#D07A74',
+        shadow: '0 18px 48px rgba(1, 4, 9, 0.36)',
       },
     });
   });
@@ -167,6 +177,9 @@ describe('theme-injector', () => {
     expect(style1!.textContent).not.toContain('--acu-accent-glow-2:');
     expect(style1!.textContent).toContain('--acu-font-ui:');
     expect(style1!.textContent).toContain('--acu-font-mono:');
+    expect(style1!.textContent).toContain('scrollbar-color: color-mix(in srgb, var(--acu-text-3) 55%, transparent) transparent;');
+    expect(style1!.textContent).toContain(`#${APP_ROOT_ID} ::-webkit-scrollbar-thumb`);
+    expect(style1!.textContent).toContain('background: color-mix(in srgb, var(--acu-accent) 62%, var(--acu-text-3));');
 
     store.setTheme('default-light');
     m.injector.applyTheme(store.activeTheme);

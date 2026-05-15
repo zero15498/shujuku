@@ -145,7 +145,14 @@ describe('DashboardPage', () => {
     expect(text).toContain('当前使用 table-fast');
     expect(text).toContain('默认预设（全局）');
     expect(text).toContain('当前使用 原生 JSON');
+    const plotItem = Array.from(page!.querySelectorAll<HTMLElement>('.acu-v2-dashboard-page__setup-item'))
+      .find(item => item.querySelector('.acu-v2-dashboard-page__setup-title')?.textContent === '剧情推进');
+    expect(plotItem).toBeDefined();
+    expect(plotItem!.textContent || '').toContain('待配置');
+    expect(plotItem!.querySelector('.acu-badge--neutral')).not.toBeNull();
+    expect(plotItem!.querySelector('.acu-badge--warning')).toBeNull();
     expect(page!.querySelector('.acu-v2-dashboard-page__status-table')).toBeNull();
+    expect(text).not.toContain('下一次');
     expect(text).not.toContain('事件记录');
 
     // 基础设置默认呈现
@@ -169,6 +176,41 @@ describe('DashboardPage', () => {
     expect(text).not.toContain('当前 API');
     expect(text).not.toContain('规范填表');
     expect(document.querySelector('button[data-acu-toggle-key="standardizedTableFillEnabled"]')).toBeNull();
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('基础配置未完成项使用中性视觉，不大面积占用 warning 色', () => {
+    const source = readFileSync(
+      'src/presentation-v2/pages/DashboardPage.vue',
+      'utf8',
+    );
+
+    const pendingRule = source.match(/\.acu-v2-dashboard-page__setup-item--pending\s*\{[\s\S]*?\}/)?.[0] || '';
+    expect(pendingRule).not.toContain('--acu-warning');
+    expect(source).toContain(`:variant="item.complete ? 'success' : 'neutral'"`);
+    expect(source).toContain(`{{ item.complete ? '已就绪' : '待配置' }}`);
+  });
+
+  it('没有 API 预设但当前 API 配置可用时，基础配置不提示未配置', async () => {
+    const settings = createSettings();
+    settings.apiPresets = [];
+    settings.defaultApiPresetName = '';
+    settings.apiPresetBindingsByChat = {};
+    settings.apiMode = 'custom';
+    settings.apiConfig = { url: '', apiKey: '', model: '', useMainApi: true, max_tokens: 60000, temperature: 1 };
+
+    const { mount } = await mountDashboardPage(settings);
+
+    const page = document.querySelector('.acu-v2-dashboard-page') as HTMLElement;
+    const apiItem = Array.from(page.querySelectorAll<HTMLElement>('.acu-v2-dashboard-page__setup-item'))
+      .find(item => item.querySelector('.acu-v2-dashboard-page__setup-title')?.textContent === 'API');
+
+    expect(apiItem).toBeDefined();
+    expect(apiItem!.textContent || '').toContain('当前使用 酒馆主 API');
+    expect(apiItem!.textContent || '').toContain('已就绪');
+    expect(apiItem!.textContent || '').not.toContain('待配置');
+    expect(apiItem!.textContent || '').not.toContain('未选择 API 预设');
 
     mount.__resetAcuV2MountForTests();
   });

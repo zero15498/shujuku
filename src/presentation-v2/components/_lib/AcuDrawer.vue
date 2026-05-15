@@ -1,35 +1,40 @@
 <template>
-  <Transition name="acu-drawer">
-    <div v-if="isOpen" class="acu-v2-drawer-layer" @click="requestClose">
-      <aside
-        class="acu-v2-drawer"
-        :style="{ width: resolvedWidth }"
-        aria-modal="true"
-        role="dialog"
-        @click.stop
-      >
-        <header class="acu-v2-drawer__header">
-          <div class="acu-v2-drawer__header-left">
-            <AcuIconButton
-              v-if="showBack"
-              icon="fa-solid fa-arrow-left"
-              title="返回"
-              @click="requestBack"
-            />
-            <h3>{{ title }}</h3>
-          </div>
-          <AcuIconButton icon="fa-solid fa-xmark" aria-label="关闭" title="关闭" @click="requestClose" />
-        </header>
-        <div class="acu-v2-drawer__body">
-          <slot />
+  <div
+    v-if="isRendered"
+    class="acu-v2-drawer-layer"
+    :class="{ 'is-closing': isClosing }"
+    @click.self="requestClose"
+    @pointerdown.self="requestClose"
+    @touchstart.self="requestClose"
+  >
+    <aside
+      class="acu-v2-drawer"
+      :style="{ width: resolvedWidth }"
+      aria-modal="true"
+      role="dialog"
+      @click.stop
+    >
+      <header class="acu-v2-drawer__header">
+        <div class="acu-v2-drawer__header-left">
+          <AcuIconButton
+            v-if="showBack"
+            icon="fa-solid fa-arrow-left"
+            title="返回"
+            @click="requestBack"
+          />
+          <h3>{{ title }}</h3>
         </div>
-      </aside>
-    </div>
-  </Transition>
+        <AcuIconButton icon="fa-solid fa-xmark" aria-label="关闭" title="关闭" @click="requestClose" />
+      </header>
+      <div class="acu-v2-drawer__body">
+        <slot />
+      </div>
+    </aside>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import AcuIconButton from './AcuIconButton.vue';
 
 const props = withDefaults(defineProps<{
@@ -50,7 +55,18 @@ const emit = defineEmits<{
   (e: 'back'): void;
 }>();
 
-const resolvedWidth = computed(() => `min(${props.width}, 100dvw)`);
+const resolvedWidth = computed(() => props.width);
+const isRendered = ref(false);
+const isClosing = ref(false);
+const DRAWER_LEAVE_MS = 150;
+let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+watch(() => props.isOpen, (open) => {
+  if (open) showDrawer();
+  else hideDrawer();
+}, { immediate: true });
+
+onBeforeUnmount(clearCloseTimer);
 
 async function guard(): Promise<boolean> {
   if (!props.beforeClose) return true;
@@ -59,32 +75,73 @@ async function guard(): Promise<boolean> {
 }
 
 async function requestClose(): Promise<void> {
+  if (isClosing.value) return;
   if (await guard()) emit('close');
 }
 
 async function requestBack(): Promise<void> {
+  if (isClosing.value) return;
   if (await guard()) emit('back');
+}
+
+function showDrawer(): void {
+  clearCloseTimer();
+  isRendered.value = true;
+  isClosing.value = false;
+}
+
+function hideDrawer(): void {
+  if (!isRendered.value) return;
+  isClosing.value = true;
+  clearCloseTimer();
+  closeTimer = setTimeout(() => {
+    isRendered.value = false;
+    isClosing.value = false;
+    closeTimer = undefined;
+  }, DRAWER_LEAVE_MS);
+}
+
+function clearCloseTimer(): void {
+  if (closeTimer === undefined) return;
+  clearTimeout(closeTimer);
+  closeTimer = undefined;
 }
 </script>
 
 <style scoped>
 .acu-v2-drawer-layer {
-  position: fixed; inset: 0; z-index: 9200;
-  width: 100vw; width: 100dvw;
-  height: 100vh; height: 100dvh;
+  position: fixed; top: 0; right: 0; bottom: 0; left: 0; inset: 0; z-index: 9200;
+  width: 100%; width: 100vw; width: 100dvw;
+  height: 100%; height: 100vh; height: 100dvh;
   display: flex; justify-content: flex-end;
   background: rgba(0, 0, 0, 0.38);
   overflow: hidden;
+  animation: acu-drawer-layer-in 0.18s ease-out both;
+}
+
+.acu-v2-drawer-layer.is-closing {
+  pointer-events: none;
+  animation: acu-drawer-layer-out 0.15s ease-in both;
 }
 
 .acu-v2-drawer {
-  height: 100%; max-height: 100dvh;
+  max-width: 100vw;
+  height: 100%; max-height: 100vh;
   display: flex; flex-direction: column;
   background: var(--acu-bg-1);
   border-left: 0;
   box-shadow: var(--acu-shadow);
   min-width: 0; min-height: 0;
   overflow: hidden;
+  animation: acu-drawer-panel-in 0.18s ease-out both;
+}
+
+.acu-v2-drawer-layer.is-closing .acu-v2-drawer {
+  animation: acu-drawer-panel-out 0.15s ease-in both;
+}
+
+@supports (max-height: 100dvh) {
+  .acu-v2-drawer { max-height: 100dvh; }
 }
 
 .acu-v2-drawer__header {
@@ -103,15 +160,25 @@ async function requestBack(): Promise<void> {
   display: flex; flex-direction: column; gap: 14px;
 }
 
-/* ── Transition ── */
-.acu-drawer-enter-active,
-.acu-drawer-leave-active { transition: opacity 0.18s ease; }
-.acu-drawer-enter-active .acu-v2-drawer { transition: transform 0.18s ease-out; }
-.acu-drawer-leave-active .acu-v2-drawer { transition: transform 0.15s ease-in; }
-.acu-drawer-enter-from,
-.acu-drawer-leave-to { opacity: 0; }
-.acu-drawer-enter-from .acu-v2-drawer,
-.acu-drawer-leave-to .acu-v2-drawer { transform: translateX(100%); }
+@keyframes acu-drawer-layer-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes acu-drawer-panel-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes acu-drawer-layer-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes acu-drawer-panel-out {
+  from { transform: translateX(0); }
+  to { transform: translateX(100%); }
+}
 
 @media (max-width: 860px) {
   .acu-v2-drawer { width: 100vw !important; width: 100dvw !important; border-left: 0; }

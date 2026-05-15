@@ -10,7 +10,7 @@
 ## 落地记录（2026-05-09）
 
 - 结论：v2 已覆盖旧主弹窗 7 个 Tab 的主要功能面，可在保留旧 UI 的前提下面向测试人员发布并行测试版；不可作为旧 UI 下线依据。
-- 当前一级页：仪表盘、更新参数、表格模板、剧情推进、API、手动填表、智能续写、外部导入、交火模式、正文替换、数据管理、SQL 控制台、运行日志、开发者选项。
+- 当前一级页：仪表盘、更新参数、表格模板、剧情推进、API、智能续写、外部导入、交火模式、正文替换、数据管理、SQL 控制台、运行日志、开发者选项。
 - 仍不纳入测试版替代范围：toast / confirm 视觉归一、visualizer Vue 化、旧 `presentation/` 删除、api-registry 搬离 `presentation/`。
 
 ## 覆盖核对
@@ -18,8 +18,7 @@
 | 旧 UI 区域 | v2 当前归属 | 状态 |
 |---|---|---|
 | 仪表盘 | `DashboardPage` | 已覆盖 |
-| 更新参数 / 填表提示词 | `FormFillPage` + `FormFillPromptDrawer` | 已覆盖；提示词保持单抽屉编辑，不升级为预设库 |
-| 快速手动更新 / 手动表选择 | `ManualFormFillPage` | 已覆盖 |
+| 更新参数 / 填表提示词 / 快速手动更新 / 手动表选择 | `FormFillPage` + `FormFillPromptDrawer` | 已覆盖；提示词保持单抽屉编辑，不升级为预设库；手动填表作为等宽面板并入更新参数页 |
 | API / API 预设 | `ApiPage` + `ApiDrawer` | 已覆盖 |
 | 表格模板 / 世界书注入 | `TablePage` | 已覆盖；visualizer 仍沿用旧窗口 |
 | 剧情推进 | `PlotPage` + `PlotPresetDrawer` | 已覆盖 |

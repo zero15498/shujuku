@@ -1,5 +1,5 @@
 /**
- * FormFillPage / ManualFormFillPage 集成 — 更新参数、规则列表、提示词段、手动填表
+ * FormFillPage 集成 — 更新参数、规则列表、提示词段、手动填表
  *
  * @vitest-environment jsdom
  */
@@ -148,7 +148,7 @@ beforeEach(() => {
 });
 
 describe('FormFillPage', () => {
-  it('渲染更新参数页的更新节奏、标签筛选、质量门槛与提示词面板', async () => {
+  it('渲染更新参数页的更新节奏质量门槛、标签筛选与提示词面板', async () => {
     const { mount } = await mountFormFillPage();
 
     const page = document.querySelector('.acu-v2-form-fill-page');
@@ -156,9 +156,16 @@ describe('FormFillPage', () => {
     const text = page!.textContent || '';
     expect(text).toContain('更新参数');
     expect(text).toContain('数据库状态');
+    expect(text).toContain('当前聊天');
+    expect(text).toContain('chat-form-fill');
+    expect(text).toContain('当前 AI 回复数');
     expect(text).toContain('角色状态');
     expect(text).toContain('事件记录');
-    expect(text).toContain('就绪:角色状态');
+    expect(text).not.toContain('就绪:角色状态');
+    expect(text).not.toContain('下一次:');
+    const statusStrip = page!.querySelector('.acu-v2-form-fill-page__status-strip');
+    expect(statusStrip).not.toBeNull();
+    expect(statusStrip!.textContent || '').toContain('3');
     expect(text).toContain('更新节奏');
     expect(text).toContain('标签筛选');
     expect(text).not.toContain('内容过滤');
@@ -176,14 +183,19 @@ describe('FormFillPage', () => {
       .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('填表提示词'))!;
     expect(promptPanel.querySelector('.acu-panel__actions .acu-badge')?.textContent).toContain('已自定义提示词');
     expect(promptPanel.querySelector('.acu-v2-form-fill-page__prompt-overview')).toBeNull();
-    expect(text).not.toContain('执行手动填表');
+    expect(text).toContain('手动填表');
+    expect(text).toContain('填表 API 预设');
+    expect(text).toContain('本次填表附加要求');
+    expect(text).toContain('执行手动填表');
     expect(text).not.toContain('表格模板预设');
     expect(text).not.toContain('打开可视化表格编辑器');
     expect(text).not.toContain('立即构建交火纪要索引');
     expect(page!.querySelector('.acu-prompt-segs')).toBeNull();
     const panelTitles = Array.from(page!.querySelectorAll('.acu-v2-form-fill-page__grid > .acu-panel .acu-panel__title'))
       .map(title => (title.textContent || '').trim());
-    expect(panelTitles).toEqual(['数据库状态', '更新节奏', '标签筛选', '质量门槛', '填表提示词']);
+    expect(panelTitles).toEqual(['数据库状态', '更新节奏与质量门槛', '标签筛选', '填表提示词', '手动填表']);
+    expect(page!.querySelector('.acu-v2-form-fill-page__panel--filter + .acu-v2-form-fill-page__panel--prompt')).not.toBeNull();
+    expect(page!.querySelector('.acu-v2-form-fill-page__panel--manual')).not.toBeNull();
 
     mount.__resetAcuV2MountForTests();
   });
@@ -360,29 +372,26 @@ describe('FormFillPage', () => {
 
 });
 
-describe('ManualFormFillPage', () => {
-  it('渲染手动填表一级页和常驻说明信息条', async () => {
-    const { mount } = await mountFormFillPage(createSettings(), 'manual-form-fill');
+describe('FormFillPage · 手动填表面板', () => {
+  it('渲染手动填表面板和常驻说明信息条', async () => {
+    const { mount } = await mountFormFillPage();
 
-    const page = document.querySelector('.acu-v2-manual-form-fill-page');
+    const page = document.querySelector('.acu-v2-form-fill-page');
     expect(page).not.toBeNull();
-    const text = page!.textContent || '';
-    expect(text).toContain('手动填表');
+    const panel = Array.from(page!.querySelectorAll<HTMLElement>('.acu-v2-form-fill-page__grid > .acu-panel'))
+      .find(item => item.querySelector('.acu-panel__title')?.textContent?.includes('手动填表'))!;
+    const text = panel.textContent || '';
     expect(text).toContain('填表 API 预设');
     expect(text).toContain('本次填表附加要求');
     expect(text).toContain('执行手动填表');
-    expect(text).not.toContain('更新节奏');
-    expect(text).not.toContain('填表提示词');
 
-    const panels = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-manual-form-fill-page > .acu-panel'));
-    expect(panels.length).toBe(1);
-    expect(panels[0].querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+    expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
 
     mount.__resetAcuV2MountForTests();
   });
 
   it('执行手动填表会把已选表传给 service 编排', async () => {
-    const { mount, orchestrate } = await mountFormFillPage(createSettings(), 'manual-form-fill');
+    const { mount, orchestrate } = await mountFormFillPage();
 
     const button = Array.from(document.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;

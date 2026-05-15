@@ -35,11 +35,11 @@ afterEach(() => {
 });
 
 describe('router-store · pageRegistry 基线', () => {
-  it('注册表恰好 14 项，分布于 5 分组', async () => {
+  it('注册表恰好 13 项，分布于 5 分组', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const r = m.router.useRouterStore();
-    expect(r.pageRegistry.length).toBe(14);
+    expect(r.pageRegistry.length).toBe(13);
     const byGroup = r.pageRegistry.reduce<Record<string, number>>((acc, p) => {
       acc[p.group] = (acc[p.group] || 0) + 1;
       return acc;
@@ -47,7 +47,7 @@ describe('router-store · pageRegistry 基线', () => {
     expect(byGroup).toEqual({
       overview: 1,
       config: 4,
-      feature: 5,
+      feature: 4,
       tool: 3,
       developer: 1,
     });
@@ -64,7 +64,6 @@ describe('router-store · pageRegistry 基线', () => {
       ['table', '表格模板', 'config'],
       ['plot', '剧情推进', 'config'],
       ['api', 'API', 'config'],
-      ['manual-form-fill', '手动填表', 'feature'],
       ['continuation', '智能续写', 'feature'],
       ['import', '外部导入', 'feature'],
       ['vector-index', '交火模式', 'feature'],
@@ -161,13 +160,13 @@ describe('router-store · 默认可见性（阶段 0 默认状态）', () => {
     expect(r.visiblePages.map(p => p.id)).toContain('content-replace');
   });
 
-  it('visiblePagesByGroup 在默认状态下：overview=1 / config=4 / feature=3 / tool=2 / developer=0', async () => {
+  it('visiblePagesByGroup 在默认状态下：overview=1 / config=4 / feature=2 / tool=2 / developer=0', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const r = m.router.useRouterStore();
     expect(r.visiblePagesByGroup.overview.length).toBe(1);
     expect(r.visiblePagesByGroup.config.length).toBe(4);
-    expect(r.visiblePagesByGroup.feature.length).toBe(3);
+    expect(r.visiblePagesByGroup.feature.length).toBe(2);
     expect(r.visiblePagesByGroup.tool.length).toBe(2); // 数据管理 + 运行日志
     expect(r.visiblePagesByGroup.developer.length).toBe(0); // 默认 developerOptionsEnabled=false
   });
@@ -238,7 +237,7 @@ describe('router-store · 切页 + 持久化', () => {
     const r = m.router.useRouterStore();
 
     expect(r.visiblePagesByGroup.config.map(p => p.id)).toContain('plot');
-    expect(r.visiblePagesByGroup.feature.map(p => p.id)[0]).toBe('manual-form-fill');
+    expect(r.visiblePagesByGroup.feature.map(p => p.id)[0]).toBe('continuation');
     expect(r.visiblePages.map(p => p.id)).not.toContain('vector-index');
 
     r.setFeatureGate(m.registry.FEATURE_GATE_PLOT, false);

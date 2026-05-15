@@ -25,8 +25,8 @@
                   {{ item.description }}
                 </p>
               </div>
-              <AcuBadge :variant="item.complete ? 'success' : 'warning'">
-                {{ item.complete ? '已就绪' : '需处理' }}
+              <AcuBadge :variant="item.complete ? 'success' : 'neutral'">
+                {{ item.complete ? '已就绪' : '待配置' }}
               </AcuBadge>
             </div>
 
@@ -62,9 +62,6 @@
           </AcuMessage>
         </div>
 
-        <AcuMessage kind="info">
-          {{ dashboard.hasTables.value ? dashboard.nextUpdateText.value : '当前尚未加载数据库表格。配置表格模板后，更新状态会在“更新参数”页显示。' }}
-        </AcuMessage>
       </AcuPanel>
 
       <AcuPanel
@@ -178,7 +175,10 @@ const storageModeLabel = computed(() =>
 );
 
 const setupItems = computed<SetupItem[]>(() => {
-  const apiReady = !!apiStore.activePresetName;
+  const apiReady = !!apiStore.activePresetName || apiStore.currentConfigReady;
+  const apiStatus = apiStore.activePresetName
+    ? `当前使用 ${apiStore.activePresetName}`
+    : (apiStore.currentConfigReady ? `当前使用 ${apiStore.currentConfigLabel}` : apiStore.currentConfigLabel);
   const tableReady = dashboard.hasTables.value || templatePreset.value.displayName !== '默认预设';
   const plotReady = plotStore.enabled === true;
 
@@ -186,7 +186,7 @@ const setupItems = computed<SetupItem[]>(() => {
     {
       key: 'api',
       label: 'API',
-      status: apiReady ? `当前使用 ${apiStore.activePresetName}` : '未选择 API 预设',
+      status: apiStatus,
       description: 'API 是剧情推进、填表和续写调用 AI 的基础配置。没有可用 API 时，大部分自动功能无法正常运行。',
       icon: 'fa-solid fa-plug',
       complete: apiReady,
@@ -330,9 +330,9 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
 
 .acu-v2-dashboard-page__setup-item--pending {
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--acu-warning) 26%, transparent);
+  border: 1px solid var(--acu-border-2);
   border-radius: var(--acu-radius-sm);
-  background: color-mix(in srgb, var(--acu-warning) 6%, transparent);
+  background: color-mix(in srgb, var(--acu-bg-2) 48%, transparent);
 }
 
 .acu-v2-dashboard-page__setup-main {

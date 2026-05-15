@@ -74,6 +74,35 @@ describe('useApiPresetStore', () => {
     expect(store.currentChatKey).toBe('chat-A');
   });
 
+  it('没有预设时仍能识别当前 API 配置是否可用', async () => {
+    const settings = createSettings();
+    settings.apiPresets = [];
+    settings.defaultApiPresetName = '';
+    settings.apiMode = 'custom';
+    settings.apiConfig = { url: 'https://direct.test', apiKey: '', model: 'direct-model', useMainApi: false, max_tokens: 1000, temperature: 1 };
+    const { store } = await importStore(settings);
+
+    store.refreshFromSettings();
+
+    expect(store.activePresetName).toBe('');
+    expect(store.currentConfigReady).toBe(true);
+    expect(store.currentConfigLabel).toBe('direct-model');
+  });
+
+  it('没有聊天绑定和全局默认时，会从当前 API 配置反推出匹配预设', async () => {
+    const settings = createSettings();
+    settings.defaultApiPresetName = '';
+    settings.apiPresetBindingsByChat = {};
+    settings.apiMode = 'custom';
+    settings.apiConfig = { url: 'https://alpha.test', apiKey: 'ka', model: 'ma', useMainApi: false, max_tokens: 1000, temperature: 0.7 };
+    const { store } = await importStore(settings);
+
+    store.refreshFromSettings();
+
+    expect(store.activePresetName).toBe('alpha');
+    expect(store.currentConfigReady).toBe(true);
+  });
+
   it('设置当前聊天活动 API 时同步旧当前配置', async () => {
     const settings = createSettings();
     const { store, saveSettings } = await importStore(settings);

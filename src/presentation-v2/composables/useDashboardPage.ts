@@ -20,12 +20,6 @@ import { CONTENT_REPLACE_UNLOCK_MAX_RETRIES } from '../router/page-registry';
 
 type MessageKind = 'info' | 'success' | 'warning' | 'error';
 
-export interface DashboardStatsItem {
-  label: string;
-  value: string | number;
-  key?: string;
-}
-
 export interface DashboardTableStatusRow {
   key: string;
   name: string;
@@ -57,14 +51,13 @@ export interface DashboardStorageOption {
 
 export interface DashboardPageState {
   chatFileIdentifier: Ref<string>;
+  aiMessageCount: ComputedRef<number>;
   coreApisReady: Ref<boolean>;
   isolationKey: Ref<string>;
   storageMode: Ref<StorageMode>;
   storageMessage: Ref<DashboardMessage | null>;
   storageOptions: DashboardStorageOption[];
-  stats: ComputedRef<DashboardStatsItem[]>;
   tableRows: ComputedRef<DashboardTableStatusRow[]>;
-  nextUpdateText: ComputedRef<string>;
   hasTables: ComputedRef<boolean>;
   basicToggles: ComputedRef<DashboardToggleItem[]>;
   featureToggles: ComputedRef<DashboardToggleItem[]>;
@@ -121,14 +114,6 @@ function countAiMessages(): number {
   }
 }
 
-function countTableRows(keys: string[]): number {
-  return keys.reduce((sum, key) => {
-    const content = currentJsonTableData_ACU?.[key]?.content;
-    if (!Array.isArray(content)) return sum;
-    return sum + Math.max(0, content.length - 1);
-  }, 0);
-}
-
 function normalizeStorageMode(raw: string): StorageMode {
   return raw === 'sqlite' ? 'sqlite' : 'native';
 }
@@ -161,6 +146,10 @@ export function useDashboardPage(): DashboardPageState {
   });
 
   const hasTables = computed(() => sheetKeys.value.length > 0);
+  const aiMessageCount = computed(() => {
+    void refreshTick.value;
+    return countAiMessages();
+  });
 
   const tableRows = computed<DashboardTableStatusRow[]>(() => {
     void refreshTick.value;
@@ -213,33 +202,6 @@ export function useDashboardPage(): DashboardPageState {
         disabled: false,
       };
     });
-  });
-
-  const nextUpdateText = computed(() => {
-    const rows = tableRows.value.filter(row => !row.disabled && row.nextTriggerLabel !== '待初始');
-    const ready = rows.filter(row => row.ready).map(row => row.name);
-    if (ready.length) return `就绪:${ready.join('、')}`;
-
-    const upcoming = rows
-      .map(row => ({ row, floor: Number(row.nextTriggerLabel) }))
-      .filter(item => Number.isFinite(item.floor))
-      .sort((a, b) => a.floor - b.floor);
-    if (!upcoming.length) return '下一次:无';
-    const nextFloor = upcoming[0].floor;
-    const names = upcoming.filter(item => item.floor === nextFloor).map(item => item.row.name);
-    return `下一次:${names.join('、')}(AI楼层 ${nextFloor})`;
-  });
-
-  const stats = computed<DashboardStatsItem[]>(() => {
-    void refreshTick.value;
-    const keys = sheetKeys.value;
-    return [
-      { label: '上下文 AI 楼层', value: countAiMessages() },
-      { label: '数据库状态', value: currentJsonTableData_ACU ? '已加载' : '未加载' },
-      { label: '表格数量', value: keys.length },
-      { label: '记录数量', value: countTableRows(keys) },
-      { label: '当前聊天', value: chatFileIdentifier.value || '未初始化' },
-    ];
   });
 
   /** 基础设置 — 同一聊天里时不时开关的功能。 */
@@ -381,14 +343,13 @@ export function useDashboardPage(): DashboardPageState {
 
   return {
     chatFileIdentifier,
+    aiMessageCount,
     coreApisReady,
     isolationKey,
     storageMode,
     storageMessage,
     storageOptions,
-    stats,
     tableRows,
-    nextUpdateText,
     hasTables,
     basicToggles,
     featureToggles,
