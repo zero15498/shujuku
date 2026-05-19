@@ -247,7 +247,7 @@ export const dashboardCopy = {
     contentReplace: {
       label: "正文替换",
       description:
-        "默认关闭，开启后每轮正文生成后会自动检查并优化 AI 回复的正文内容。",
+        "默认关闭。开启后每轮正文生成后会自动检查并优化 AI 回复的正文内容。",
     },
     vector: {
       label: "交火模式",

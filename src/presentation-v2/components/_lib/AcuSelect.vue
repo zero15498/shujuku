@@ -81,19 +81,34 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.acu-select { position: relative; min-width: 0; }
+.acu-select {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
 
 .acu-select__trigger {
   display: flex; align-items: center; gap: 8px; width: 100%;
   min-height: 32px; padding: 6px 9px;
-  background: var(--acu-bg-2); border: 0;
+  margin: 0 !important;
+  background: var(--acu-bg-2) !important; border: 0 !important;
   border-radius: var(--acu-radius-sm); color: var(--acu-text-1);
   font: inherit; font-size: var(--acu-font-size-body, 12px); cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: none;
 }
 .acu-select__trigger:hover {
-  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2) !important;
 }
+.acu-select__trigger:focus { outline: none !important; }
+.acu-select__trigger:focus:not(:focus-visible) { box-shadow: none !important; }
 .acu-select__trigger:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--acu-accent-glow); }
 .acu-select__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 

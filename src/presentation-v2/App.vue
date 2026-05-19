@@ -339,7 +339,7 @@ function clearMobileNavCloseTimer(): void {
 
 .acu-v2-app__header {
   position: relative;
-  z-index: 20;
+  z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
