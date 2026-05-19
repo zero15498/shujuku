@@ -44,15 +44,15 @@ withDefaults(defineProps<{
 }
 
 .acu-stats dt {
-  margin: 0 0 2px; font-size: 11px; color: var(--acu-text-3);
+  margin: 0 0 2px; font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-3);
 }
 .acu-stats dd {
-  margin: 0; font-size: 12px; color: var(--acu-text-1); word-break: break-all;
+  margin: 0; font-size: var(--acu-font-size-body, 12px); color: var(--acu-text-1); word-break: break-all;
 }
 
 .acu-stats--mono code {
   display: inline-block; max-width: 100%;
-  font-family: var(--acu-font-mono); font-size: 12px;
+  font-family: var(--acu-font-mono); font-size: var(--acu-font-size-body, 12px);
   background: transparent; color: var(--acu-text-1);
   padding: 0; border-radius: 0;
 }

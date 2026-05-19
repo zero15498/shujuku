@@ -108,8 +108,8 @@ function onWheel(ev: WheelEvent): void {
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
-.acu-input--md { min-height: 32px; padding: 6px 9px !important; font-size: 12px !important; }
-.acu-input--sm { min-height: 26px; padding: 3px 7px !important; font-size: 11px !important; }
+.acu-input--md { min-height: 32px; padding: 6px 9px !important; font-size: var(--acu-font-size-body, 12px) !important; }
+.acu-input--sm { min-height: 26px; padding: 3px 7px !important; font-size: var(--acu-font-size-caption, 11px) !important; }
 
 .acu-input-shell--number .acu-input--md { padding-right: 30px !important; }
 .acu-input-shell--number .acu-input--sm { padding-right: 25px !important; }

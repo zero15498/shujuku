@@ -37,7 +37,7 @@ const iconClass = computed(() => {
   gap: 10px;
   padding: 8px 0 8px 10px;
   border-radius: 0;
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   line-height: 1.55;
   background: transparent;
   color: var(--acu-text-2);
@@ -48,7 +48,7 @@ const iconClass = computed(() => {
 .acu-info-banner__icon {
   flex-shrink: 0;
   margin-top: 2px;
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   line-height: 1.55;
 }
 

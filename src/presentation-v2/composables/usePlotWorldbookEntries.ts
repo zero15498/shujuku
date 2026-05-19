@@ -90,7 +90,6 @@ export function usePlotWorldbookEntries() {
     try {
       const cfg = ensurePlotWorldbookConfig();
       const entriesMap = await getLorebookEntriesByNames_ACU(unique) as Record<string, any[]>;
-      const expandByDefault = unique.length === 1;
       let settingsChanged = false;
       const result: WorldbookEntryGroup[] = [];
 
@@ -121,7 +120,7 @@ export function usePlotWorldbookEntries() {
         }
 
         if (visible.length > 0) {
-          result.push({ bookName, entries: visible, expanded: expandByDefault });
+          result.push({ bookName, entries: visible, expanded: false });
         }
       }
 

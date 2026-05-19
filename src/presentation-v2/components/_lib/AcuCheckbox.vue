@@ -45,7 +45,7 @@ function onClick(): void {
 .acu-checkbox {
   display: inline-flex; align-items: flex-start; gap: 7px;
   padding: 0; border: 0; background: transparent;
-  font: inherit; font-size: 12px; color: var(--acu-text-2);
+  font: inherit; font-size: var(--acu-font-size-body, 12px); color: var(--acu-text-2);
   cursor: pointer; user-select: none;
   line-height: 1.5; text-align: left;
 }

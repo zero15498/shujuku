@@ -53,6 +53,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useAcuHeightTransition } from './useAcuHeightTransition';
 
 const props = withDefaults(defineProps<{
   label?: string;
@@ -92,152 +93,45 @@ const bodyStyle = computed(() => ({
   overflowY: props.bodyMaxHeight ? 'auto' as const : 'hidden' as const,
 }));
 
-const DISCLOSURE_MIN_DURATION_MS = 100;
-const DISCLOSURE_MAX_DURATION_MS = 200;
-const DISCLOSURE_MS_PER_PIXEL = 0.45;
-
-const transitionTimers = new WeakMap<HTMLElement, number>();
-
-function prefersReducedMotion(): boolean {
-  return typeof window !== 'undefined'
-    && typeof window.matchMedia === 'function'
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-}
-
-function scheduleFrame(callback: () => void): void {
-  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-    window.requestAnimationFrame(callback);
-    return;
-  }
-  window.setTimeout(callback, 16);
-}
-
-function clearTransitionTimer(el: HTMLElement): void {
-  const timer = transitionTimers.get(el);
-  if (timer !== undefined) {
-    window.clearTimeout(timer);
-    transitionTimers.delete(el);
-  }
-}
-
-function restoreOverflow(el: HTMLElement): void {
-  el.style.overflowY = props.bodyMaxHeight ? 'auto' : 'hidden';
-  el.style.overflowX = 'hidden';
-}
-
-function cleanupTransition(el: Element): void {
-  const body = el as HTMLElement;
-  clearTransitionTimer(body);
-  body.style.transition = '';
-  body.style.height = '';
-  body.style.opacity = '';
-  body.style.transform = '';
-  body.style.willChange = '';
-  restoreOverflow(body);
-}
-
-function getBorderHeight(el: HTMLElement): number {
-  const style = window.getComputedStyle(el);
-  return (parseFloat(style.borderTopWidth) || 0) + (parseFloat(style.borderBottomWidth) || 0);
-}
-
-function getExpandedHeight(el: HTMLElement): number {
-  const contentHeight = el.scrollHeight + getBorderHeight(el);
-  const maxHeight = window.getComputedStyle(el).maxHeight;
-  const parsedMax = Number.parseFloat(maxHeight);
-  if (Number.isFinite(parsedMax) && parsedMax > 0) {
-    return Math.min(contentHeight, parsedMax);
-  }
-  return contentHeight;
-}
-
-function durationForHeight(height: number): number {
-  if (prefersReducedMotion()) return 1;
-  return Math.min(
-    DISCLOSURE_MAX_DURATION_MS,
-    Math.max(DISCLOSURE_MIN_DURATION_MS, Math.round(height * DISCLOSURE_MS_PER_PIXEL)),
-  );
-}
-
-function runHeightTransition(
-  el: HTMLElement,
-  targetHeight: number,
-  direction: 'enter' | 'leave',
-  done: () => void,
-): void {
-  clearTransitionTimer(el);
-  const currentHeight = parseFloat(el.style.height) || el.getBoundingClientRect().height || getExpandedHeight(el);
-  const duration = durationForHeight(direction === 'enter' ? targetHeight : currentHeight);
-  const easing = direction === 'enter' ? 'ease-out' : 'ease-in';
-
-  if (prefersReducedMotion()) {
-    el.style.height = direction === 'enter' ? `${targetHeight}px` : '0px';
-    el.style.opacity = direction === 'enter' ? '1' : '0';
-    done();
-    return;
-  }
-
-  el.style.willChange = 'height, opacity, transform';
-  el.style.transition = `height ${duration}ms ${easing}, opacity ${Math.min(duration, 120)}ms ${easing}, transform ${duration}ms ${easing}`;
-
-  scheduleFrame(() => {
-    el.style.height = `${targetHeight}px`;
-    el.style.opacity = direction === 'enter' ? '1' : '0';
-    el.style.transform = direction === 'enter' ? 'translateY(0)' : 'translateY(-2px)';
-  });
-
-  const finish = () => {
-    clearTransitionTimer(el);
-    el.removeEventListener('transitionend', onEnd);
-    done();
-  };
-  const onEnd = (event: TransitionEvent) => {
-    if (event.target === el && event.propertyName === 'height') finish();
-  };
-
-  el.addEventListener('transitionend', onEnd);
-  transitionTimers.set(el, window.setTimeout(finish, duration + 60));
-}
+const heightTransition = useAcuHeightTransition({
+  restoreOverflow(el: HTMLElement) {
+    el.style.overflowY = props.bodyMaxHeight ? 'auto' : 'hidden';
+    el.style.overflowX = 'hidden';
+  },
+});
 
 function beforeEnter(el: Element): void {
-  const body = el as HTMLElement;
-  clearTransitionTimer(body);
-  body.style.height = '0px';
-  body.style.opacity = '0';
-  body.style.transform = 'translateY(-2px)';
-  body.style.overflowY = 'hidden';
-  body.style.overflowX = 'hidden';
+  heightTransition.beforeEnter(el);
 }
 
 function enter(el: Element, done: () => void): void {
-  runHeightTransition(el as HTMLElement, getExpandedHeight(el as HTMLElement), 'enter', done);
+  heightTransition.enter(el, done);
 }
 
 function afterEnter(el: Element): void {
   const body = el as HTMLElement;
   body.removeAttribute('aria-hidden');
   body.removeAttribute('inert');
-  cleanupTransition(el);
+  heightTransition.afterEnter(el);
 }
 
 function beforeLeave(el: Element): void {
   const body = el as HTMLElement;
-  clearTransitionTimer(body);
-  body.style.height = `${body.getBoundingClientRect().height || getExpandedHeight(body)}px`;
-  body.style.opacity = '1';
-  body.style.transform = 'translateY(0)';
-  body.style.overflowY = 'hidden';
-  body.style.overflowX = 'hidden';
   body.setAttribute('aria-hidden', 'true');
   body.setAttribute('inert', '');
+  heightTransition.beforeLeave(el);
 }
 
 function leave(el: Element, done: () => void): void {
-  runHeightTransition(el as HTMLElement, 0, 'leave', done);
+  heightTransition.leave(el, done);
 }
 
 function afterLeave(el: Element): void {
-  cleanupTransition(el);
+  heightTransition.afterLeave(el);
+}
+
+function cleanupTransition(el: Element): void {
+  heightTransition.cleanupTransition(el);
 }
 </script>
 
@@ -264,7 +158,7 @@ function afterLeave(el: Element): void {
   background: transparent;
   color: var(--acu-text-2);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   line-height: 1.35;
   text-align: left;
   cursor: pointer;
@@ -284,7 +178,7 @@ function afterLeave(el: Element): void {
 .acu-disclosure-group__chevron {
   flex: 0 0 10px;
   width: 10px;
-  font-size: 10px;
+  font-size: var(--acu-font-size-micro, 10px);
   color: var(--acu-text-3);
   transition: transform 0.15s ease;
 }
@@ -305,7 +199,7 @@ function afterLeave(el: Element): void {
 
 .acu-disclosure-group__meta {
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: var(--acu-font-size-caption, 11px);
   color: var(--acu-text-3);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

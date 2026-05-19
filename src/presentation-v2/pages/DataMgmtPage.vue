@@ -1,66 +1,98 @@
 <template>
   <section class="acu-v2-data-mgmt-page">
-    <AcuPageHeader title="数据管理" />
-
     <AcuMessage v-if="flow.message.value" :kind="flow.message.value.kind">
       {{ flow.message.value.text }}
     </AcuMessage>
 
-    <div class="acu-v2-data-mgmt-page__layout">
-      <AcuPanel
-        title="数据隔离"
-        description="数据隔离会把设置、模板和聊天里的数据库数据按标识分开。留空表示默认数据；输入新标识并应用后会切换到对应 profile。如果切换后内容不对，请回到原标识或选择历史记录中的标识再应用。"
-      >
-        <AcuStatsList :items="isolationStats" />
-
-        <div class="acu-v2-data-mgmt-page__form-stack">
-          <AcuFormRow label="标识代码" hint="留空表示不隔离；建议只使用容易辨认的短名称。">
-            <AcuInput
-              :model-value="flow.isolationCode.value"
-              type="text"
-              placeholder="输入标识代码"
-              @update:model-value="flow.isolationCode.value = String($event)"
-            />
-          </AcuFormRow>
-          <AcuFormRow label="历史标识" hint="选择后会填入左侧输入框，需要再应用才会切换。">
-            <AcuSelect
-              :options="historyOptions"
-              :model-value="historySelection"
-              placeholder="选择历史标识"
-              @update:model-value="selectHistory"
-            />
-          </AcuFormRow>
-        </div>
-
-        <div class="acu-v2-data-mgmt-page__actions">
-          <AcuButton
-            variant="primary"
-            :loading="flow.busyAction.value === 'apply-isolation'"
-            @click="flow.applyIsolation"
-          >
-            保存并应用
-          </AcuButton>
-          <AcuButton
-            :disabled="!historySelection || !!flow.busyAction.value"
-            @click="flow.removeHistory(historySelection)"
-          >
-            移除历史标识
-          </AcuButton>
-          <AcuButton
-            :loading="flow.busyAction.value === 'delete-isolation-entries'"
-            @click="onDeleteCurrentIsolationEntries"
-          >
-            删除当前标识的注入条目
-          </AcuButton>
-        </div>
-      </AcuPanel>
-
-      <div class="acu-v2-data-mgmt-page__side-stack">
+    <AcuPanelGrid class="acu-v2-data-mgmt-page__layout">
+      <div class="acu-v2-data-mgmt-page__panel-stack">
         <AcuPanel
-          title="备份与恢复"
-          description="这里处理当前 profile 的配置备份和当前聊天数据库导出。合并导入会覆盖提示词与全局模板，但不会直接改写当前聊天已有楼层；模板覆盖会改写最新 AI 楼层，操作前请确认聊天记录可回退。"
+          :title="dataMgmtCopy.panels.isolation.title"
+          :description="dataMgmtCopy.panels.isolation.description"
         >
-          <div class="acu-v2-data-mgmt-page__backup-actions">
+          <div class="acu-v2-data-mgmt-page__form-stack">
+            <AcuFormRow label="标识代码" :hint="isolationCodeHint">
+              <AcuInput
+                :model-value="flow.isolationCode.value"
+                type="text"
+                placeholder="输入标识代码"
+                @update:model-value="flow.isolationCode.value = String($event)"
+              />
+            </AcuFormRow>
+
+            <AcuDisclosureGroup
+              class="acu-v2-data-mgmt-page__history"
+              label="历史标识"
+              :meta="historyMetaLabel"
+              :expanded="historyExpanded"
+              body-id="acu-data-isolation-history"
+              body-mode="if"
+              @toggle="historyExpanded = !historyExpanded"
+            >
+              <div
+                v-if="flow.isolationHistory.value.length"
+                class="acu-v2-data-mgmt-page__history-list"
+              >
+                <div
+                  v-for="code in flow.isolationHistory.value"
+                  :key="code"
+                  class="acu-v2-data-mgmt-page__history-item"
+                >
+                  <AcuButton
+                    class="acu-v2-data-mgmt-page__history-fill"
+                    size="sm"
+                    :title="`填入历史标识：${code}`"
+                    :disabled="!!flow.busyAction.value"
+                    @click="selectHistory(code)"
+                  >
+                    <span class="acu-v2-data-mgmt-page__history-code">{{
+                      code
+                    }}</span>
+                    <span
+                      v-if="code === flow.currentIsolationLabel.value"
+                      class="acu-v2-data-mgmt-page__history-current"
+                    >
+                      当前
+                    </span>
+                  </AcuButton>
+                  <AcuIconButton
+                    icon="fa-solid fa-trash-can"
+                    variant="danger"
+                    :title="`删除历史标识：${code}`"
+                    :aria-label="`删除历史标识：${code}`"
+                    :disabled="!!flow.busyAction.value"
+                    @click="onRemoveHistory(code)"
+                  />
+                </div>
+              </div>
+              <p v-else class="acu-v2-data-mgmt-page__history-empty">
+                暂无历史标识。
+              </p>
+            </AcuDisclosureGroup>
+          </div>
+
+          <div class="acu-v2-data-mgmt-page__actions">
+            <AcuButton
+              :loading="flow.busyAction.value === 'delete-isolation-entries'"
+              @click="onDeleteCurrentIsolationEntries"
+            >
+              删除当前标识注入条目
+            </AcuButton>
+            <AcuButton
+              variant="primary"
+              :loading="flow.busyAction.value === 'apply-isolation'"
+              @click="onApplyIsolation"
+            >
+              保存并应用
+            </AcuButton>
+          </div>
+        </AcuPanel>
+
+        <AcuPanel
+          :title="dataMgmtCopy.panels.backup.title"
+          :description="dataMgmtCopy.panels.backup.description"
+        >
+          <div class="acu-v2-data-mgmt-page__command-grid">
             <AcuFileButton
               variant="primary"
               accept=".json,application/json"
@@ -69,11 +101,17 @@
             >
               合并导入（模板+指令）
             </AcuFileButton>
-            <AcuButton :disabled="!!flow.busyAction.value" @click="flow.exportCombinedSettings">
+            <AcuButton
+              :disabled="!!flow.busyAction.value"
+              @click="flow.exportCombinedSettings"
+            >
               合并导出（模板+指令）
             </AcuButton>
-            <AcuButton :disabled="!!flow.busyAction.value" @click="flow.exportJsonData">
-              导出 JSON 数据
+            <AcuButton
+              :disabled="!!flow.busyAction.value"
+              @click="flow.exportJsonData"
+            >
+              特殊导出
             </AcuButton>
             <AcuButton
               :loading="flow.busyAction.value === 'override-latest'"
@@ -83,112 +121,179 @@
             </AcuButton>
           </div>
         </AcuPanel>
+      </div>
 
+      <div class="acu-v2-data-mgmt-page__panel-stack">
         <AcuPanel
-          title="删除与清理"
-          description="这里只删除聊天楼层里由插件写入的数据库字段，不删除聊天正文。楼层范围按 AI 回复计算，起始或终止为空时表示从头或到最后。出问题时请先撤回聊天记录，或从备份重新导入数据。"
+          :title="dataMgmtCopy.panels.cleanup.title"
+          :description="dataMgmtCopy.panels.cleanup.description"
         >
-          <p class="acu-v2-data-mgmt-page__meta">
-            当前聊天 {{ flow.aiMessageCount.value }} 个 AI 楼层 · 将处理：{{ flow.rangeLabel.value }}
-          </p>
-
-          <div class="acu-v2-data-mgmt-page__form-grid">
-            <AcuFormRow label="起始 AI 楼层" hint="从第几个 AI 回复开始删除；留空表示从第 1 个开始。">
-              <AcuInput
-                :model-value="flow.deleteRange.startFloor"
-                type="number"
-                :min="1"
-                :step="1"
-                @update:model-value="flow.deleteRange.startFloor = $event"
-              />
-            </AcuFormRow>
-            <AcuFormRow label="终止 AI 楼层" hint="留空表示删除到最后一个 AI 回复。">
-              <AcuInput
-                :model-value="flow.deleteRange.endFloor"
-                type="number"
-                :min="1"
-                :step="1"
-                placeholder="到最后"
-                @update:model-value="flow.deleteRange.endFloor = $event"
-              />
-            </AcuFormRow>
-          </div>
-
-          <div class="acu-v2-data-mgmt-page__actions">
-            <AcuButton
-              :loading="flow.busyAction.value === 'delete-current-local'"
-              @click="onDeleteLocalData('current')"
+          <section
+            class="acu-v2-data-mgmt-page__cleanup-section"
+            aria-labelledby="acu-cleanup-auto-title"
+          >
+            <h3
+              id="acu-cleanup-auto-title"
+              class="acu-v2-data-mgmt-page__section-title"
             >
-              删除当前标识本地数据
-            </AcuButton>
-            <AcuButton
-              variant="danger"
-              :loading="flow.busyAction.value === 'delete-all-local'"
-              @click="onDeleteLocalData('all')"
+              自动清理
+            </h3>
+            <div class="acu-v2-data-mgmt-page__form-stack">
+              <AcuFormRow
+                label="保留数据层数"
+                hint="自动更新结束后，超过保留范围的旧楼层插件数据会被清理；不影响聊天正文。"
+              >
+                <AcuInput
+                  type="number"
+                  :min="0"
+                  :step="1"
+                  :model-value="flow.retainRecentLayers.value"
+                  @change="flow.setRetainRecentLayers($event)"
+                />
+              </AcuFormRow>
+            </div>
+          </section>
+
+          <section
+            class="acu-v2-data-mgmt-page__cleanup-section"
+            aria-labelledby="acu-cleanup-manual-title"
+          >
+            <h3
+              id="acu-cleanup-manual-title"
+              class="acu-v2-data-mgmt-page__section-title"
             >
-              删除所有本地数据
-            </AcuButton>
-          </div>
+              手动删除
+            </h3>
+            <p class="acu-v2-data-mgmt-page__meta">
+              当前聊天 {{ flow.aiMessageCount.value }} 个 AI 楼层 · 将处理：{{
+                flow.rangeLabel.value
+              }}
+            </p>
+
+            <div class="acu-v2-data-mgmt-page__form-grid">
+              <AcuFormRow
+                label="起始楼层"
+                hint="从第N个楼层 AI 回复开始，留空为第 1 层。"
+              >
+                <AcuInput
+                  :model-value="flow.deleteRange.startFloor"
+                  type="number"
+                  :min="1"
+                  :step="1"
+                  @update:model-value="flow.deleteRange.startFloor = $event"
+                />
+              </AcuFormRow>
+              <AcuFormRow label="终止楼层" hint="留空为最新楼层。">
+                <AcuInput
+                  :model-value="flow.deleteRange.endFloor"
+                  type="number"
+                  :min="1"
+                  :step="1"
+                  placeholder="到最后"
+                  @update:model-value="flow.deleteRange.endFloor = $event"
+                />
+              </AcuFormRow>
+            </div>
+
+            <div
+              class="acu-v2-data-mgmt-page__command-grid acu-v2-data-mgmt-page__command-grid--cleanup"
+            >
+              <AcuButton
+                :loading="flow.busyAction.value === 'delete-current-local'"
+                @click="onDeleteLocalData('current')"
+              >
+                删除当前标识本地数据
+              </AcuButton>
+              <AcuButton
+                variant="danger"
+                :loading="flow.busyAction.value === 'delete-all-local'"
+                @click="onDeleteLocalData('all')"
+              >
+                删除所有本地数据
+              </AcuButton>
+            </div>
+          </section>
         </AcuPanel>
       </div>
-    </div>
+    </AcuPanelGrid>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
-import AcuButton from '../components/_lib/AcuButton.vue';
-import AcuFileButton from '../components/_lib/AcuFileButton.vue';
-import AcuFormRow from '../components/_lib/AcuFormRow.vue';
-import AcuInput from '../components/_lib/AcuInput.vue';
-import AcuMessage from '../components/_lib/AcuMessage.vue';
-import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
-import AcuPanel from '../components/_lib/AcuPanel.vue';
-import AcuSelect from '../components/_lib/AcuSelect.vue';
-import AcuStatsList, { type AcuStatsItem } from '../components/_lib/AcuStatsList.vue';
-import { useChatChangedTick } from '../composables/useChatChangedListener';
-import { useDataManagement } from '../composables/useDataManagement';
+import { computed, onMounted, ref, watch } from "vue";
+import AcuButton from "../components/_lib/AcuButton.vue";
+import AcuDisclosureGroup from "../components/_lib/AcuDisclosureGroup.vue";
+import AcuFileButton from "../components/_lib/AcuFileButton.vue";
+import AcuFormRow from "../components/_lib/AcuFormRow.vue";
+import AcuIconButton from "../components/_lib/AcuIconButton.vue";
+import AcuInput from "../components/_lib/AcuInput.vue";
+import AcuMessage from "../components/_lib/AcuMessage.vue";
+import AcuPanel from "../components/_lib/AcuPanel.vue";
+import AcuPanelGrid from "../components/_lib/AcuPanelGrid.vue";
+import { useChatChangedTick } from "../composables/useChatChangedListener";
+import { useDataManagement } from "../composables/useDataManagement";
+import { dataMgmtCopy } from "../copy/data-mgmt-copy";
 
 const flow = useDataManagement();
-const historySelection = ref('');
+const historyExpanded = ref(false);
 
-const historyOptions = computed(() => [
-  { value: '', label: '不选择' },
-  ...flow.isolationHistoryOptions.value,
-]);
-const isolationStats = computed<AcuStatsItem[]>(() => [
-  { label: '当前标识', value: flow.currentIsolationLabel.value },
-  { label: '隔离状态', value: flow.isolationModeLabel.value },
-  { label: '历史标识数', value: flow.isolationHistory.value.length },
-]);
+const isolationCodeHint = computed(
+  () =>
+    `当前正在使用：${flow.currentIsolationLabel.value}。留空表示默认数据；修改后点击“保存并应用”才会切换。`,
+);
+const historyMetaLabel = computed(
+  () => `${flow.isolationHistory.value.length} 个`,
+);
 
 function selectHistory(value: string): void {
-  historySelection.value = value;
   if (value) flow.isolationCode.value = value;
 }
 
+async function onApplyIsolation(): Promise<void> {
+  await flow.applyIsolation();
+}
+
+async function onRemoveHistory(code: string): Promise<void> {
+  await flow.removeHistory(code);
+}
+
 function onDeleteCurrentIsolationEntries(): void {
-  if (!window.confirm('删除当前标识的数据库注入条目？这不会删除聊天正文，但会移除世界书里的插件生成条目。')) return;
+  if (
+    !window.confirm(
+      "删除当前标识的数据库注入条目？这不会删除聊天正文，但会移除世界书里的插件生成条目。",
+    )
+  )
+    return;
   void flow.deleteCurrentIsolationEntries();
 }
 
 function onOverrideLatestLayer(): void {
-  if (!window.confirm('用当前通用模板覆盖最新 AI 楼层的表格数据？这会清空模板内表格的数据行，只保留表头。')) return;
+  if (
+    !window.confirm(
+      "用当前生效模板覆盖最新 AI 楼层的表格数据？这会清空模板内表格的数据行，只保留表头。",
+    )
+  )
+    return;
   void flow.overrideLatestLayerWithTemplate();
 }
 
-function onDeleteLocalData(mode: 'current' | 'all'): void {
-  const message = mode === 'all'
-    ? `删除当前聊天中 ${flow.rangeLabel.value} 的所有标识数据库数据？此操作不可恢复。`
-    : `删除当前聊天中 ${flow.rangeLabel.value} 属于当前标识的数据库数据？此操作不可恢复。`;
+function onDeleteLocalData(mode: "current" | "all"): void {
+  const message =
+    mode === "all"
+      ? `删除当前聊天中 ${flow.rangeLabel.value} 的所有标识数据库数据？此操作不可恢复。`
+      : `删除当前聊天中 ${flow.rangeLabel.value} 属于当前标识的数据库数据？此操作不可恢复。`;
   if (!window.confirm(message)) return;
-  if (mode === 'all' && !window.confirm('再次确认：删除所有标识的本地数据库数据？')) return;
+  if (
+    mode === "all" &&
+    !window.confirm("再次确认：删除所有标识的本地数据库数据？")
+  )
+    return;
   void flow.deleteLocalData(mode);
 }
 
 function refreshAll(): void {
   flow.refresh();
-  historySelection.value = '';
+  historyExpanded.value = false;
 }
 
 onMounted(refreshAll);
@@ -205,14 +310,7 @@ watch(useChatChangedTick(), refreshAll);
   gap: 18px;
 }
 
-.acu-v2-data-mgmt-page__layout {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-}
-
-.acu-v2-data-mgmt-page__side-stack {
+.acu-v2-data-mgmt-page__panel-stack {
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -231,34 +329,114 @@ watch(useChatChangedTick(), refreshAll);
   gap: 12px;
 }
 
-.acu-v2-data-mgmt-page__layout > :deep(.acu-panel:first-child .acu-stats) {
-  flex: 1 1 auto;
-}
-
 .acu-v2-data-mgmt-page__meta {
   margin: 0;
   color: var(--acu-text-3);
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   line-height: 1.55;
 }
 
-.acu-v2-data-mgmt-page__action-row,
-.acu-v2-data-mgmt-page__actions,
-.acu-v2-data-mgmt-page__backup-actions {
+.acu-v2-data-mgmt-page__cleanup-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.acu-v2-data-mgmt-page__cleanup-section
+  + .acu-v2-data-mgmt-page__cleanup-section {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--acu-border);
+}
+
+.acu-v2-data-mgmt-page__section-title {
+  margin: 0;
+  color: var(--acu-text-1);
+  font-size: var(--acu-font-size-body-lg, 13px);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.acu-v2-data-mgmt-page__history {
+  border: 1px solid var(--acu-border);
+  border-radius: var(--acu-radius-sm);
+  background: color-mix(in srgb, var(--acu-bg-2) 72%, transparent);
+}
+
+.acu-v2-data-mgmt-page__history :deep(.acu-disclosure-group__header) {
+  border-radius: var(--acu-radius-sm);
+}
+
+.acu-v2-data-mgmt-page__history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acu-v2-data-mgmt-page__history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.acu-v2-data-mgmt-page__history-fill {
+  width: 100%;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+.acu-v2-data-mgmt-page__history-code {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--acu-font-mono, Consolas, Menlo, monospace);
+}
+
+.acu-v2-data-mgmt-page__history-current {
+  flex-shrink: 0;
+  color: var(--acu-text-3);
+  font-size: var(--acu-font-size-caption, 11px);
+}
+
+.acu-v2-data-mgmt-page__history-empty {
+  margin: 0;
+  color: var(--acu-text-3);
+  font-size: var(--acu-font-size-caption, 11px);
+  line-height: 1.5;
+}
+
+.acu-v2-data-mgmt-page__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
 }
 
-.acu-v2-data-mgmt-page__backup-actions {
+.acu-v2-data-mgmt-page__actions,
+.acu-v2-data-mgmt-page__command-grid {
   padding-top: 12px;
   margin-top: 4px;
 }
 
-.acu-v2-data-mgmt-page__actions {
-  padding-top: 12px;
-  margin-top: 4px;
+.acu-v2-data-mgmt-page__command-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.acu-v2-data-mgmt-page__command-grid--cleanup {
+  margin-top: 12px;
+}
+
+.acu-v2-data-mgmt-page__command-grid :deep(.acu-file-button),
+.acu-v2-data-mgmt-page__command-grid :deep(.acu-btn) {
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 860px) {
@@ -266,8 +444,13 @@ watch(useChatChangedTick(), refreshAll);
     padding: 14px;
   }
 
-  .acu-v2-data-mgmt-page__layout,
   .acu-v2-data-mgmt-page__form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .acu-v2-data-mgmt-page__command-grid {
     grid-template-columns: 1fr;
   }
 }

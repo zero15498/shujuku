@@ -1,9 +1,9 @@
-import { reactive, ref } from 'vue';
+import { reactive, ref } from "vue";
+import { saveSettings_ACU } from "../../service/settings/settings-service";
 import {
   getCurrentVectorMemoryConfig_ACU,
   validateSummaryVectorIndexConfig_ACU,
-} from '../../service/vector/vector-memory-config';
-import { saveSettings_ACU } from '../../service/settings/settings-service';
+} from "../../service/vector/vector-memory-config";
 
 export interface VectorApiForm {
   embeddingEndpoint: string;
@@ -16,12 +16,12 @@ export interface VectorApiForm {
 
 function createEmptyForm(): VectorApiForm {
   return {
-    embeddingEndpoint: '',
-    embeddingModel: '',
-    embeddingApiKey: '',
-    rerankEndpoint: '',
-    rerankModel: '',
-    rerankApiKey: '',
+    embeddingEndpoint: "",
+    embeddingModel: "",
+    embeddingApiKey: "",
+    rerankEndpoint: "",
+    rerankModel: "",
+    rerankApiKey: "",
   };
 }
 
@@ -32,12 +32,12 @@ export function useVectorApiConfig() {
 
   function refresh(): void {
     const config = getCurrentVectorMemoryConfig_ACU();
-    form.embeddingEndpoint = config.embeddingEndpoint || '';
-    form.embeddingModel = config.embeddingModel || '';
-    form.embeddingApiKey = config.embeddingApiKey || '';
-    form.rerankEndpoint = config.rerankEndpoint || '';
-    form.rerankModel = config.rerankModel || '';
-    form.rerankApiKey = config.rerankApiKey || '';
+    form.embeddingEndpoint = config.embeddingEndpoint || "";
+    form.embeddingModel = config.embeddingModel || "";
+    form.embeddingApiKey = config.embeddingApiKey || "";
+    form.rerankEndpoint = config.rerankEndpoint || "";
+    form.rerankModel = config.rerankModel || "";
+    form.rerankApiKey = config.rerankApiKey || "";
     errors.value = [];
   }
 
@@ -52,7 +52,7 @@ export function useVectorApiConfig() {
 
     const validation = validateSummaryVectorIndexConfig_ACU(config);
     if (!validation.valid) {
-      errors.value = validation.errors;
+      errors.value = formatVectorApiErrors(validation.errors);
       return false;
     }
 
@@ -71,4 +71,19 @@ export function useVectorApiConfig() {
     refresh,
     save,
   };
+}
+
+function formatVectorApiErrors(rawErrors: string[]): string[] {
+  return rawErrors.map((error) => {
+    if (error.includes("embeddingEndpoint")) {
+      return "缺少“向量化URL”";
+    }
+    if (error.includes("embeddingModel")) {
+      return "缺少“向量化模型名”";
+    }
+    if (error.includes("rerankEndpoint") || error.includes("rerankModel")) {
+      return "“重排URL”和“重排模型名”需要同时填写，或者同时留空";
+    }
+    return error;
+  });
 }

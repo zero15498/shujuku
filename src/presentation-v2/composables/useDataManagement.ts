@@ -11,9 +11,11 @@ import {
   DEFAULT_MERGE_SUMMARY_PROMPT_ACU,
   DEFAULT_MERGE_SUMMARY_PROMPT_SQL_ACU,
 } from '../../shared/defaults-json.js';
+import { normalizeIsolationCode_ACU } from '../../shared/data-constants';
 import { ensureSheetOrderNumbers_ACU, logError_ACU, parseTableTemplateJson_ACU } from '../../shared/utils';
 import { currentChatFileIdentifier_ACU, currentJsonTableData_ACU, settings_ACU } from '../../service/runtime/state-manager';
 import {
+  applyTemplateScopeForCurrentChat_ACU,
   applyCombinedSettingsImport_ACU,
   getDataIsolationHistory_ACU,
   removeDataIsolationHistory_ACU,
@@ -44,6 +46,13 @@ function normalizeFloorValue(value: unknown): number | null {
   if (value === '' || value === null || value === undefined) return null;
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function normalizeRetainRecentLayers(value: unknown): number {
+  if (value === '' || value === null || value === undefined) return 0;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
   return Math.floor(n);
 }
 
@@ -104,18 +113,20 @@ export function useDataManagement() {
   const message = ref<DataMgmtMessage | null>(null);
   const busyAction = ref('');
   const isolationCode = ref('');
+  const activeIsolationCode = ref('');
   const isolationHistory = ref<string[]>([]);
   const deleteRange = reactive({
     startFloor: 1 as number | string,
     endFloor: '' as number | string,
   });
+  const retainRecentLayers = ref(100);
   const aiMessageCount = ref(0);
 
   const currentIsolationLabel = computed(() => {
-    const code = String(settings_ACU.dataIsolationCode || '').trim();
+    const code = activeIsolationCode.value;
     return code || '默认数据（未隔离）';
   });
-  const isolationModeLabel = computed(() => (settings_ACU.dataIsolationEnabled ? '已启用隔离' : '未启用隔离'));
+  const isolationModeLabel = computed(() => (activeIsolationCode.value ? '已启用隔离' : '未启用隔离'));
   const isolationHistoryOptions = computed(() =>
     isolationHistory.value.map(code => ({ value: code, label: code })),
   );
@@ -134,19 +145,26 @@ export function useDataManagement() {
   );
 
   function refresh(): void {
-    isolationCode.value = String(settings_ACU.dataIsolationCode || '');
+    const currentCode = normalizeIsolationCode_ACU(settings_ACU.dataIsolationCode || '');
+    activeIsolationCode.value = currentCode;
+    isolationCode.value = currentCode;
     isolationHistory.value = getDataIsolationHistory_ACU();
     deleteRange.startFloor = settings_ACU.deleteStartFloor || 1;
     deleteRange.endFloor = settings_ACU.deleteEndFloor || '';
+    retainRecentLayers.value = normalizeRetainRecentLayers(settings_ACU.retainRecentLayers ?? 100);
     aiMessageCount.value = getAiMessageCount();
   }
 
   async function applyIsolation(): Promise<void> {
+    const targetCode = normalizeIsolationCode_ACU(isolationCode.value);
     busyAction.value = 'apply-isolation';
     try {
-      await switchIsolationProfile_ACU(isolationCode.value);
+      await switchIsolationProfile_ACU(targetCode);
       refresh();
-      setMessage(message, 'success', `已切换到 ${currentIsolationLabel.value}。`);
+      activeIsolationCode.value = targetCode;
+      isolationCode.value = targetCode;
+      isolationHistory.value = getDataIsolationHistory_ACU();
+      setMessage(message, 'success', `已切换到 ${targetCode || '默认数据（未隔离）'}。`);
     } catch (e: any) {
       logError_ACU('[ACU-V2] applyIsolation failed', e);
       setMessage(message, 'error', `切换隔离标识失败：${e?.message || '未知错误'}`);
@@ -155,12 +173,31 @@ export function useDataManagement() {
     }
   }
 
-  function removeHistory(code: string): void {
-    const target = String(code || '').trim();
+  async function removeHistory(code: string): Promise<void> {
+    const target = normalizeIsolationCode_ACU(code);
     if (!target) return;
-    removeDataIsolationHistory_ACU(target);
-    refresh();
-    setMessage(message, 'success', `已从历史记录移除标识：${target}`);
+    busyAction.value = 'remove-history';
+    try {
+      const wasActive = target === activeIsolationCode.value;
+      if (wasActive) {
+        await switchIsolationProfile_ACU('');
+      }
+      removeDataIsolationHistory_ACU(target);
+      refresh();
+      if (wasActive) {
+        activeIsolationCode.value = '';
+        isolationCode.value = '';
+        isolationHistory.value = getDataIsolationHistory_ACU();
+        setMessage(message, 'success', `已从历史记录移除标识：${target}；当前已切换到默认数据（未隔离）。`);
+      } else {
+        setMessage(message, 'success', `已从历史记录移除标识：${target}`);
+      }
+    } catch (e: any) {
+      logError_ACU('[ACU-V2] removeHistory failed', e);
+      setMessage(message, 'error', `移除历史标识失败：${e?.message || '未知错误'}`);
+    } finally {
+      busyAction.value = '';
+    }
   }
 
   async function deleteCurrentIsolationEntries(): Promise<void> {
@@ -258,13 +295,14 @@ export function useDataManagement() {
   async function overrideLatestLayerWithTemplate(): Promise<void> {
     busyAction.value = 'override-latest';
     try {
+      applyTemplateScopeForCurrentChat_ACU();
       const templateData = parseTableTemplateJson_ACU({ stripSeedRows: true });
-      if (!templateData) throw new Error('无法解析当前通用模板。');
+      if (!templateData) throw new Error('无法解析当前生效模板。');
       const modifiedCount = await overrideLatestLayerWithTemplateCore_ACU(templateData);
       if (modifiedCount > 0) {
         await loadOrCreateJsonTableFromChatHistory_ACU();
         await refreshMergedDataAndNotify_ACU();
-        setMessage(message, 'success', `已使用当前模板覆盖最新 AI 楼层的 ${modifiedCount} 个表格。`);
+        setMessage(message, 'success', `已使用当前生效模板覆盖最新 AI 楼层的 ${modifiedCount} 个表格。`);
       } else {
         setMessage(message, 'info', '没有找到可覆盖的最新 AI 楼层表格数据。');
       }
@@ -307,6 +345,20 @@ export function useDataManagement() {
     }
   }
 
+  function setRetainRecentLayers(value: number | string): void {
+    const normalized = normalizeRetainRecentLayers(value);
+    retainRecentLayers.value = normalized;
+    settings_ACU.retainRecentLayers = normalized;
+    saveSettings_ACU();
+    setMessage(
+      message,
+      'success',
+      normalized > 0
+        ? `自动清理策略已保存：保留最近 ${normalized} 层本地数据。`
+        : '自动清理策略已保存：不会按层数自动清理旧本地数据。',
+    );
+  }
+
   return {
     message,
     busyAction,
@@ -316,6 +368,7 @@ export function useDataManagement() {
     currentIsolationLabel,
     isolationModeLabel,
     deleteRange,
+    retainRecentLayers,
     rangeLabel,
     aiMessageCount,
     tableCount,
@@ -329,5 +382,6 @@ export function useDataManagement() {
     resetAllDefaults,
     overrideLatestLayerWithTemplate,
     deleteLocalData,
+    setRetainRecentLayers,
   };
 }

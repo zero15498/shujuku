@@ -59,8 +59,8 @@ export function generateApiTabHTML(): string {
                                 <div class="button-group" style="margin-top: 10px;">
                                     <button id="${SCRIPT_ID_PREFIX_ACU}-load-models">加载模型列表</button>
                                 </div>
-                                <label for="${SCRIPT_ID_PREFIX_ACU}-api-model-input" style="margin-top: 10px;">模型名称 (手动输入):</label>
-                                <input type="text" id="${SCRIPT_ID_PREFIX_ACU}-api-model-input" class="text_pole" placeholder="输入模型名称或从下方选择">
+                                <label for="${SCRIPT_ID_PREFIX_ACU}-api-model-input" style="margin-top: 10px;">模型名 (手动输入):</label>
+                                <input type="text" id="${SCRIPT_ID_PREFIX_ACU}-api-model-input" class="text_pole" placeholder="输入模型名或从下方选择">
                                 <label for="${SCRIPT_ID_PREFIX_ACU}-api-model-select" style="margin-top: 8px;">或从列表选择:</label>
                                 <select id="${SCRIPT_ID_PREFIX_ACU}-api-model-select" class="text_pole">
                                     <option value="">-- 请先加载模型列表 --</option>

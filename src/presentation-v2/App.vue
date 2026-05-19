@@ -1,68 +1,65 @@
 <template>
   <div class="acu-v2-app">
-    <header class="acu-v2-app__header">
-      <div class="acu-v2-app__header-left">
-        <AcuButton
-          icon-only
-          class="acu-v2-app__menu"
-          title="打开导航"
-          :aria-expanded="isMobileNavOpen"
-          @click="openMobileNav"
-        >
-          <i class="fa-solid fa-bars"></i>
-        </AcuButton>
-      </div>
-      <div class="acu-v2-app__header-right">
-        <div class="acu-v2-app__theme-switcher">
-          <button
-            type="button"
-            class="acu-v2-app__theme-btn"
-            :title="'主题：' + themeStore.activeTheme.name"
-            @click="toggleThemeMenu"
-          >
-            <i class="fa-solid fa-palette"></i>
-          </button>
-          <ul
-            v-if="isThemeMenuRendered"
-            class="acu-v2-app__theme-menu"
-            :class="{ 'is-closing': isThemeMenuClosing }"
-            role="listbox"
-            :aria-label="'选择主题'"
-          >
-            <li
-              v-for="t in themeStore.themes"
-              :key="t.id"
-              role="option"
-              :aria-selected="t.id === themeStore.activeId"
-              class="acu-v2-app__theme-option"
-              :class="{ 'is-active': t.id === themeStore.activeId }"
-              @click="selectTheme(t.id)"
-            >
-              <span
-                class="acu-v2-app__theme-swatch"
-                :style="{
-                  '--acu-theme-swatch-bg': t.tokens.bg0,
-                  '--acu-theme-swatch-accent': t.tokens.accent,
-                }"
-              ></span>
-              {{ t.name }}
-            </li>
-          </ul>
-        </div>
-        <button
-          type="button"
-          class="acu-v2-app__close"
-          title="关闭新 UI"
-          aria-label="关闭新 UI"
-          @click="closeApp"
-        >
-          ×
-        </button>
-      </div>
-    </header>
     <div class="acu-v2-app__body">
       <Sidebar class="acu-v2-app__desktop-sidebar" />
-      <MainArea />
+      <div class="acu-v2-app__content">
+        <header class="acu-v2-app__header">
+          <div class="acu-v2-app__header-left">
+            <AcuIconButton
+              class="acu-v2-app__menu"
+              icon="fa-solid fa-bars"
+              title="打开导航"
+              :aria-expanded="isMobileNavOpen"
+              @click="openMobileNav"
+            />
+            <h1 class="acu-v2-app__page-title">{{ router.activePage?.title || 'SP·数据库 III' }}</h1>
+          </div>
+          <div class="acu-v2-app__header-right">
+            <div class="acu-v2-app__theme-switcher">
+              <AcuIconButton
+                class="acu-v2-app__theme-btn"
+                icon="fa-solid fa-palette"
+                :title="'主题：' + themeStore.activeTheme.name"
+                @click="toggleThemeMenu"
+              />
+              <ul
+                v-if="isThemeMenuRendered"
+                class="acu-v2-app__theme-menu"
+                :class="{ 'is-closing': isThemeMenuClosing }"
+                role="listbox"
+                :aria-label="'选择主题'"
+              >
+                <li
+                  v-for="t in themeStore.themes"
+                  :key="t.id"
+                  role="option"
+                  :aria-selected="t.id === themeStore.activeId"
+                  class="acu-v2-app__theme-option"
+                  :class="{ 'is-active': t.id === themeStore.activeId }"
+                  @click="selectTheme(t.id)"
+                >
+                  <span
+                    class="acu-v2-app__theme-swatch"
+                    :style="{
+                      '--acu-theme-swatch-bg': t.tokens.bg0,
+                      '--acu-theme-swatch-accent': t.tokens.accent,
+                    }"
+                  ></span>
+                  {{ t.name }}
+                </li>
+              </ul>
+            </div>
+            <AcuIconButton
+              class="acu-v2-app__close"
+              icon="fa-solid fa-xmark"
+              title="关闭新 UI"
+              aria-label="关闭新 UI"
+              @click="closeApp"
+            />
+          </div>
+        </header>
+        <MainArea />
+      </div>
     </div>
 
     <div
@@ -86,7 +83,7 @@
 
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
-import AcuButton from "./components/_lib/AcuButton.vue";
+import AcuIconButton from "./components/_lib/AcuIconButton.vue";
 import MainArea from "./components/MainArea.vue";
 import Sidebar from "./components/Sidebar.vue";
 import { useChatChangedListener } from "./composables/useChatChangedListener";
@@ -95,6 +92,7 @@ import { canCloseUi } from "./composables/useUiCloseGuard";
 import { useRootShellStore } from "./stores/root-shell-store";
 import { useRouterStore } from "./stores/router-store";
 import { useThemeStore } from "./stores/theme-store";
+import { useUiModeStore } from "./stores/ui-mode-store";
 import type { AcuV2ThemeId } from "./theme/theme-types";
 import { getAcuHostDocument } from "./bootstrap/host-document";
 
@@ -102,6 +100,7 @@ const emit = defineEmits<{ (event: "close"): void }>();
 const rootShell = useRootShellStore();
 const router = useRouterStore();
 const themeStore = useThemeStore();
+const uiMode = useUiModeStore();
 const isMobileNavOpen = ref(false);
 const isMobileNavRendered = ref(false);
 const isMobileNavClosing = ref(false);
@@ -155,7 +154,9 @@ const devOptions = useDevOptions();
 watch(() => devOptions.developerOptionsEnabled.value, () => {
   router.ensureActiveVisible();
 });
+
 onMounted(() => router.ensureActiveVisible());
+watch(() => uiMode.mode, () => router.ensureActiveVisible());
 
 function openMobileNav(): void {
   clearMobileNavCloseTimer();
@@ -240,7 +241,18 @@ function clearMobileNavCloseTimer(): void {
   background: var(--acu-bg-0);
   color: var(--acu-text-1);
   font-family: var(--acu-font-ui);
-  font-size: 12px;
+  --acu-font-size-micro: 10px;
+  --acu-font-size-caption: 11px;
+  --acu-font-size-body: 12px;
+  --acu-font-size-body-lg: 13px;
+  --acu-font-size-section-title: 12px;
+  --acu-font-size-list-title: 13px;
+  --acu-font-size-panel-title: 15px;
+  --acu-font-size-page-title: 22px;
+  --acu-line-height-caption: 1.5;
+  --acu-line-height-body: 1.45;
+  --acu-line-height-readable: 1.55;
+  font-size: var(--acu-font-size-body);
 }
 
 .acu-v2-app,
@@ -259,25 +271,91 @@ function clearMobileNavCloseTimer(): void {
   box-shadow: none;
 }
 
+:global(.acu-text) {
+  margin: 0;
+  min-width: 0;
+}
+
+:global(.acu-text--caption) {
+  font-size: var(--acu-font-size-caption, 11px);
+  line-height: var(--acu-line-height-caption, 1.5);
+  color: var(--acu-text-3);
+}
+
+:global(.acu-text--meta) {
+  font-size: var(--acu-font-size-body, 12px);
+  line-height: var(--acu-line-height-body, 1.45);
+  color: var(--acu-text-3);
+}
+
+:global(.acu-text--hint) {
+  font-size: var(--acu-font-size-body, 12px);
+  line-height: var(--acu-line-height-readable, 1.55);
+  color: var(--acu-text-3);
+}
+
+:global(.acu-text--status-line) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 22px;
+  font-size: var(--acu-font-size-body, 12px);
+  line-height: var(--acu-line-height-body, 1.45);
+  color: var(--acu-text-3);
+}
+
+:global(.acu-text--empty) {
+  font-size: var(--acu-font-size-body-lg, 13px);
+  line-height: var(--acu-line-height-readable, 1.55);
+  color: var(--acu-text-3);
+  text-align: center;
+}
+
+:global(.acu-text--error) {
+  font-size: var(--acu-font-size-body, 12px);
+  line-height: var(--acu-line-height-body, 1.45);
+  color: var(--acu-danger);
+}
+
+:global(.acu-text--section-label) {
+  font-size: var(--acu-font-size-section-title, 12px);
+  line-height: var(--acu-line-height-body, 1.45);
+  font-weight: 600;
+  color: var(--acu-text-2);
+}
+
+:global(.acu-text--list-title) {
+  font-size: var(--acu-font-size-list-title, 13px);
+  line-height: var(--acu-line-height-body, 1.45);
+  font-weight: 500;
+  color: var(--acu-text-1);
+}
+
+:global(.acu-text__value) {
+  color: var(--acu-text-1);
+  font-weight: 500;
+}
+
 .acu-v2-app__header {
-  position: absolute;
-  top: 10px;
-  right: 12px;
+  position: relative;
   z-index: 20;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0;
-  background: transparent;
-  border-bottom: 0;
+  min-height: 50px;
+  padding: 8px 12px 8px 20px;
+  background: var(--acu-bg-0);
+  border-bottom: 1px solid var(--acu-border-2);
   flex: 0 0 auto;
 }
 
 .acu-v2-app__header-left {
-  display: none;
+  display: flex;
   align-items: center;
   min-width: 0;
   gap: 8px;
+  flex: 1 1 auto;
 }
 
 .acu-v2-app__menu {
@@ -294,13 +372,26 @@ function clearMobileNavCloseTimer(): void {
   color: var(--acu-text-1);
 }
 
+.acu-v2-app__page-title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--acu-text-1);
+  font-size: var(--acu-font-size-page-title, 22px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .acu-v2-app__close {
   width: 30px;
   height: 30px;
   border: 0;
   background: transparent;
   color: var(--acu-text-2);
-  font-size: 22px;
+  font-size: var(--acu-font-size-page-title, 22px);
   line-height: 1;
   cursor: pointer;
   border-radius: var(--acu-radius-sm);
@@ -314,6 +405,15 @@ function clearMobileNavCloseTimer(): void {
 .acu-v2-app__body {
   flex: 1 1 auto;
   display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.acu-v2-app__content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -398,6 +498,7 @@ function clearMobileNavCloseTimer(): void {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex: 0 0 auto;
 }
 
 .acu-v2-app__theme-switcher {
@@ -446,7 +547,7 @@ function clearMobileNavCloseTimer(): void {
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   color: var(--acu-text-2);
   border-radius: var(--acu-radius-sm);
   cursor: pointer;
@@ -526,20 +627,20 @@ function clearMobileNavCloseTimer(): void {
 
 @media (max-width: 720px) {
   .acu-v2-app__header {
-    position: relative;
-    top: auto;
-    right: auto;
-    z-index: 20;
+    min-height: 48px;
     padding: 8px 10px;
-    background: var(--acu-bg-0);
   }
 
   .acu-v2-app__header-left {
-    display: flex;
+    gap: 6px;
   }
 
   .acu-v2-app__menu {
     display: inline-flex;
+  }
+
+  .acu-v2-app__page-title {
+    font-size: 18px;
   }
 
   .acu-v2-app__desktop-sidebar {

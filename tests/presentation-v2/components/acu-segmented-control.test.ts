@@ -68,4 +68,5 @@ describe('AcuSegmentedControl', () => {
     expect(buttons.map(btn => btn.classList.contains('acu-segmented__item--active'))).toEqual([false, false, true]);
     expect(buttons.map(btn => btn.getAttribute('aria-checked'))).toEqual(['false', 'false', 'true']);
   });
+
 });

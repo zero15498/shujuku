@@ -1,6 +1,10 @@
 <template>
   <section class="acu-panel">
-    <header v-if="title || $slots.title || $slots.actions || hasDescription" class="acu-panel__header">
+    <header
+      v-if="title || $slots.title || $slots.actions || hasDescription"
+      class="acu-panel__header"
+      :class="{ 'acu-panel__header--description-open': descriptionOpen }"
+    >
       <h3 v-if="title || $slots.title" class="acu-panel__title">
         <slot name="title">{{ title }}</slot>
       </h3>
@@ -8,34 +12,45 @@
         <div v-if="$slots.actions" class="acu-panel__actions">
           <slot name="actions" />
         </div>
-        <span
+        <AcuIconButton
           v-if="hasDescription"
-          role="button"
-          tabindex="0"
           class="acu-panel__description-button"
           :class="{ 'acu-panel__description-button--open': descriptionOpen }"
+          icon="fa-solid fa-circle-info"
           :aria-expanded="descriptionOpen"
           :aria-controls="descriptionId"
           :title="descriptionOpen ? '收起说明' : '展开说明'"
           :aria-label="descriptionOpen ? '收起说明' : '展开说明'"
           @click="toggleDescription"
-          @keydown.enter.prevent="toggleDescription"
-          @keydown.space.prevent="toggleDescription"
-        >
-          <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
-        </span>
+        />
       </div>
     </header>
-    <div class="acu-panel__body">
-      <AcuInfoBanner
+    <Transition
+      :css="false"
+      @before-enter="beforeDescriptionEnter"
+      @enter="descriptionEnter"
+      @after-enter="afterDescriptionEnter"
+      @enter-cancelled="cleanupDescriptionTransition"
+      @before-leave="beforeDescriptionLeave"
+      @leave="descriptionLeave"
+      @after-leave="afterDescriptionLeave"
+      @leave-cancelled="cleanupDescriptionTransition"
+    >
+      <div
         v-if="hasDescription"
         v-show="descriptionOpen"
         :id="descriptionId"
+        class="acu-panel__description-region"
         :aria-hidden="!descriptionOpen"
-        :tone="descriptionTone"
       >
-        <slot name="description">{{ description }}</slot>
-      </AcuInfoBanner>
+        <div class="acu-panel__description-region-inner">
+          <AcuInfoBanner class="acu-panel__description-banner" :tone="descriptionTone">
+            <slot name="description">{{ description }}</slot>
+          </AcuInfoBanner>
+        </div>
+      </div>
+    </Transition>
+    <div class="acu-panel__body">
       <slot />
     </div>
   </section>
@@ -43,7 +58,9 @@
 
 <script setup lang="ts">
 import { computed, ref, useId, useSlots } from 'vue';
+import AcuIconButton from './AcuIconButton.vue';
 import AcuInfoBanner from './AcuInfoBanner.vue';
+import { useAcuHeightTransition } from './useAcuHeightTransition';
 
 const props = withDefaults(defineProps<{
   title?: string;
@@ -58,10 +75,43 @@ const props = withDefaults(defineProps<{
 const slots = useSlots();
 const descriptionOpen = ref(false);
 const descriptionId = useId();
-const hasDescription = computed(() => Boolean(props.description || slots.description));
+const hasDescriptionSlot = typeof slots.description === 'function';
+const hasDescription = computed(() => Boolean(props.description) || hasDescriptionSlot);
+const descriptionTransition = useAcuHeightTransition({
+  collapsedTransform: 'none',
+  expandedTransform: 'none',
+});
 
 function toggleDescription(): void {
   descriptionOpen.value = !descriptionOpen.value;
+}
+
+function beforeDescriptionEnter(el: Element): void {
+  descriptionTransition.beforeEnter(el);
+}
+
+function descriptionEnter(el: Element, done: () => void): void {
+  descriptionTransition.enter(el, done);
+}
+
+function afterDescriptionEnter(el: Element): void {
+  descriptionTransition.afterEnter(el);
+}
+
+function beforeDescriptionLeave(el: Element): void {
+  descriptionTransition.beforeLeave(el);
+}
+
+function descriptionLeave(el: Element, done: () => void): void {
+  descriptionTransition.leave(el, done);
+}
+
+function afterDescriptionLeave(el: Element): void {
+  descriptionTransition.afterLeave(el);
+}
+
+function cleanupDescriptionTransition(el: Element): void {
+  descriptionTransition.cleanupTransition(el);
 }
 </script>
 
@@ -78,12 +128,16 @@ function toggleDescription(): void {
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; margin-bottom: 12px;
   min-height: 32px;
+  transition: margin-bottom 0.15s ease;
+}
+.acu-panel__header--description-open {
+  margin-bottom: 8px;
 }
 .acu-panel__title {
   margin: 0;
   min-width: 0;
   flex: 1 1 auto;
-  font-size: 15px;
+  font-size: var(--acu-font-size-panel-title, 15px);
   line-height: 1.3;
   color: var(--acu-text-1);
 }
@@ -106,16 +160,45 @@ function toggleDescription(): void {
   background: transparent;
   color: var(--acu-text-3);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-.acu-panel__description-button:hover,
-.acu-panel__description-button--open {
+.acu-panel__description-button:hover {
   background: var(--acu-bg-2);
   color: var(--acu-text-1);
+}
+.acu-panel__description-button--open {
+  background: color-mix(in srgb, var(--acu-text-3) 12%, transparent);
+  color: var(--acu-text-1);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-text-3) 18%, transparent);
 }
 .acu-panel__description-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--acu-accent-glow);
 }
 .acu-panel__body { display: flex; flex-direction: column; gap: 12px; min-width: 0; flex: 1 1 auto; }
+.acu-panel__description-region {
+  min-width: 0;
+  overflow: hidden;
+}
+.acu-panel__description-region-inner {
+  padding-bottom: 12px;
+  overflow: hidden;
+}
+.acu-panel__description-banner {
+  padding: 9px 10px;
+  border-radius: var(--acu-radius-sm);
+  border-left: 0;
+  background: color-mix(in srgb, var(--acu-text-3) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-text-3) 18%, transparent);
+  color: var(--acu-text-2);
+  font-size: var(--acu-font-size-body-lg, 13px);
+  line-height: 1.55;
+}
+.acu-panel__description-banner :deep(.acu-info-banner__icon) {
+  display: none;
+}
+.acu-panel__description-banner :deep(.acu-info-banner__content) {
+  width: 100%;
+  max-width: none;
+}
 </style>

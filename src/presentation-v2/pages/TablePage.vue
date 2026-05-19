@@ -1,72 +1,109 @@
 <template>
   <section class="acu-v2-table-page">
-    <AcuPageHeader title="表格模板" />
+    <AcuMobilePanelNav :items="panelNavItems" />
 
-    <div class="acu-v2-table-page__grid">
-      <!-- 左列 -->
+    <AcuPanelGrid class="acu-v2-table-page__grid">
       <div class="acu-v2-table-page__col">
         <AcuPanel
-          title="表格模板预设"
-          description="管理全局模板库与当前聊天模板作用域。下拉框切换「当前聊天」使用哪个模板；星标设置为「全局默认」（新聊天会继承）。导入按钮会把 JSON 保存到预设库，并让当前聊天立刻使用它；新聊天仍跟随全局默认，需要点星标才会默认继承。齿轮进入管理面板，可以从默认新建、导出或删除全局预设。默认预设是内置配置，不能直接修改；需要调整时请使用“从默认新建”。"
+          id="table-entries-panel"
+          :title="tableCopy.panels.entries.title"
+          :description="tableCopy.panels.entries.description"
         >
-          <AcuMessage v-if="templates.message.value" :kind="templates.message.value.kind">
-            {{ templates.message.value.text }}
-          </AcuMessage>
-          <AcuMessage v-if="management.message.value" :kind="management.message.value.kind">
-            {{ management.message.value.text }}
+          <WorldbookEntryPickerBody
+            :model-value="entriesSource.selectorValue.value"
+            :names="entriesWb.names.value"
+            :char-primary="entriesWb.charPrimary.value"
+            :selector-status="entriesWb.status.value"
+            :selector-error="entriesWb.error.value"
+            :character-option-label="entriesCharacterOptionLabel"
+            character-fallback-label="当前角色卡所有世界书"
+            :current-label="entriesSourceLabel"
+            v-model:filter="entryFilter"
+            :groups="entries.groups.value"
+            :loading="entries.status.value === 'loading'"
+            :empty-text="entryEmptyText"
+            @update:model-value="onEntriesSourceChange($event)"
+            @select-all="entries.selectAll()"
+            @deselect-all="entries.deselectAll()"
+            @toggle="(bookName: string, uid: number, checked: boolean) => entries.toggleEntry(bookName, uid, checked)"
+            @toggle-group="entries.toggleGroupExpanded($event)"
+          />
+        </AcuPanel>
+
+        <AcuPanel
+          id="table-prompt-panel"
+          :title="formFillCopy.panels.prompt.title"
+          :description="formFillCopy.panels.prompt.description"
+        >
+          <template #actions>
+            <AcuBadge :variant="promptTemplateBadgeVariant">{{
+              promptTemplateBadgeLabel
+            }}</AcuBadge>
+          </template>
+
+          <AcuMessage
+            v-if="!promptSlotSummary.hasA || !promptSlotSummary.hasB"
+            kind="warning"
+          >
+            填表提示词缺少必要主插槽，建议在编辑器里载入默认提示词后保存。
           </AcuMessage>
 
-          <p class="acu-v2-table-page__status-line">
-            当前聊天: <strong>{{ templates.selectedChatPreset.value || '默认预设' }}</strong>
-            <template v-if="templates.selectedGlobalPreset.value"> · 全局默认: <strong>{{ templates.selectedGlobalPreset.value }}</strong></template>
-            <template v-else> · 全局默认: <strong>默认预设</strong></template>
-            <span class="acu-v2-table-page__badge" :class="templates.isChatOverridden.value ? 'acu-v2-table-page__badge--override' : 'acu-v2-table-page__badge--inherit'">
-              {{ templates.isChatOverridden.value ? '已覆盖' : '跟随全局' }}
-            </span>
-          </p>
+          <div class="acu-v2-table-page__actions">
+            <AcuButton variant="primary" @click="promptDrawerOpen = true">
+              编辑提示词
+            </AcuButton>
+          </div>
+        </AcuPanel>
+      </div>
 
-          <div class="acu-v2-table-page__preset-row">
-            <AcuPresetDropdown
-              :items="templates.chatPresetItems.value"
-              :model-value="templates.selectedChatPreset.value"
-              :default-name="templates.selectedGlobalPreset.value"
-              :disabled="templates.busy.value || management.busy.value"
-              placeholder="默认预设"
-              @update:model-value="templates.selectChatPreset($event)"
-              @set-default="templates.selectGlobalPreset($event)"
+      <div class="acu-v2-table-page__col">
+        <AcuPanel
+          id="table-filter-panel"
+          :title="formFillCopy.panels.filter.title"
+          :description="formFillCopy.panels.filter.description"
+        >
+          <div class="acu-v2-table-page__filter">
+            <div class="acu-v2-table-page__toggle-row">
+              <div class="acu-v2-table-page__toggle-head">
+                <span class="acu-v2-table-page__toggle-label">
+                  仅识别最后一对 &lt;tableEdit&gt; 标签
+                </span>
+                <AcuToggle
+                  :model-value="settings.tableEditLastPairOnly.value"
+                  aria-label="仅识别最后一对 tableEdit 标签"
+                  data-acu-setting-key="tableEditLastPairOnly"
+                  @update:model-value="settings.setTableEditLastPairOnly($event)"
+                />
+              </div>
+              <p class="acu-v2-table-page__toggle-desc">
+                默认开启，用于忽略前面思维链或草稿里的旧指令。
+              </p>
+            </div>
+
+            <AcuRulePairList
+              label="提取规则"
+              :model-value="settings.extractRules.value"
+              start-placeholder="提取开始边界"
+              end-placeholder="提取结束边界"
+              add-label="添加提取规则"
+              @update:model-value="settings.setExtractRules($event)"
             />
-            <AcuButton
-              icon-only
-              :title="canEditCurrentTemplate ? '编辑当前模板（打开可视化表格编辑器）' : '默认预设不能直接编辑，请从默认新建后修改'"
-              :disabled="management.busy.value || !canEditCurrentTemplate"
-              @click="management.openVisualizer"
-            >
-              <i class="fa-solid fa-pen"></i>
-            </AcuButton>
-            <AcuFileButton
-              icon-only
-              title="导入模板 JSON"
-              accept="application/json,.json"
-              :disabled="templates.busy.value || management.busy.value"
-              @file="templates.importPresetForCurrentChat($event)"
-            >
-              <i class="fa-solid fa-file-import"></i>
-            </AcuFileButton>
-            <AcuButton
-              icon-only
-              title="管理表格模板预设"
-              :disabled="management.busy.value"
-              @click="management.openManage"
-            >
-              <i class="fa-solid fa-gear"></i>
-            </AcuButton>
+
+            <AcuRulePairList
+              label="排除规则"
+              :model-value="settings.excludeRules.value"
+              start-placeholder="排除开始边界"
+              end-placeholder="排除结束边界"
+              add-label="添加排除规则"
+              @update:model-value="settings.setExcludeRules($event)"
+            />
           </div>
         </AcuPanel>
 
         <AcuPanel
-          class="acu-v2-table-page__wb-panel"
-          title="注入目标世界书"
-          description="把「填好后的表格」写到哪本世界书里。默认写入角色卡主世界书；如果你想用别的世界书来承载表格条目，可以在这里指定。这个目标只影响写入侧，与右侧「附加世界书条目」相互独立。"
+          id="table-injection-target-panel"
+          :title="tableCopy.panels.injectionTarget.title"
+          :description="tableCopy.panels.injectionTarget.description"
         >
           <WorldbookSelector
             :model-value="injectionTarget.selectorValue.value"
@@ -74,92 +111,62 @@
             :char-primary="injectionWb.charPrimary.value"
             :status="injectionWb.status.value"
             :error="injectionWb.error.value"
+            show-character-option
+            character-option-label="角色卡绑定世界书"
             filterable
-            @update:model-value="injectionTarget.onSelectorChange($event)"
+            @update:model-value="onInjectionTargetChange($event)"
           />
           <p class="acu-v2-table-page__hint">
             目前已选: <strong>{{ injectionTargetLabel }}</strong>
           </p>
         </AcuPanel>
       </div>
+    </AcuPanelGrid>
 
-      <!-- 右列 -->
-      <div class="acu-v2-table-page__col">
-        <AcuPanel
-          class="acu-v2-table-page__wb-panel"
-          title="附加世界书条目"
-          description="选择哪本世界书的条目会作为上下文附加到填表 AI 的提示词里。默认跟随当前角色卡的所有世界书；也可以手动指定一本，并按条目逐项启用 / 禁用。这与左侧的「注入目标」相互独立。"
-        >
-          <WorldbookSelector
-            :model-value="entriesSource.selectorValue.value"
-            :names="entriesWb.names.value"
-            :char-primary="entriesWb.charPrimary.value"
-            :status="entriesWb.status.value"
-            :error="entriesWb.error.value"
-            filterable
-            @update:model-value="onEntriesSourceChange($event)"
-          />
-          <p class="acu-v2-table-page__hint">
-            目前已选: <strong>{{ entriesSourceLabel }}</strong>
-          </p>
-
-          <WorldbookEntryToolbar
-            v-model:filter="entryFilter"
-            @select-all="entries.selectAll()"
-            @deselect-all="entries.deselectAll()"
-          />
-          <WorldbookEntryList
-            :groups="entries.groups.value"
-            :filter="entryFilter"
-            :loading="entries.status.value === 'loading'"
-            @toggle="(bookName: string, uid: number, checked: boolean) => entries.toggleEntry(bookName, uid, checked)"
-            @toggle-group="entries.toggleGroupExpanded($event)"
-          />
-        </AcuPanel>
-      </div>
-    </div>
-
-    <TablePresetDrawer
-      :is-open="management.isDrawerOpen.value"
-      :title="management.title.value"
-      :busy="management.busy.value"
-      :message="management.message.value"
-      :preset-meta="management.presetMeta.value"
-      :default-preset-name="management.defaultPresetName.value"
-      @close="management.closeDrawer"
-      @create-blank="management.createBlankPreset"
-      @set-default="management.setAsDefault($event)"
-      @export="management.exportPreset($event)"
-      @rename="management.renamePreset($event)"
-      @edit="management.editPreset($event)"
-      @delete="management.deletePreset($event)"
+    <FormFillPromptDrawer
+      :is-open="promptDrawerOpen"
+      :segments="settings.promptSegments.value"
+      :dirty="settings.promptDirty.value"
+      :message="promptMessage"
+      @close="promptDrawerOpen = false"
+      @save="settings.savePrompt"
+      @reset="settings.resetPrompt"
+      @import-file="settings.importPromptFile($event)"
+      @export="settings.exportPrompt"
+      @add="settings.addPromptSegment($event)"
+      @delete="settings.deletePromptSegment($event)"
+      @update="updatePromptSegment"
     />
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import AcuBadge, { type AcuBadgeVariant } from '../components/_lib/AcuBadge.vue';
 import AcuButton from '../components/_lib/AcuButton.vue';
-import AcuFileButton from '../components/_lib/AcuFileButton.vue';
 import AcuMessage from '../components/_lib/AcuMessage.vue';
-import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
+import AcuMobilePanelNav from '../components/_lib/AcuMobilePanelNav.vue';
 import AcuPanel from '../components/_lib/AcuPanel.vue';
-import AcuPresetDropdown from '../components/_lib/AcuPresetDropdown.vue';
-import TablePresetDrawer from '../components/TablePresetDrawer.vue';
+import AcuPanelGrid from '../components/_lib/AcuPanelGrid.vue';
+import AcuRulePairList from '../components/_lib/AcuRulePairList.vue';
+import AcuToggle from '../components/_lib/AcuToggle.vue';
+import FormFillPromptDrawer from '../components/FormFillPromptDrawer.vue';
 import WorldbookSelector from '../components/WorldbookSelector.vue';
-import WorldbookEntryList from '../components/WorldbookEntryList.vue';
-import WorldbookEntryToolbar from '../components/WorldbookEntryToolbar.vue';
+import WorldbookEntryPickerBody from '../components/WorldbookEntryPickerBody.vue';
 import { useChatChangedTick } from '../composables/useChatChangedListener';
-import { useTableTemplatePresets } from '../composables/useTableTemplatePresets';
-import { useTablePresetManagement } from '../composables/useTablePresetManagement';
 import { useFormFillInjectionTarget } from '../composables/useFormFillInjectionTarget';
+import {
+  useFormFillSettings,
+  type FormFillPromptSegment,
+} from '../composables/useFormFillSettings';
 import { useFormFillWorldbookConfig } from '../composables/useFormFillWorldbookConfig';
 import { useFormFillWorldbookEntries } from '../composables/useFormFillWorldbookEntries';
+import { useUiCloseGuard } from '../composables/useUiCloseGuard';
 import { useWorldbookSelector } from '../composables/useWorldbookSelector';
+import { formFillCopy } from '../copy/form-fill-copy';
+import { tableCopy } from '../copy/table-copy';
 
-const templates = useTableTemplatePresets();
-const management = useTablePresetManagement();
-
+const settings = useFormFillSettings();
 const injectionTarget = useFormFillInjectionTarget();
 const entriesSource = useFormFillWorldbookConfig();
 const entries = useFormFillWorldbookEntries();
@@ -168,14 +175,58 @@ const entriesWb = useWorldbookSelector();
 const entryFilter = ref('');
 const injectionTargetLabel = ref('');
 const entriesSourceLabel = ref('');
-const canEditCurrentTemplate = computed(() => !!templates.selectedChatPreset.value);
+const entryEmptyText = ref(tableCopy.worldbook.emptyDefault);
+const promptDrawerOpen = ref(false);
+const panelNavItems = [
+  { id: 'table-entries-panel', label: tableCopy.panels.entries.title },
+  { id: 'table-prompt-panel', label: formFillCopy.nav.prompt },
+  { id: 'table-filter-panel', label: formFillCopy.nav.filter },
+  { id: 'table-injection-target-panel', label: tableCopy.panels.injectionTarget.title },
+];
+const entriesCharacterOptionLabel = computed(() =>
+  entriesWb.charPrimary.value
+    ? `当前角色卡所有世界书 · 主册 ${entriesWb.charPrimary.value}`
+    : '当前角色卡所有世界书',
+);
+const promptSlotSummary = computed(() => ({
+  hasA: settings.promptSegments.value.some(
+    (segment) => segment.mainSlot === 'A' || segment.isMain === true,
+  ),
+  hasB: settings.promptSegments.value.some(
+    (segment) => segment.mainSlot === 'B' || segment.isMain2 === true,
+  ),
+}));
+const promptTemplateBadgeLabel = computed(() =>
+  settings.promptTemplateMode.value === 'default'
+    ? '使用默认提示词'
+    : '已自定义提示词',
+);
+const promptTemplateBadgeVariant = computed<AcuBadgeVariant>(() =>
+  settings.promptTemplateMode.value === 'default' ? 'neutral' : 'accent',
+);
+const promptMessage = computed(() =>
+  settings.message.value?.scope === 'prompt' ? settings.message.value : null,
+);
 
 async function refreshInjectionLabel(): Promise<void> {
   injectionTargetLabel.value = await injectionTarget.describeTarget();
 }
 
+function confirmPromptClose(): boolean {
+  if (!promptDrawerOpen.value || !settings.promptDirty.value) return true;
+  return window.confirm('你有未保存的填表提示词修改，确定要关闭新 UI 吗？');
+}
+
+function updatePromptSegment(
+  index: number,
+  patch: Partial<FormFillPromptSegment>,
+): void {
+  settings.updatePromptSegment(index, patch);
+}
+
 async function refreshEntriesGroups(): Promise<void> {
   const names = await entriesSource.resolveBookNames();
+  entryEmptyText.value = resolveEntryEmptyText(names);
   await entries.loadEntries(names);
   if (entriesSource.source.value === 'character') {
     const charPrimary = entriesWb.charPrimary.value;
@@ -187,14 +238,28 @@ async function refreshEntriesGroups(): Promise<void> {
   }
 }
 
+function resolveEntryEmptyText(names: string[]): string {
+  if (entriesSource.source.value === 'character' && names.length === 0) {
+    return tableCopy.worldbook.emptyCharacter;
+  }
+  if (entriesSource.source.value === 'manual' && !entriesSource.manualBook.value) {
+    return tableCopy.worldbook.emptyManual;
+  }
+  return tableCopy.worldbook.emptyDefault;
+}
+
 function onEntriesSourceChange(value: string): void {
   entriesSource.onSelectorChange(value);
   void refreshEntriesGroups();
 }
 
+function onInjectionTargetChange(value: string): void {
+  injectionTarget.onSelectorChange(value);
+  void refreshInjectionLabel();
+}
+
 async function refreshAll(): Promise<void> {
-  templates.refresh();
-  management.refresh();
+  settings.refresh();
   injectionTarget.refreshFromSettings();
   entriesSource.refreshFromSettings();
   await Promise.all([
@@ -209,6 +274,7 @@ async function refreshAll(): Promise<void> {
 
 onMounted(() => { void refreshAll(); });
 watch(useChatChangedTick(), () => { void refreshAll(); });
+useUiCloseGuard(confirmPromptClose);
 </script>
 
 <style scoped>
@@ -221,13 +287,6 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   gap: 18px;
 }
 
-.acu-v2-table-page__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  align-items: stretch;
-}
-
 .acu-v2-table-page__col {
   display: flex;
   flex-direction: column;
@@ -235,9 +294,52 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   min-width: 0;
 }
 
+.acu-v2-table-page__filter {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.acu-v2-table-page__toggle-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.acu-v2-table-page__toggle-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.acu-v2-table-page__toggle-label {
+  min-width: 0;
+  color: var(--acu-text-1);
+  font-size: var(--acu-font-size-body-lg, 13px);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.acu-v2-table-page__toggle-desc {
+  margin: 0;
+  color: var(--acu-text-3);
+  font-size: var(--acu-font-size-caption, 11px);
+  line-height: 1.5;
+}
+
+.acu-v2-table-page__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+  margin-top: 4px;
+}
+
 .acu-v2-table-page__status-line {
   margin: 0 0 10px;
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   color: var(--acu-text-3);
   display: flex;
   align-items: center;
@@ -263,7 +365,7 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   align-items: center;
   padding: 2px 8px;
   border-radius: var(--acu-radius-sm);
-  font-size: 11px;
+  font-size: var(--acu-font-size-caption, 11px);
   font-weight: 500;
 }
 
@@ -277,15 +379,9 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
   color: var(--acu-on-accent);
 }
 
-.acu-v2-table-page__wb-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .acu-v2-table-page__hint {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   color: var(--acu-text-3);
 }
 
@@ -297,10 +393,6 @@ watch(useChatChangedTick(), () => { void refreshAll(); });
 @media (max-width: 860px) {
   .acu-v2-table-page {
     padding: 14px;
-  }
-
-  .acu-v2-table-page__grid {
-    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -102,10 +102,10 @@ describe('ImportPage', () => {
     const page = document.querySelector('.acu-v2-import-page');
     expect(page).not.toBeNull();
     const text = page!.textContent || '';
-    expect(text).toContain('外部导入');
-    expect(text).toContain('导入数据注入目标世界书');
+    expect(document.querySelector('.acu-v2-app__page-title')?.textContent?.trim()).toBe('外部导入');
+    expect(text).toContain('写入目标');
     expect(text).toContain('拆分与编码');
-    expect(text).toContain('注入表选择');
+    expect(text).toContain('写入表格选择');
     expect(text).toContain('状态 / 操作区');
 
     mount.__resetAcuV2MountForTests();
@@ -117,18 +117,19 @@ describe('ImportPage', () => {
     const panel = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-import-page .acu-panel'))
       .find(el => el.querySelector('.acu-panel__title')?.textContent?.includes('状态 / 操作区'));
     expect(panel).not.toBeUndefined();
+    expect(panel!.querySelector('.acu-v2-import-page__action-grid')).not.toBeNull();
 
     const buttons = Array.from(panel!.querySelectorAll<HTMLButtonElement>('button'));
-    const labels = buttons.map(button => button.textContent?.trim() || '');
+    const labels = buttons.map(button => button.textContent?.trim() || '').filter(Boolean);
     expect(labels).toEqual([
-      '1. 选择并拆分 TXT 文件',
-      '2. 注入（自选表格）',
-      '清空导入暂存缓存',
-      '删除注入条目',
+      '选择并拆分',
+      '写入',
+      '清空缓存',
+      '删除条目',
     ]);
 
-    const clearButton = buttons.find(button => button.textContent?.includes('清空导入暂存缓存'))!;
-    const deleteButton = buttons.find(button => button.textContent?.includes('删除注入条目'))!;
+    const clearButton = buttons.find(button => button.textContent?.includes('清空缓存'))!;
+    const deleteButton = buttons.find(button => button.textContent?.includes('删除条目'))!;
     expect(clearButton.classList.contains('acu-btn--default')).toBe(true);
     expect(deleteButton.classList.contains('acu-btn--danger')).toBe(true);
 
@@ -156,7 +157,7 @@ describe('ImportPage', () => {
     const { mount } = await mountImportPage();
 
     const buttons = Array.from(document.querySelectorAll('button'));
-    const inject = buttons.find(b => b.textContent?.includes('注入（自选表格）')) as HTMLButtonElement | undefined;
+    const inject = buttons.find(b => b.textContent?.includes('写入')) as HTMLButtonElement | undefined;
     expect(inject).not.toBeUndefined();
     expect(inject!.disabled).toBe(true);
 
@@ -187,9 +188,9 @@ describe('ImportPage', () => {
     panels.forEach(panel => {
       const banner = panel.querySelector('.acu-info-banner');
       expect(banner).not.toBeNull();
-      // banner 必须在 body 内，不能在 header 内
+      // banner 必须作为标题附属说明，不能塞进 header
       expect(panel.querySelector('.acu-panel__header .acu-info-banner')).toBeNull();
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
     });
 
     mount.__resetAcuV2MountForTests();

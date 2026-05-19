@@ -12,6 +12,7 @@ import { JSDOM } from 'jsdom';
 
 const ROOT_ID = 'acu-app-v2';
 const STYLE_DATA_ATTR = 'data-acu-v2-sfc';
+const STORAGE_KEY = 'acu_v2_ui_state';
 
 type MountModule = typeof import('../../../src/presentation-v2/bootstrap/mount');
 type HostModule = typeof import('../../../src/presentation-v2/bootstrap/host-document');
@@ -39,6 +40,10 @@ function setParent(parent: any) {
   });
 }
 
+function persistAdvancedMode(): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ uiMode: { mode: 'advanced' } }));
+}
+
 afterEach(() => {
   // jsdom 默认 window.parent === window；测试结束恢复
   setParent(window);
@@ -48,9 +53,11 @@ describe('mount — 当前文档场景', () => {
   beforeEach(() => {
     setParent(window);
     document.body.innerHTML = '';
+    localStorage.clear();
   });
 
   it('window.parent === window 时，根节点和 SFC 样式都注入当前 document', async () => {
+    persistAdvancedMode();
     const { mount, host, styleRuntime } = await freshImport();
     expect(host.getAcuHostSource()).toBe('current-document');
 
@@ -69,7 +76,7 @@ describe('mount — 当前文档场景', () => {
 
     const text = root!.textContent || '';
     expect(text).toContain('SP·数据库 III');
-    // 默认页是 dashboard，sidebar 有"概览/配置/功能/工具"四组标题
+    // 高手模式默认页是 dashboard，sidebar 有"概览/配置/功能/工具"四组标题
     expect(text).toContain('仪表盘');
     expect(text).toContain('概览');
     expect(text).toContain('配置');
@@ -97,6 +104,7 @@ describe('mount — 当前文档场景', () => {
 
     const themeButton = document.querySelector('.acu-v2-app__theme-btn') as HTMLButtonElement | null;
     expect(themeButton).not.toBeNull();
+    expect(themeButton!.classList.contains('acu-icon-btn')).toBe(true);
 
     themeButton!.click();
     await Promise.resolve();
@@ -114,11 +122,13 @@ describe('mount — 当前文档场景', () => {
   });
 
   it('汉堡按钮打开移动端导航抽屉，点击页面项后关闭抽屉并切换页面', async () => {
+    persistAdvancedMode();
     const { mount } = await freshImport();
     await mount.openAcuV2App();
 
     const menuButton = document.querySelector('.acu-v2-app__menu') as HTMLButtonElement | null;
     expect(menuButton).not.toBeNull();
+    expect(menuButton!.classList.contains('acu-icon-btn')).toBe(true);
     expect(menuButton!.getAttribute('aria-expanded')).toBe('false');
 
     menuButton!.click();
@@ -138,7 +148,7 @@ describe('mount — 当前文档场景', () => {
     const layer = document.querySelector('.acu-v2-app__mobile-nav-layer');
     expect(layer?.classList.contains('is-closing')).toBe(true);
     expect(menuButton!.getAttribute('aria-expanded')).toBe('false');
-    expect(document.querySelector('[data-acu-main]')!.textContent).toContain('更新参数');
+    expect(document.querySelector('.acu-v2-app__page-title')?.textContent?.trim()).toBe('填表工作台');
 
     mount.__resetAcuV2MountForTests();
   });

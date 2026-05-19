@@ -167,7 +167,6 @@ describe('PlotPage', () => {
     expect(drawer).not.toBeNull();
     const text = drawer!.textContent || '';
     expect(text).toContain('当前任务使用的 API');
-    expect(text).toContain('没有选择就使用剧情推进页里的 API 预设');
     expect(text).not.toContain('D23.4');
     expect(text).not.toContain('override');
     expect(text).not.toContain('三层 fallback');
@@ -263,7 +262,7 @@ describe('PlotPage', () => {
     const panels = document.querySelectorAll('.acu-v2-plot-page .acu-panel');
     expect(panels.length).toBeGreaterThanOrEqual(2);
     panels.forEach(panel => {
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
     });
     mount.__resetAcuV2MountForTests();
   });
@@ -277,12 +276,12 @@ describe('PlotPage', () => {
     const acuSelect = panel!.querySelector('.acu-select') as HTMLElement | null;
     expect(acuSelect).not.toBeNull();
     const trigger = acuSelect!.querySelector('.acu-select__trigger') as HTMLButtonElement;
-    expect(trigger.textContent).toContain('跟随当前活动');
+    expect(trigger.textContent).toContain('跟随当前活动 API（gpt-mini）');
     trigger.click();
     await new Promise(r => setTimeout(r, 0));
     const items = Array.from(acuSelect!.querySelectorAll('.acu-select__item'));
     const labels = items.map(li => li.textContent?.trim() || '');
-    expect(labels[0]).toContain('跟随当前活动');
+    expect(labels[0]).toBe('跟随当前活动 API（gpt-mini）');
     expect(labels.some(l => l === 'gpt-mini')).toBe(true);
 
     mount.__resetAcuV2MountForTests();
@@ -367,14 +366,25 @@ describe('PlotPage', () => {
     mount.__resetAcuV2MountForTests();
   });
 
-  it('当前为默认预设时主编辑按钮禁用，不直接编辑内置默认', async () => {
+  it('当前为默认预设时主编辑按钮会从默认新建', async () => {
     const settings = createSettings();
     settings.plotSettings.lastUsedPresetName = '';
     const { mount } = await mountPlotPage({ settings });
 
-    const editButton = document.querySelector('button[title*="默认预设不能直接编辑"]') as HTMLButtonElement | null;
+    const editButton = document.querySelector('button[title="从默认新建预设"]') as HTMLButtonElement | null;
     expect(editButton).not.toBeNull();
-    expect(editButton!.disabled).toBe(true);
+    expect(editButton!.disabled).toBe(false);
+    editButton!.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const drawer = document.querySelector('.acu-v2-drawer') as HTMLElement | null;
+    expect(drawer).not.toBeNull();
+    expect(drawer!.textContent || '').toContain('从默认新建剧情推进预设');
+    expect(drawer!.querySelectorAll('.acu-v2-plot-tasks__card')).toHaveLength(1);
+    expect(drawer!.querySelector('.acu-v2-plot-tasks__card')?.tagName).toBe('BUTTON');
+    const nameInput = drawer!.querySelector('.acu-v2-form__section input.acu-input') as HTMLInputElement | null;
+    expect(nameInput).not.toBeNull();
+    expect(nameInput!.value).toBe('新预设');
 
     mount.__resetAcuV2MountForTests();
   });
@@ -398,12 +408,11 @@ describe('PlotPage', () => {
     expect(drawer).not.toBeNull();
     expect(drawer!.textContent || '').toContain('从默认新建剧情推进预设');
     expect(drawer!.querySelectorAll('.acu-v2-plot-tasks__card')).toHaveLength(1);
+    expect(drawer!.querySelector('.acu-v2-plot-tasks__card')?.tagName).toBe('BUTTON');
 
     const nameInput = drawer!.querySelector('.acu-v2-form__section input.acu-input') as HTMLInputElement | null;
     expect(nameInput).not.toBeNull();
-    nameInput!.value = '基于默认的新预设';
-    nameInput!.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise(r => setTimeout(r, 0));
+    expect(nameInput!.value).toBe('新预设');
 
     const saveButton = Array.from(drawer!.querySelectorAll('button'))
       .find(button => (button.textContent || '').includes('保存预设')) as HTMLButtonElement | undefined;
@@ -411,7 +420,7 @@ describe('PlotPage', () => {
     saveButton!.click();
     await new Promise(r => setTimeout(r, 0));
 
-    const savedPreset = settings.plotSettings.promptPresets.find((preset: any) => preset.name === '基于默认的新预设');
+    const savedPreset = settings.plotSettings.promptPresets.find((preset: any) => preset.name === '新预设');
     expect(savedPreset).toBeDefined();
     expect(savedPreset.plotTasks).toHaveLength(1);
 
@@ -465,6 +474,14 @@ describe('PlotPage', () => {
 
     const entryList = document.querySelector('.acu-v2-wb-entries');
     expect(entryList).not.toBeNull();
+    expect(entryList!.textContent || '').not.toContain('角色设定');
+
+    const header = entryList!.querySelector('.acu-v2-wb-entry-group__header') as HTMLButtonElement | null;
+    expect(header).not.toBeNull();
+    expect(header!.textContent).toContain('2/2 条');
+    header!.click();
+    await Promise.resolve();
+
     const text = entryList!.textContent || '';
     expect(text).toContain('角色设定');
     expect(text).toContain('世界观');

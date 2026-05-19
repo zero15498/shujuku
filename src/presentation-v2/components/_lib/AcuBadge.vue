@@ -22,7 +22,7 @@ const variantClass = computed(() => `acu-badge--${props.variant}`);
 .acu-badge {
   display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: var(--acu-radius-sm);
-  font-size: 11px; font-weight: 500;
+  font-size: var(--acu-font-size-caption, 11px); font-weight: 500;
   white-space: nowrap; line-height: 1.6;
 }
 

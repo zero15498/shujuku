@@ -1,5 +1,5 @@
 /**
- * TablePage 集成 — 表格模板预设 + 注入目标 + 附加世界书条目 + 预设管理抽屉
+ * TablePage 集成 — 标签筛选 + 填表提示词 + 注入目标 + 附加世界书条目
  *
  * @vitest-environment jsdom
  */
@@ -7,13 +7,43 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const STORAGE_KEY = 'acu_v2_ui_state';
 
-async function mountTablePage(opts: { selectedChatPreset?: string; selectedGlobalPreset?: string } = {}) {
+function createSettings() {
+  return {
+    autoUpdateThreshold: 3,
+    autoUpdateFrequency: 2,
+    updateBatchSize: 2,
+    maxConcurrentGroups: 1,
+    skipUpdateFloors: 0,
+    retainRecentLayers: 100,
+    autoUpdateTokenThreshold: 500,
+    tableMaxRetries: 3,
+    tableEditLastPairOnly: true,
+    tableContextExtractTags: '',
+    tableContextExtractRules: [{ start: '<正文>', end: '</正文>' }],
+    tableContextExcludeTags: '',
+    tableContextExcludeRules: [{ start: '<think>', end: '</think>' }],
+    storageMode: 'native',
+    charCardPrompt: [
+      { role: 'SYSTEM', content: '系统段', deletable: true },
+      { role: 'USER', content: '主任务', mainSlot: 'A', isMain: true, deletable: false },
+      { role: 'USER', content: '数据段', mainSlot: 'B', isMain2: true, deletable: false },
+    ],
+  } as any;
+}
+
+async function mountTablePage(opts: {
+  selectedChatPreset?: string;
+  selectedGlobalPreset?: string;
+  injectionCharPrimary?: string | null;
+} = {}) {
   vi.resetModules();
   document.body.innerHTML = '';
   document.head.innerHTML = '';
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ router: { activePageId: 'table' } }));
 
   const { ref, shallowRef, computed } = await import('vue');
+  const settings = createSettings();
+  const saveSettings = vi.fn(() => ({ saved: true, storageType: 'memory' }));
 
   // —— useTableTemplatePresets（页面顶部下拉） ——
   const selectGlobalPreset = vi.fn(async () => {});
@@ -25,6 +55,15 @@ async function mountTablePage(opts: { selectedChatPreset?: string; selectedGloba
   vi.doMock('../../../src/presentation-v2/composables/useChatChangedListener', () => ({
     useChatChangedListener: () => {},
     useChatChangedTick: () => ref(0),
+  }));
+  vi.doMock('../../../src/service/runtime/state-manager', () => ({
+    settings_ACU: settings,
+  }));
+  vi.doMock('../../../src/service/settings/settings-service', () => ({
+    saveSettings_ACU: saveSettings,
+  }));
+  vi.doMock('../../../src/service/table/storage-mode', () => ({
+    getCurrentStorageMode: () => settings.storageMode,
   }));
   vi.doMock('../../../src/presentation-v2/composables/useTableTemplatePresets', () => ({
     useTableTemplatePresets: () => {
@@ -89,13 +128,22 @@ async function mountTablePage(opts: { selectedChatPreset?: string; selectedGloba
   }));
 
   // —— 注入目标 / 附加条目 / 选择器 ——
+  const injectionTargetRef = ref('character');
+  const injectionTargetChange = vi.fn((value: string) => {
+    injectionTargetRef.value = value;
+  });
+  const describeInjectionTarget = vi.fn(async () =>
+    injectionTargetRef.value === 'character'
+      ? '角色卡绑定世界书 · CharBookT'
+      : injectionTargetRef.value,
+  );
   vi.doMock('../../../src/presentation-v2/composables/useFormFillInjectionTarget', () => ({
     useFormFillInjectionTarget: () => ({
-      target: ref('character'),
-      selectorValue: ref('character'),
+      target: injectionTargetRef,
+      selectorValue: computed(() => injectionTargetRef.value || 'character'),
       refreshFromSettings: vi.fn(),
-      onSelectorChange: vi.fn(),
-      describeTarget: vi.fn(async () => '角色卡主世界书 · CharBookT'),
+      onSelectorChange: injectionTargetChange,
+      describeTarget: describeInjectionTarget,
     }),
   }));
 
@@ -130,7 +178,7 @@ async function mountTablePage(opts: { selectedChatPreset?: string; selectedGloba
   vi.doMock('../../../src/presentation-v2/composables/useWorldbookSelector', () => ({
     useWorldbookSelector: () => ({
       names: shallowRef(['CharBookT', 'Other']),
-      charPrimary: ref('CharBookT'),
+      charPrimary: ref(opts.injectionCharPrimary === undefined ? 'CharBookT' : opts.injectionCharPrimary),
       status: ref('success'),
       error: ref(''),
       refresh: vi.fn(async () => {}),
@@ -153,6 +201,10 @@ async function mountTablePage(opts: { selectedChatPreset?: string; selectedGloba
     renamePreset,
     createBlankPreset,
     importPresetForCurrentChat,
+    settings,
+    saveSettings,
+    injectionTargetChange,
+    describeInjectionTarget,
     drawerView,
   };
 }
@@ -164,40 +216,46 @@ beforeEach(() => {
 });
 
 describe('TablePage', () => {
-  it('左右分栏：左列含模板预设与注入目标世界书，右列含附加世界书条目；不再渲染可视化编辑器卡片', async () => {
+  it('左右分栏：左列含附加世界书条目与提示词，右列含标签筛选与注入目标', async () => {
     const { mount } = await mountTablePage();
 
     const page = document.querySelector('.acu-v2-table-page');
     expect(page).not.toBeNull();
     const text = page!.textContent || '';
-    expect(text).toContain('表格模板预设');
-    expect(text).toContain('注入目标世界书');
+    expect(document.querySelector('.acu-v2-app__page-title')?.textContent || '').toContain('填表规则');
+    expect(text).toContain('标签筛选');
+    expect(text).toContain('填表提示词');
+    expect(text).toContain('写入目标世界书');
     expect(text).toContain('附加世界书条目');
-    expect(text).toContain('当前聊天:');
-    expect(text).toContain('全局默认:');
-    expect(text).toContain('跟随全局');
+    expect(text).not.toContain('表格模板预设');
+    expect(text).not.toContain('打开可视化表格编辑器');
     expect(text).not.toContain('表格工具');
     expect(page!.querySelector('.acu-v2-table-page__tool-card')).toBeNull();
-    expect(Array.from(page!.querySelectorAll('button')).some(b => b.textContent?.trim() === '打开可视化表格编辑器')).toBe(false);
     expect(text).not.toContain('立即构建交火纪要索引');
     expect(text).not.toContain('Embedding / Rerank');
     expect(Array.from(page!.querySelectorAll('button')).some(b => b.textContent?.trim() === '刷新')).toBe(false);
 
     const cols = page!.querySelectorAll('.acu-v2-table-page__col');
     expect(cols.length).toBe(2);
+    const panelTitles = Array.from(page!.querySelectorAll('.acu-panel .acu-panel__title'))
+      .map(title => (title.textContent || '').trim());
+    expect(panelTitles).toEqual(['附加世界书条目', '填表提示词', '标签筛选', '写入目标世界书']);
+    const mobileNavItems = Array.from(page!.querySelectorAll('.acu-mobile-panel-nav__item'))
+      .map(item => (item.textContent || '').trim());
+    expect(mobileNavItems).toEqual(['附加世界书条目', '提示词', '标签筛选', '写入目标世界书']);
 
     mount.__resetAcuV2MountForTests();
   });
 
   it('关闭后重新打开 UI 会刷新当前表格页', async () => {
-    const { mount, refresh } = await mountTablePage();
+    const { mount, describeInjectionTarget } = await mountTablePage();
 
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(describeInjectionTarget).toHaveBeenCalledTimes(1);
     mount.closeAcuV2App();
     await mount.openAcuV2App();
-    await Promise.resolve();
+    await new Promise(r => setTimeout(r, 0));
 
-    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(describeInjectionTarget).toHaveBeenCalledTimes(2);
 
     mount.__resetAcuV2MountForTests();
   });
@@ -208,176 +266,52 @@ describe('TablePage', () => {
     const panels = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-table-page .acu-panel'));
     expect(panels.length).toBeGreaterThan(0);
     for (const panel of panels) {
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
     }
 
     mount.__resetAcuV2MountForTests();
   });
 
-  it('当前聊天选择和全局默认一致时显示跟随全局，否则显示已覆盖', async () => {
-    let mounted = await mountTablePage({
-      selectedChatPreset: 'global-A',
-      selectedGlobalPreset: 'global-A',
-    });
-    let page = document.querySelector('.acu-v2-table-page') as HTMLElement;
-    expect(page.textContent).toContain('跟随全局');
-    expect(page.textContent).not.toContain('已覆盖');
-    mounted.mount.__resetAcuV2MountForTests();
+  it('注入目标在未解析角色卡世界书时仍显示角色卡绑定世界书默认选项', async () => {
+    const { mount } = await mountTablePage({ injectionCharPrimary: null });
 
-    mounted = await mountTablePage({
-      selectedChatPreset: 'chat-A',
-      selectedGlobalPreset: 'global-A',
-    });
-    page = document.querySelector('.acu-v2-table-page') as HTMLElement;
-    expect(page.textContent).toContain('已覆盖');
-    mounted.mount.__resetAcuV2MountForTests();
-  });
+    const page = document.querySelector('.acu-v2-table-page') as HTMLElement;
+    const injectionPanel = page.querySelector<HTMLElement>('#table-injection-target-panel')!;
+    const trigger = injectionPanel.querySelector<HTMLButtonElement>('.acu-select__trigger');
+    expect(trigger).not.toBeNull();
+    expect(trigger!.textContent).toContain('角色卡绑定世界书');
 
-  it('预设下拉选择当前聊天模板', async () => {
-    const { mount, selectChatPreset } = await mountTablePage();
-
-    const triggers = Array.from(document.querySelectorAll('.acu-preset-dd__trigger')) as HTMLButtonElement[];
-    expect(triggers).toHaveLength(1);
-
-    triggers[0].click();
-    await Promise.resolve();
-    (Array.from(document.querySelectorAll('.acu-preset-dd__item'))
-      .find(item => item.textContent?.includes('global-A')) as HTMLElement).click();
+    trigger!.click();
     await Promise.resolve();
 
-    expect(selectChatPreset).toHaveBeenCalledWith('global-A');
+    const labels = Array.from(injectionPanel.querySelectorAll('.acu-select__item'))
+      .map(item => item.textContent?.trim());
+    expect(labels).toContain('角色卡绑定世界书');
+    expect(labels).toContain('CharBookT');
 
     mount.__resetAcuV2MountForTests();
   });
 
-  it('预设下拉星标会设置全局模板默认', async () => {
-    const { mount, selectGlobalPreset } = await mountTablePage();
+  it('切换注入目标世界书后立即刷新目前已选提示', async () => {
+    const { mount, injectionTargetChange, describeInjectionTarget } = await mountTablePage();
 
-    const triggers = Array.from(document.querySelectorAll('.acu-preset-dd__trigger')) as HTMLButtonElement[];
-    triggers[0].click();
+    const page = document.querySelector('.acu-v2-table-page') as HTMLElement;
+    const injectionPanel = page.querySelector<HTMLElement>('#table-injection-target-panel')!;
+    expect(injectionPanel.textContent).toContain('目前已选: 角色卡绑定世界书 · CharBookT');
+
+    const trigger = injectionPanel.querySelector<HTMLButtonElement>('.acu-select__trigger')!;
+    trigger.click();
     await Promise.resolve();
-    const stars = Array.from(document.querySelectorAll('.acu-preset-dd__star')) as HTMLButtonElement[];
-    stars.find(star => star.closest('.acu-preset-dd__item')?.textContent?.includes('chat-A'))!.click();
+    (Array.from(injectionPanel.querySelectorAll('.acu-select__item'))
+      .find(item => item.textContent?.trim() === 'Other') as HTMLElement).click();
+    await Promise.resolve();
     await Promise.resolve();
 
-    expect(selectGlobalPreset).toHaveBeenCalledWith('chat-A');
+    expect(injectionTargetChange).toHaveBeenCalledWith('Other');
+    expect(describeInjectionTarget).toHaveBeenCalledTimes(2);
+    expect(injectionPanel.textContent).toContain('目前已选: Other');
 
     mount.__resetAcuV2MountForTests();
   });
 
-  it('点击下拉右侧"编辑"按钮会打开可视化表格编辑器', async () => {
-    const { mount, openVisualizer } = await mountTablePage();
-
-    const editButton = document.querySelector('button[title*="编辑当前模板"]') as HTMLButtonElement;
-    expect(editButton).not.toBeNull();
-    editButton.click();
-    await Promise.resolve();
-
-    expect(openVisualizer).toHaveBeenCalledTimes(1);
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('点击齿轮按钮会打开管理抽屉，显示预设列表', async () => {
-    const { mount } = await mountTablePage();
-
-    const gearButton = document.querySelector('button[title="管理表格模板预设"]') as HTMLButtonElement;
-    expect(gearButton).not.toBeNull();
-    gearButton.click();
-    await Promise.resolve();
-
-    const drawer = document.querySelector('.acu-v2-drawer') as HTMLElement;
-    expect(drawer).not.toBeNull();
-    expect(drawer.textContent).toContain('管理表格模板预设');
-    expect(drawer.textContent).toContain('global-A');
-    expect(drawer.textContent).toContain('global-B');
-    expect(drawer.textContent).toContain('从默认新建');
-    expect(drawer.textContent).not.toContain('导入为全局预设');
-    expect(drawer.textContent).not.toContain('导入到当前聊天');
-    expect(drawer.textContent).not.toContain('恢复全局默认');
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('管理抽屉的行内"编辑"会调用 editPreset 切换并打开编辑器', async () => {
-    const { mount, editPreset } = await mountTablePage();
-
-    (document.querySelector('button[title="管理表格模板预设"]') as HTMLButtonElement).click();
-    await Promise.resolve();
-
-    const drawer = document.querySelector('.acu-v2-drawer') as HTMLElement;
-    const items = Array.from(drawer.querySelectorAll('.acu-v2-manage-item'));
-    const itemB = items.find(li => li.textContent?.includes('global-B')) as HTMLElement;
-    const editBtn = itemB.querySelector('button[title^="编辑"]') as HTMLButtonElement;
-    editBtn.click();
-    await Promise.resolve();
-
-    expect(editPreset).toHaveBeenCalledWith('global-B');
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('管理抽屉顶部按钮连接到 management composable', async () => {
-    const { mount, createBlankPreset } = await mountTablePage();
-
-    (document.querySelector('button[title="管理表格模板预设"]') as HTMLButtonElement).click();
-    await Promise.resolve();
-
-    const drawer = document.querySelector('.acu-v2-drawer') as HTMLElement;
-    const buttons = Array.from(drawer.querySelectorAll('button'));
-    expect(buttons.some(b => b.textContent?.includes('恢复全局默认'))).toBe(false);
-    buttons.find(b => b.textContent?.includes('从默认新建'))!.click();
-    await Promise.resolve();
-
-    expect(createBlankPreset).toHaveBeenCalledTimes(1);
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('当前为默认预设时主编辑按钮禁用，不直接打开可视化编辑器', async () => {
-    const { mount, openVisualizer } = await mountTablePage({
-      selectedChatPreset: '',
-      selectedGlobalPreset: '',
-    });
-
-    const editButton = document.querySelector('button[title*="默认预设不能直接编辑"]') as HTMLButtonElement | null;
-    expect(editButton).not.toBeNull();
-    expect(editButton!.disabled).toBe(true);
-    editButton!.click();
-    await Promise.resolve();
-
-    expect(openVisualizer).not.toHaveBeenCalled();
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('面板下拉栏右侧提供导入按钮', async () => {
-    const { mount } = await mountTablePage();
-
-    const importButton = document.querySelector('button[title="导入模板 JSON"]') as HTMLButtonElement | null;
-    expect(importButton).not.toBeNull();
-    expect(importButton!.disabled).toBe(false);
-
-    mount.__resetAcuV2MountForTests();
-  });
-
-  it('管理抽屉行内星标 / 删除会调用对应方法', async () => {
-    const { mount, setAsDefault, deletePreset } = await mountTablePage();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-
-    (document.querySelector('button[title="管理表格模板预设"]') as HTMLButtonElement).click();
-    await Promise.resolve();
-
-    const drawer = document.querySelector('.acu-v2-drawer') as HTMLElement;
-    const items = Array.from(drawer.querySelectorAll('.acu-v2-manage-item'));
-    const itemB = items.find(li => li.textContent?.includes('global-B')) as HTMLElement;
-    (itemB.querySelector('button[title="设为全局默认"]') as HTMLButtonElement).click();
-    (itemB.querySelector('button[title="删除"]') as HTMLButtonElement).click();
-    await Promise.resolve();
-
-    expect(setAsDefault).toHaveBeenCalledWith('global-B');
-    expect(deletePreset).toHaveBeenCalledWith('global-B');
-
-    mount.__resetAcuV2MountForTests();
-  });
 });

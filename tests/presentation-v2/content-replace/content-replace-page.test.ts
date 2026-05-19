@@ -7,7 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 function createSettings() {
   return {
-    apiPresets: [{ name: 'fast', apiConfig: {} }],
+    apiMode: 'custom',
+    apiConfig: { url: '', apiKey: '', model: '', useMainApi: true, max_tokens: 60000, temperature: 1 },
+    tavernProfile: '',
+    apiPresets: [{ name: 'fast', apiMode: 'custom', apiConfig: { url: '', apiKey: '', model: '', useMainApi: true, max_tokens: 1000, temperature: 1 }, tavernProfile: '' }],
+    defaultApiPresetName: 'fast',
+    apiPresetBindingsByChat: {},
     contentOptimizationSettings: {
       enabled: false,
       apiPreset: '',
@@ -52,9 +57,14 @@ async function mountContentReplacePage() {
 
   vi.doMock('../../../src/service/runtime/state-manager', () => ({
     settings_ACU: settings,
+    currentChatFileIdentifier_ACU: 'chat-content-replace',
   }));
   vi.doMock('../../../src/service/settings/settings-service', () => ({
     saveSettings_ACU: saveSettings,
+  }));
+  vi.doMock('../../../src/service/ai/ai-service', () => ({
+    getConnectionManagerProfiles_ACU: () => [],
+    fetchAvailableModels_ACU: vi.fn(async () => ({ success: true, models: [] })),
   }));
   vi.doMock('../../../src/service/optimization/content-optimization', () => ({
     performContentOptimization_ACU: performOptimization,
@@ -113,6 +123,9 @@ describe('ContentReplacePage', () => {
     const panelTitles = Array.from(layout!.querySelectorAll<HTMLElement>(':scope > .acu-panel .acu-panel__title'))
       .map(title => title.textContent?.trim());
     expect(panelTitles).toEqual(['基础设置', '替换模式', '正文替换预设', '标签筛选', '手动测试']);
+    const mobileNavItems = Array.from(page!.querySelectorAll('.acu-mobile-panel-nav__item'))
+      .map(item => item.textContent?.trim());
+    expect(mobileNavItems).toEqual(['基础设置', '替换模式', '预设', '标签筛选', '手动测试']);
 
     app.unmount();
   });
@@ -126,18 +139,16 @@ describe('ContentReplacePage', () => {
     expect(source).not.toContain('acu-v2-content-replace-page__column');
   });
 
-  it('每个面板都渲染常驻说明信息条，header 不放触发控件', async () => {
+  it('每个面板都渲染常驻说明信息条，页面内不再渲染重复 header', async () => {
     const { app } = await mountContentReplacePage();
 
     const header = document.querySelector('.acu-v2-content-replace-page .acu-page-header');
-    expect(header).not.toBeNull();
-    expect(header!.querySelector('button')).toBeNull();
-    expect(header!.querySelector('.acu-toggle')).toBeNull();
+    expect(header).toBeNull();
 
     const panels = document.querySelectorAll('.acu-v2-content-replace-page .acu-panel');
     expect(panels.length).toBe(5);
     panels.forEach(panel => {
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
       expect(panel.querySelector('.acu-panel__header .acu-info-banner')).toBeNull();
     });
 
@@ -148,7 +159,30 @@ describe('ContentReplacePage', () => {
     const { app } = await mountContentReplacePage();
 
     expect(document.querySelector('.acu-v2-content-replace-page .acu-toggle')).toBeNull();
-    expect(document.querySelector('.acu-v2-content-replace-page')?.textContent || '').toContain('启用开关在仪表盘');
+    const text = document.querySelector('.acu-v2-content-replace-page')?.textContent || '';
+    expect(text).not.toContain('启用开关在仪表盘');
+
+    app.unmount();
+  });
+
+  it('API 预设下拉的跟随项显示当前活动 API 预设名', async () => {
+    const { app } = await mountContentReplacePage();
+
+    const basicPanel = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-content-replace-page .acu-panel'))
+      .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('基础设置'))!;
+    const apiRow = Array.from(basicPanel.querySelectorAll<HTMLElement>('.acu-form-row'))
+      .find(row => (row.textContent || '').includes('API 预设'))!;
+    const acuSelect = apiRow.querySelector('.acu-select') as HTMLElement | null;
+    expect(acuSelect).not.toBeNull();
+    const trigger = acuSelect!.querySelector('.acu-select__trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('跟随当前活动 API（fast）');
+    trigger.click();
+    await Promise.resolve();
+
+    const labels = Array.from(acuSelect!.querySelectorAll<HTMLElement>('.acu-select__item'))
+      .map(item => (item.textContent || '').trim());
+    expect(labels[0]).toBe('跟随当前活动 API（fast）');
+    expect(labels).toContain('fast');
 
     app.unmount();
   });
@@ -296,7 +330,7 @@ describe('ContentReplacePage', () => {
     const { app, performOptimization } = await mountContentReplacePage();
 
     const textarea = Array.from(document.querySelectorAll<HTMLTextAreaElement>('.acu-v2-content-replace-page textarea'))
-      .find(el => el.placeholder === '输入需要测试的正文...');
+      .find(el => el.placeholder === '输入模拟正文，验证提示词与返回格式。');
     expect(textarea).not.toBeUndefined();
     textarea!.value = '这是一段足够长的测试正文。';
     textarea!.dispatchEvent(new Event('input', { bubbles: true }));

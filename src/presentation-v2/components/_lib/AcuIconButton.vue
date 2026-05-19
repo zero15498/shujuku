@@ -43,8 +43,8 @@ defineEmits<{
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.acu-icon-btn--md { width: 32px; height: 32px; font-size: 13px; }
-.acu-icon-btn--sm { width: 22px; height: 22px; font-size: 10px; background: var(--acu-bg-2); }
+.acu-icon-btn--md { width: 32px; height: 32px; font-size: var(--acu-font-size-body-lg, 13px); }
+.acu-icon-btn--sm { width: 22px; height: 22px; font-size: var(--acu-font-size-micro, 10px); background: var(--acu-bg-2); }
 
 .acu-icon-btn--default:hover:not(:disabled) {
   background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);

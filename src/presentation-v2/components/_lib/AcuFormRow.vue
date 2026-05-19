@@ -16,11 +16,11 @@ defineProps<{
 <style scoped>
 .acu-form-row {
   display: flex; flex-direction: column; gap: 5px;
-  color: var(--acu-text-2); font-size: 12px;
+  color: var(--acu-text-2); font-size: var(--acu-font-size-body, 12px);
   min-width: 0;
 }
 .acu-form-row__label { font-weight: 500; }
-.acu-form-row__hint { color: var(--acu-text-3); font-size: 11px; }
+.acu-form-row__hint { color: var(--acu-text-3); font-size: var(--acu-font-size-caption, 11px); line-height: var(--acu-line-height-caption, 1.5); }
 
 .acu-form-row :deep(input[type="text"]),
 .acu-form-row :deep(input[type="password"]),
@@ -37,7 +37,7 @@ defineProps<{
 }
 .acu-form-row :deep(textarea) {
   min-height: unset;
-  resize: vertical;
+  resize: none;
 }
 .acu-form-row :deep(select) {
   appearance: none;

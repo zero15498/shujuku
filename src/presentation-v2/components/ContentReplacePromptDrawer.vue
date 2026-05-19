@@ -88,7 +88,7 @@ function requestClose(): void {
   gap: 6px;
   flex-wrap: wrap;
   color: var(--acu-text-3);
-  font-size: 11px;
+  font-size: var(--acu-font-size-caption, 11px);
   line-height: 1.5;
 }
 
@@ -99,7 +99,7 @@ function requestClose(): void {
   background: var(--acu-bg-2);
   color: var(--acu-text-2);
   font-family: var(--acu-font-mono);
-  font-size: 11px;
+  font-size: var(--acu-font-size-caption, 11px);
 }
 
 .acu-content-replace-prompt-drawer__toolbar {

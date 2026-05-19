@@ -1,33 +1,60 @@
 <template>
   <fieldset class="acu-v2-plot-match-fields">
     <legend>匹配替换（进阶）</legend>
-    <p class="acu-v2-plot-match-fields__hint">
-      这些数值会在发送给 AI 前替换提示词里的占位符，例如 sulv1、sulv2、sulv3、sulv4 和 zhaohui。它们是剧情推进的全局参数，修改后立即保存；不会写入当前预设 JSON，也不会随预设导入或导出。
-    </p>
+    <AcuText variant="hint" class="acu-v2-plot-match-fields__hint">
+      替换提示词占位符（sulv1~4、zhaohui）为全局参数，修改后即时生效并独立保存，不随预设导入导出。
+    </AcuText>
     <div class="acu-v2-plot-match-fields__grid">
-      <AcuFormRow label="主线推进速率">
-        <AcuInput type="number" :step="0.05" :model-value="rateMain" @change="emitRate('rateMain', Number($event))" />
+      <AcuFormRow label="sulv1">
+        <AcuInput
+          type="number"
+          :step="0.05"
+          :model-value="rateMain"
+          @change="emitRate('rateMain', Number($event))"
+        />
       </AcuFormRow>
-      <AcuFormRow label="个人线推进速率">
-        <AcuInput type="number" :step="0.05" :model-value="ratePersonal" @change="emitRate('ratePersonal', Number($event))" />
+      <AcuFormRow label="sulv2">
+        <AcuInput
+          type="number"
+          :step="0.05"
+          :model-value="ratePersonal"
+          @change="emitRate('ratePersonal', Number($event))"
+        />
       </AcuFormRow>
-      <AcuFormRow label="色情事件推进速率">
-        <AcuInput type="number" :step="0.05" :model-value="rateErotic" @change="emitRate('rateErotic', Number($event))" />
+      <AcuFormRow label="sulv3">
+        <AcuInput
+          type="number"
+          :step="0.05"
+          :model-value="rateErotic"
+          @change="emitRate('rateErotic', Number($event))"
+        />
       </AcuFormRow>
-      <AcuFormRow label="绿帽线推进速率">
-        <AcuInput type="number" :step="0.05" :model-value="rateCuckold" @change="emitRate('rateCuckold', Number($event))" />
+      <AcuFormRow label="sulv4">
+        <AcuInput
+          type="number"
+          :step="0.05"
+          :model-value="rateCuckold"
+          @change="emitRate('rateCuckold', Number($event))"
+        />
       </AcuFormRow>
-      <AcuFormRow label="记忆召回数量">
-        <AcuInput type="number" :step="1" :min="1" :model-value="recallCount" @change="emitRate('recallCount', Math.round(Number($event)))" />
+      <AcuFormRow label="zhaohui">
+        <AcuInput
+          type="number"
+          :step="1"
+          :min="1"
+          :model-value="recallCount"
+          @change="emitRate('recallCount', Math.round(Number($event)))"
+        />
       </AcuFormRow>
     </div>
   </fieldset>
 </template>
 
 <script setup lang="ts">
-import AcuFormRow from './_lib/AcuFormRow.vue';
-import AcuInput from './_lib/AcuInput.vue';
-import type { PlotRateField } from '../composables/usePlotRates';
+import type { PlotRateField } from "../composables/usePlotRates";
+import AcuFormRow from "./_lib/AcuFormRow.vue";
+import AcuInput from "./_lib/AcuInput.vue";
+import AcuText from "./_lib/AcuText.vue";
 
 defineProps<{
   rateMain: number;
@@ -38,11 +65,11 @@ defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: 'update-rate', field: PlotRateField, value: number): void;
+  (e: "update-rate", field: PlotRateField, value: number): void;
 }>();
 
 function emitRate(field: PlotRateField, value: number): void {
-  emit('update-rate', field, value);
+  emit("update-rate", field, value);
 }
 </script>
 
@@ -51,7 +78,8 @@ function emitRate(field: PlotRateField, value: number): void {
   margin: 0;
   padding: 0 0 14px;
   border: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 16%, transparent);
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--acu-text-3) 16%, transparent);
   border-radius: 0;
   background: transparent;
   display: flex;
@@ -63,15 +91,8 @@ function emitRate(field: PlotRateField, value: number): void {
 .acu-v2-plot-match-fields legend {
   padding: 0;
   color: var(--acu-text-2);
-  font-size: 12px;
+  font-size: var(--acu-font-size-section-title, 12px);
   font-weight: 600;
-}
-
-.acu-v2-plot-match-fields__hint {
-  margin: 0;
-  color: var(--acu-text-3);
-  font-size: 11px;
-  line-height: 1.55;
 }
 
 .acu-v2-plot-match-fields__grid {

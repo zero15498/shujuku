@@ -648,6 +648,8 @@ describe('orchestrateManualUpdate_ACU', () => {
       apiConfig: { useMainApi: true, url: '', model: '' },
       autoUpdateThreshold: 3,
       updateBatchSize: 3,
+      manualUpdateContextDepth: null,
+      manualUpdateBatchSize: null,
       skipUpdateFloors: 0,
     };
   });
@@ -729,6 +731,58 @@ describe('orchestrateManualUpdate_ACU', () => {
     const result = await orchestrateManualUpdate_ACU(['sheet_0'], mockProcessBatch, mockRefreshData);
     expect(result.success).toBe(true);
     expect(mockProcessBatch).toHaveBeenCalled();
+  });
+
+  it('手动批处理层数未设置时默认使用 3，不跟随自动批处理层数', async () => {
+    const { getChatArray_ACU } = await import('../../../src/service/chat/chat-service');
+    vi.mocked(getChatArray_ACU).mockReturnValue([
+      { is_user: true },
+      { is_user: false, mes: 'AI回复1' },
+      { is_user: true },
+      { is_user: false, mes: 'AI回复2' },
+    ]);
+    mockSettings.updateBatchSize = 1;
+    mockSettings.manualUpdateBatchSize = null;
+    mockProcessBatch.mockResolvedValue({ success: true });
+
+    const result = await orchestrateManualUpdate_ACU(['sheet_0'], mockProcessBatch, mockRefreshData);
+
+    expect(result.success).toBe(true);
+    expect(mockProcessBatch).toHaveBeenCalledWith(
+      expect.any(Array),
+      'manual_independent',
+      expect.objectContaining({ batchSize: 3 }),
+    );
+  });
+
+  it('手动更新优先使用独立上下文层数和批处理层数', async () => {
+    const { getChatArray_ACU } = await import('../../../src/service/chat/chat-service');
+    vi.mocked(getChatArray_ACU).mockReturnValue([
+      { is_user: true },
+      { is_user: false, mes: 'AI回复1' },
+      { is_user: true },
+      { is_user: false, mes: 'AI回复2' },
+      { is_user: true },
+      { is_user: false, mes: 'AI回复3' },
+      { is_user: true },
+      { is_user: false, mes: 'AI回复4' },
+      { is_user: true },
+      { is_user: false, mes: 'AI回复5' },
+    ]);
+    mockSettings.autoUpdateThreshold = 3;
+    mockSettings.updateBatchSize = 3;
+    mockSettings.manualUpdateContextDepth = 4;
+    mockSettings.manualUpdateBatchSize = 2;
+    mockProcessBatch.mockResolvedValue({ success: true });
+
+    const result = await orchestrateManualUpdate_ACU(['sheet_0'], mockProcessBatch, mockRefreshData);
+
+    expect(result.success).toBe(true);
+    expect(mockProcessBatch).toHaveBeenCalledWith(
+      [3, 5, 7, 9],
+      'manual_independent',
+      expect.objectContaining({ batchSize: 2, targetSheetKeys: ['sheet_0'] }),
+    );
   });
 
   it('预清空时只按选中表调用清理', async () => {

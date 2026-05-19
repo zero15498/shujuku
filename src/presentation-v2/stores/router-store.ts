@@ -9,9 +9,12 @@
  */
 import { defineStore } from 'pinia';
 import {
+  ACU_V2_BASIC_PAGE_ID,
   ACU_V2_DEFAULT_PAGE_ID,
   ACU_V2_PAGE_REGISTRY,
   FEATURE_GATE_CONTENT_REPLACE,
+  FEATURE_GATE_CONTINUATION,
+  FEATURE_GATE_IMPORT,
   FEATURE_GATE_PLOT,
   FEATURE_GATE_VECTOR_INDEX,
 } from '../router/page-registry';
@@ -19,8 +22,14 @@ import type { AcuV2Page, AcuV2PageGroup } from '../router/page-types';
 import { ACU_V2_PAGE_GROUPS } from '../router/page-types';
 import { readSection, writeSection } from './persistence';
 import { settings_ACU } from '../../service/runtime/state-manager';
+import { useUiModeStore } from './ui-mode-store';
+import { setContentReplaceEnabledBySettings, syncContentReplaceAvailability } from './content-replace-gate';
 
 const SECTION_KEY = 'router';
+const LEGACY_PAGE_ID_ALIASES: Record<string, string> = {
+  'sql-console': 'advanced-tools',
+  'log-viewer': 'advanced-tools',
+};
 
 interface PersistedRouter {
   activePageId: string;
@@ -33,14 +42,22 @@ interface RouterState {
   featureGates: Record<string, boolean>;
 }
 
+function normalizePageId(id: unknown): string | null {
+  if (typeof id !== 'string') return null;
+  return LEGACY_PAGE_ID_ALIASES[id] || id;
+}
+
 function isKnownPage(id: unknown): id is string {
-  return typeof id === 'string' && ACU_V2_PAGE_REGISTRY.some(p => p.id === id);
+  const normalized = normalizePageId(id);
+  return Boolean(normalized && ACU_V2_PAGE_REGISTRY.some(p => p.id === normalized));
 }
 
 function readInitialFeatureGates(): Record<string, boolean> {
   return {
-    [FEATURE_GATE_CONTENT_REPLACE]: settings_ACU?.contentOptimizationSettings?.enabled === true,
+    [FEATURE_GATE_CONTENT_REPLACE]: syncContentReplaceAvailability(),
     [FEATURE_GATE_PLOT]: settings_ACU?.plotSettings?.enabled === true,
+    [FEATURE_GATE_CONTINUATION]: settings_ACU?.continuationPageEnabled !== false,
+    [FEATURE_GATE_IMPORT]: settings_ACU?.externalImportPageEnabled !== false,
     [FEATURE_GATE_VECTOR_INDEX]: settings_ACU?.summaryVectorIndexModeDefault === true,
   };
 }
@@ -52,22 +69,30 @@ function readInitialSqliteMode(): boolean {
 function readInitialActiveId(featureGates: Record<string, boolean>, isSqliteMode: boolean): string {
   const persisted = readSection<PersistedRouter>(SECTION_KEY);
   if (persisted && isKnownPage(persisted.activePageId)) {
-    const page = ACU_V2_PAGE_REGISTRY.find(p => p.id === persisted.activePageId);
+    const activePageId = normalizePageId(persisted.activePageId) || persisted.activePageId;
+    const page = ACU_V2_PAGE_REGISTRY.find(p => p.id === activePageId);
     const initialState: RouterState = {
-      activePageId: persisted.activePageId,
+      activePageId,
       isSqliteMode,
       featureGates,
     };
-    if (page && isPageVisible(page, initialState)) return persisted.activePageId;
+    if (page && isPageVisible(page, initialState)) return activePageId;
   }
-  return ACU_V2_DEFAULT_PAGE_ID;
+  return defaultVisiblePageId();
 }
 
 function isPageVisible(page: AcuV2Page, state: RouterState): boolean {
+  const uiMode = useUiModeStore();
+  if (uiMode.isBasicMode) return page.id === ACU_V2_BASIC_PAGE_ID;
+  if (page.id === ACU_V2_BASIC_PAGE_ID) return false;
   if (page.requiresSqlite && !state.isSqliteMode) return false;
   if (page.featureGate && !state.featureGates[page.featureGate]) return false;
   if (page.visibleWhen && !page.visibleWhen()) return false;
   return true;
+}
+
+function defaultVisiblePageId(): string {
+  return useUiModeStore().isBasicMode ? ACU_V2_BASIC_PAGE_ID : ACU_V2_DEFAULT_PAGE_ID;
 }
 
 export const useRouterStore = defineStore('acu-v2-router', {
@@ -105,12 +130,14 @@ export const useRouterStore = defineStore('acu-v2-router', {
   },
   actions: {
     setActivePage(id: string): void {
-      const target = ACU_V2_PAGE_REGISTRY.find(p => p.id === id);
+      const normalizedId = normalizePageId(id);
+      if (!normalizedId) return;
+      const target = ACU_V2_PAGE_REGISTRY.find(p => p.id === normalizedId);
       if (!target) return;
-      // 切到当前不可见的页（如关闭了 SQLite 模式后又试图回到 SQL 控制台）
+      // 切到当前不可见的页（如功能 gate 关闭后又试图回到对应页）
       // 时拒绝切换，让 sidebar 保持一致状态
       if (!isPageVisible(target, this)) return;
-      this.activePageId = id;
+      this.activePageId = normalizedId;
       this.persist();
     },
     setSqliteMode(on: boolean): void {
@@ -118,6 +145,13 @@ export const useRouterStore = defineStore('acu-v2-router', {
       this.ensureActiveVisible();
     },
     setFeatureGate(key: string, on: boolean): void {
+      const next = key === FEATURE_GATE_CONTENT_REPLACE
+        ? setContentReplaceEnabledBySettings(on)
+        : on;
+      this.featureGates = { ...this.featureGates, [key]: next };
+      this.ensureActiveVisible();
+    },
+    syncFeatureGate(key: string, on: boolean): void {
       this.featureGates = { ...this.featureGates, [key]: on };
       this.ensureActiveVisible();
     },
@@ -125,7 +159,7 @@ export const useRouterStore = defineStore('acu-v2-router', {
     ensureActiveVisible(): void {
       const current = this.activePage;
       if (current && isPageVisible(current, this)) return;
-      this.activePageId = ACU_V2_DEFAULT_PAGE_ID;
+      this.activePageId = defaultVisiblePageId();
       this.persist();
     },
     persist(): void {

@@ -62,7 +62,7 @@ function toggle(key: string, checked: boolean): void {
 <style scoped>
 .acu-v2-table-selector { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .acu-v2-table-selector__empty {
-  padding: 10px 0; color: var(--acu-text-3); font-size: 12px;
+  padding: 10px 0; color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px);
   border: 0;
   border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
@@ -70,7 +70,7 @@ function toggle(key: string, checked: boolean): void {
   background: transparent;
 }
 .acu-v2-table-selector__actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.acu-v2-table-selector__count { color: var(--acu-text-3); font-size: 12px; }
+.acu-v2-table-selector__count { color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px); }
 .acu-v2-table-selector__grid {
   display: grid; gap: 6px;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));

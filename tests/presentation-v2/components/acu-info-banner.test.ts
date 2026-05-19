@@ -88,33 +88,45 @@ describe('AcuInfoBanner', () => {
 });
 
 describe('AcuPanel description', () => {
-  it('给定 description prop 时在标题栏渲染说明按钮，并在点击后展开 body 信息条', async () => {
+  it('给定 description prop 时在标题栏渲染说明按钮，并在点击后展开标题附属说明', async () => {
     const el = mountComponent(
       AcuPanel,
       { title: '面板标题', description: '面板说明文字。' },
       { default: () => h('div', { class: 'body-marker' }, 'body') },
     );
-    const button = el.querySelector<HTMLElement>('.acu-panel__description-button');
+    const button = el.querySelector<HTMLButtonElement>('.acu-panel__description-button');
     expect(button).not.toBeNull();
+    expect(button!.tagName).toBe('BUTTON');
+    expect(button!.type).toBe('button');
+    expect(button!.classList.contains('acu-icon-btn')).toBe(true);
     expect(button!.getAttribute('aria-expanded')).toBe('false');
+
+    const region = el.querySelector<HTMLElement>('.acu-panel__description-region');
+    expect(region).not.toBeNull();
+    expect(region!.getAttribute('aria-hidden')).toBe('true');
+    expect(region!.style.display).toBe('none');
 
     const banner = el.querySelector('.acu-info-banner');
     expect(banner).not.toBeNull();
     expect(banner!.textContent).toContain('面板说明文字。');
-    expect((banner as HTMLElement).style.display).toBe('none');
+    expect(banner!.classList.contains('acu-panel__description-banner')).toBe(true);
+    expect(region!.querySelector('.acu-panel__description-connector')).toBeNull();
 
     const header = el.querySelector('.acu-panel__header');
     expect(header).not.toBeNull();
     expect(header!.querySelector('.acu-info-banner')).toBeNull();
+    expect(header!.nextElementSibling).toBe(region);
 
     const body = el.querySelector('.acu-panel__body');
-    expect(body!.querySelector('.acu-info-banner')).not.toBeNull();
+    expect(region!.nextElementSibling).toBe(body);
+    expect(body!.querySelector('.acu-info-banner')).toBeNull();
     expect(body!.querySelector('.body-marker')).not.toBeNull();
 
     button!.click();
     await nextTick();
     expect(button!.getAttribute('aria-expanded')).toBe('true');
-    expect((banner as HTMLElement).style.display).not.toBe('none');
+    expect(region!.getAttribute('aria-hidden')).toBe('false');
+    expect(region!.style.display).not.toBe('none');
   });
 
   it('未提供 description 时不渲染信息条', () => {

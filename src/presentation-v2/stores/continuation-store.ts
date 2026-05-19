@@ -11,6 +11,7 @@ import { ensureLoopPromptsArray_ACU } from '../../service/plot/plot-logic';
 import { settings_ACU } from '../../service/runtime/state-manager';
 import { saveSettings_ACU } from '../../service/settings/settings-service';
 import { FEATURE_GATE_CONTENT_REPLACE } from '../router/page-registry';
+import { syncContentReplaceAvailability } from './content-replace-gate';
 import { useRouterStore } from './router-store';
 
 export interface ContinuationRulePair {
@@ -77,9 +78,9 @@ function saveAndRefresh(store: ReturnType<typeof useContinuationStore>): void {
 }
 
 function syncContentReplaceGate(): void {
-  useRouterStore().setFeatureGate(
+  useRouterStore().syncFeatureGate(
     FEATURE_GATE_CONTENT_REPLACE,
-    settings_ACU.contentOptimizationSettings?.enabled === true,
+    syncContentReplaceAvailability(),
   );
 }
 
@@ -159,8 +160,8 @@ export const useContinuationStore = defineStore('acu-v2-continuation', {
     setMaxRetries(value: number | string): void {
       const loop = readLoopSettings();
       loop.maxRetries = toNonNegativeNumber(value, DEFAULT_PLOT_SETTINGS_ACU.loopSettings?.maxRetries ?? 3);
-      saveAndRefresh(this);
       syncContentReplaceGate();
+      saveAndRefresh(this);
     },
 
     setContextTurnCount(value: number | string): void {

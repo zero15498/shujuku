@@ -4,7 +4,9 @@
     :class="[`acu-segmented--${size}`, { 'acu-segmented--disabled': disabled }]"
     role="radiogroup"
     :aria-label="ariaLabel"
+    :style="barStyle"
   >
+    <span class="acu-segmented__thumb" aria-hidden="true" />
     <button
       v-for="opt in options"
       :key="opt.value"
@@ -26,6 +28,8 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
+
 export interface AcuSegmentedOption {
   value: string;
   label: string;
@@ -50,6 +54,16 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void;
 }>();
 
+const activeIndex = computed(() => {
+  const index = props.options.findIndex(opt => opt.value === props.modelValue);
+  return Math.max(0, index);
+});
+
+const barStyle = computed(() => ({
+  '--acu-segment-count': String(Math.max(1, props.options.length)),
+  '--acu-segment-index': String(activeIndex.value),
+}));
+
 function select(opt: AcuSegmentedOption): void {
   if (props.disabled || opt.disabled || opt.value === props.modelValue) return;
   emit('update:modelValue', opt.value);
@@ -69,6 +83,7 @@ function move(delta: number): void {
 
 <style scoped>
 .acu-segmented {
+  position: relative;
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
@@ -84,6 +99,17 @@ function move(delta: number): void {
   opacity: 0.55;
 }
 
+.acu-segmented__thumb {
+  position: absolute;
+  inset: 3px auto 3px 3px;
+  width: calc((100% - 6px) / var(--acu-segment-count));
+  border-radius: calc(var(--acu-radius-sm) - 2px);
+  background: var(--acu-accent);
+  transform: translateX(calc(var(--acu-segment-index) * 100%));
+  transition: transform 0.16s ease, background 0.16s ease;
+  pointer-events: none;
+}
+
 .acu-segmented__item {
   position: relative;
   min-width: 0;
@@ -92,12 +118,14 @@ function move(delta: number): void {
   background: transparent;
   color: var(--acu-text-2);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   transition: background 0.15s ease, color 0.15s ease;
+  z-index: 1;
 }
 
 .acu-segmented__item:not(.acu-segmented__item--active):hover:not(:disabled) {
@@ -111,9 +139,7 @@ function move(delta: number): void {
 }
 
 .acu-segmented__item--active {
-  background: var(--acu-accent);
   color: var(--acu-on-accent);
-  z-index: 1;
 }
 
 .acu-segmented__item:focus-visible {
@@ -139,7 +165,7 @@ function move(delta: number): void {
 .acu-segmented--sm .acu-segmented__item {
   min-height: 24px;
   padding: 0 7px;
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   border-radius: calc(var(--acu-radius-sm) - 2px);
 }
 

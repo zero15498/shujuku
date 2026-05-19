@@ -52,7 +52,7 @@ defineEmits<{
 }
 
 .acu-dashboard-toggle-row__label {
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   font-weight: 500;
   color: var(--acu-text-1);
   min-width: 0;
@@ -60,7 +60,7 @@ defineEmits<{
 
 .acu-dashboard-toggle-row__desc {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--acu-font-size-caption, 11px);
   line-height: 1.5;
   color: var(--acu-text-3);
 }

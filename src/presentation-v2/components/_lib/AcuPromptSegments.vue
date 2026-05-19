@@ -158,7 +158,7 @@ function onSlot(index: number, raw: string): void {
 }
 
 .acu-prompt-segs__index {
-  font-size: 11px; color: var(--acu-text-3);
+  font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-3);
   min-width: 26px;
   font-family: var(--acu-font-mono);
 }
@@ -176,7 +176,7 @@ function onSlot(index: number, raw: string): void {
 
 .acu-prompt-segs__empty {
   padding: 10px 0; text-align: center;
-  color: var(--acu-text-3); font-size: 12px;
+  color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px);
   border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);
 }

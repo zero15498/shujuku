@@ -16,11 +16,11 @@
     <ul v-if="presetMeta.length" class="acu-v2-manage-list">
       <li v-for="meta in presetMeta" :key="meta.name" class="acu-v2-manage-item">
         <div class="acu-v2-manage-item__info">
-          <span class="acu-v2-manage-item__name">{{ meta.name }}</span>
-          <span class="acu-v2-manage-item__meta">
+          <AcuText as="span" variant="list-title" class="acu-v2-manage-item__name">{{ meta.name }}</AcuText>
+          <AcuText as="span" variant="caption" class="acu-v2-manage-item__meta">
             <template v-if="meta.name === defaultPresetName">全局默认</template>
             <template v-else>全局预设</template>
-          </span>
+          </AcuText>
         </div>
         <div class="acu-v2-manage-item__actions">
           <AcuIconButton
@@ -37,11 +37,11 @@
         </div>
       </li>
     </ul>
-    <p v-else class="acu-v2-table-drawer__empty">暂无全局预设。点击上方"从默认新建"，或使用面板下拉栏右侧的导入按钮创建。</p>
+    <AcuText v-else variant="empty" class="acu-v2-table-drawer__empty">暂无全局预设。点击上方"从默认新建"，或使用面板下拉栏右侧的导入按钮创建。</AcuText>
 
-    <p class="acu-v2-table-drawer__hint">
+    <AcuText variant="hint" class="acu-v2-table-drawer__hint">
       提示：表格模板的实际内容、表头与表级参数仍在「可视化表格编辑器」中编辑。点击行内的"编辑"会先把当前聊天切换到该预设，然后打开编辑器。
-    </p>
+    </AcuText>
   </AcuDrawer>
 </template>
 
@@ -50,6 +50,7 @@ import AcuDrawer from './_lib/AcuDrawer.vue';
 import AcuButton from './_lib/AcuButton.vue';
 import AcuIconButton from './_lib/AcuIconButton.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
+import AcuText from './_lib/AcuText.vue';
 
 defineProps<{
   isOpen: boolean;
@@ -109,9 +110,6 @@ defineEmits<{
 
 .acu-v2-manage-item__name {
   display: block;
-  font-weight: 500;
-  font-size: 13px;
-  color: var(--acu-text-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -119,8 +117,6 @@ defineEmits<{
 
 .acu-v2-manage-item__meta {
   display: block;
-  font-size: 11px;
-  color: var(--acu-text-3);
   margin-top: 2px;
 }
 
@@ -130,16 +126,7 @@ defineEmits<{
 }
 
 .acu-v2-table-drawer__empty {
-  text-align: center;
-  color: var(--acu-text-3);
-  font-size: 13px;
   margin: 12px 0;
 }
 
-.acu-v2-table-drawer__hint {
-  margin: 0;
-  font-size: 12px;
-  color: var(--acu-text-3);
-  line-height: 1.55;
-}
 </style>

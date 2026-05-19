@@ -199,12 +199,12 @@ describe('usePlotWorldbookEntries', () => {
 
     const c = await getComposable();
     await c.loadEntries(['G']);
-    expect(c.groups.value[0].expanded).toBe(true);
-
-    c.toggleGroupExpanded('G');
     expect(c.groups.value[0].expanded).toBe(false);
 
     c.toggleGroupExpanded('G');
     expect(c.groups.value[0].expanded).toBe(true);
+
+    c.toggleGroupExpanded('G');
+    expect(c.groups.value[0].expanded).toBe(false);
   });
 });

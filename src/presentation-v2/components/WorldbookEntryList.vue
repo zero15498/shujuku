@@ -2,7 +2,7 @@
   <div class="acu-v2-wb-entries">
     <div v-if="loading" class="acu-v2-wb-entries__status">正在加载条目...</div>
     <div v-else-if="groups.length === 0" class="acu-v2-wb-entries__status">
-      所选世界书中无可显示的条目。
+      {{ emptyText }}
     </div>
     <template v-else>
       <AcuDisclosureGroup
@@ -15,7 +15,7 @@
         label-class="acu-v2-wb-entry-group__name"
         meta-class="acu-v2-wb-entry-group__meta"
         :label="group.bookName"
-        :meta="`${group.entries.length} 条`"
+        :meta="formatGroupMeta(group)"
         :expanded="group.expanded"
         :body-id="`acu-v2-wb-entry-group-${index}`"
         body-mode="if"
@@ -46,11 +46,14 @@ import AcuCheckbox from './_lib/AcuCheckbox.vue';
 import AcuDisclosureGroup from './_lib/AcuDisclosureGroup.vue';
 import type { WorldbookEntryGroup } from '../composables/usePlotWorldbookEntries';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   groups: WorldbookEntryGroup[];
   filter: string;
   loading: boolean;
-}>();
+  emptyText?: string;
+}>(), {
+  emptyText: '所选世界书中无可显示的条目。',
+});
 
 const emit = defineEmits<{
   (e: 'toggle', bookName: string, uid: number, checked: boolean): void;
@@ -73,6 +76,11 @@ const filteredGroups = computed(() => {
     .filter((g): g is WorldbookEntryGroup => g !== null);
 });
 
+function formatGroupMeta(group: WorldbookEntryGroup): string {
+  const checkedCount = group.entries.filter(entry => entry.checked).length;
+  return `${checkedCount}/${group.entries.length} 条`;
+}
+
 function onToggle(bookName: string, uid: number, checked: boolean): void {
   emit('toggle', bookName, uid, checked);
 }
@@ -88,7 +96,7 @@ function onToggle(bookName: string, uid: number, checked: boolean): void {
 .acu-v2-wb-entries__status {
   padding: 8px 0;
   color: var(--acu-text-3);
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
 }
 
 .acu-v2-wb-entry-item {

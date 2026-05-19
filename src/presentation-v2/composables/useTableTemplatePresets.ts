@@ -65,58 +65,61 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 }
 
 export function useTableTemplatePresets() {
-  const refreshTick = ref(0);
   const busy = ref(false);
   const message = ref<{ kind: MessageKind; text: string } | null>(null);
+  const globalPresetNames = ref<string[]>([]);
+  const chatPresetEntries = ref<any[]>([]);
+  const selectedGlobalPreset = ref('');
+  const selectedChatPreset = ref('');
+  const chatPresetItems = ref<Array<{ value: string; label: string; meta?: string }>>([]);
 
-  const globalPresetNames = computed(() => {
-    void refreshTick.value;
-    return listTemplatePresetNames_ACU();
-  });
+  const isChatOverridden = computed(() => selectedChatPreset.value !== selectedGlobalPreset.value);
 
-  const chatPresetEntries = computed(() => {
-    void refreshTick.value;
-    return listChatTemplatePresetEntries_ACU();
-  });
-
-  const selectedGlobalPreset = computed(() => {
-    void refreshTick.value;
-    return normalizeTemplatePresetSelectionValue_ACU(getCurrentTemplatePresetName_ACU(settings_ACU, { requireExisting: false }));
-  });
-
-  const selectedChatPreset = computed(() => {
-    void refreshTick.value;
-    return normalizeTemplatePresetSelectionValue_ACU(resolveActiveTemplatePresetName_ACU({ fallbackToGlobal: true }));
-  });
-
-  const isChatOverridden = computed(() => {
-    return selectedChatPreset.value !== selectedGlobalPreset.value;
-  });
-
-  const chatPresetItems = computed(() => {
+  function buildChatPresetItems(
+    globalNames: string[],
+    chatEntries: any[],
+    currentGlobalPreset: string,
+  ): Array<{ value: string; label: string; meta?: string }> {
     const seen = new Set(['']);
-    const defaultSnapshot = selectedGlobalPreset.value ? null : getDefaultTemplateSnapshot_ACU();
-    const currentGlobalTemplateSource = selectedGlobalPreset.value
-      ? getTemplatePreset_ACU(selectedGlobalPreset.value)?.templateStr
+    const defaultSnapshot = currentGlobalPreset ? null : getDefaultTemplateSnapshot_ACU();
+    const currentGlobalTemplateSource = currentGlobalPreset
+      ? getTemplatePreset_ACU(currentGlobalPreset)?.templateStr
       : (defaultSnapshot?.templateObj || defaultSnapshot?.templateStr);
     const items = [defaultPresetItem('默认预设', formatSheetCountMeta(currentGlobalTemplateSource))];
-    for (const name of globalPresetNames.value) {
+    for (const name of globalNames) {
       const normalized = normalizeTemplatePresetSelectionValue_ACU(name);
       if (!normalized || seen.has(normalized)) continue;
       seen.add(normalized);
       items.push({ value: normalized, label: normalized, meta: formatSheetCountMeta(getTemplatePreset_ACU(normalized)?.templateStr) });
     }
-    for (const entry of chatPresetEntries.value) {
+    for (const entry of chatEntries) {
       const normalized = normalizeTemplatePresetSelectionValue_ACU(entry?.presetName || '');
       if (!normalized || seen.has(normalized)) continue;
       seen.add(normalized);
       items.push({ value: normalized, label: normalized, meta: formatSheetCountMeta(entry?.templateStr) });
     }
     return items;
-  });
+  }
 
   function refresh(): void {
-    refreshTick.value++;
+    const nextGlobalNames = listTemplatePresetNames_ACU();
+    const nextChatEntries = listChatTemplatePresetEntries_ACU();
+    const nextSelectedGlobal = normalizeTemplatePresetSelectionValue_ACU(
+      getCurrentTemplatePresetName_ACU(settings_ACU, { requireExisting: false }),
+    );
+    const nextSelectedChat = normalizeTemplatePresetSelectionValue_ACU(
+      resolveActiveTemplatePresetName_ACU({ fallbackToGlobal: true }),
+    );
+
+    globalPresetNames.value = nextGlobalNames;
+    chatPresetEntries.value = nextChatEntries;
+    selectedGlobalPreset.value = nextSelectedGlobal;
+    selectedChatPreset.value = nextSelectedChat;
+    chatPresetItems.value = buildChatPresetItems(
+      nextGlobalNames,
+      nextChatEntries,
+      nextSelectedGlobal,
+    );
   }
 
   async function run<T>(action: () => Promise<T> | T): Promise<T | null> {

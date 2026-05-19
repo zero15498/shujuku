@@ -1,11 +1,9 @@
 <template>
   <section class="acu-v2-developer-page">
-    <AcuPageHeader title="开发者选项" />
-
-    <div class="acu-v2-developer-page__grid">
+    <AcuPanelGrid class="acu-v2-developer-page__grid">
       <AcuPanel
-        title="开发者 gated 字段"
-        description="这里集中托管各一级页内「开发者可见」的进阶字段。每个字段独立持久化、独立默认值；开关与仪表盘的「启用开发者选项」总开关相互独立——总开关只控制本页在 sidebar 是否显示，不会改字段的真假状态。"
+        :title="developerCopy.panels.gatedFields.title"
+        :description="developerCopy.panels.gatedFields.description"
       >
         <div class="acu-v2-developer-page__toggle-list">
           <ToggleRow
@@ -16,18 +14,41 @@
           />
         </div>
       </AcuPanel>
-    </div>
+
+      <AcuPanel
+        :title="developerCopy.panels.formFillRuntime.title"
+        :description="developerCopy.panels.formFillRuntime.description"
+      >
+        <AcuFormRow
+          label="最大并发更新组数"
+          hint="大于 1 时，多个表格分组可能同时调用填表 API。数值越大越快，但 API 压力和失败后排查难度也越高。"
+        >
+          <AcuInput
+            type="number"
+            :min="1"
+            :step="1"
+            :model-value="maxConcurrentGroups"
+            @change="settings.setNumber('maxConcurrentGroups', $event)"
+          />
+        </AcuFormRow>
+      </AcuPanel>
+    </AcuPanelGrid>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
-import AcuPageHeader from '../components/_lib/AcuPageHeader.vue';
-import AcuPanel from '../components/_lib/AcuPanel.vue';
-import ToggleRow from '../components/DashboardToggleRow.vue';
-import { useDevOptions } from '../composables/useDevOptions';
+import { computed } from "vue";
+import AcuFormRow from "../components/_lib/AcuFormRow.vue";
+import AcuInput from "../components/_lib/AcuInput.vue";
+import AcuPanel from "../components/_lib/AcuPanel.vue";
+import AcuPanelGrid from "../components/_lib/AcuPanelGrid.vue";
+import ToggleRow from "../components/DashboardToggleRow.vue";
+import { useDevOptions } from "../composables/useDevOptions";
+import { useFormFillSettings } from "../composables/useFormFillSettings";
+import { developerCopy } from "../copy/developer-copy";
 
 const devOptions = useDevOptions();
+const settings = useFormFillSettings();
 
 interface DeveloperFieldItem {
   key: string;
@@ -38,24 +59,30 @@ interface DeveloperFieldItem {
 
 const toggles = computed<DeveloperFieldItem[]>(() => [
   {
-    key: 'plotAdvanced',
-    label: '剧情推进 · 匹配替换（进阶）',
-    description: '在编辑剧情推进预设的侧抽屉中显示"匹配替换"字段：sulv1=主线 / sulv2=个人线 / sulv3=色情事件 / sulv4=绿帽线 / zhaohui=记忆召回数量。这些占位符在预设提示词里使用；数值是全局参数，不随预设导入导出。',
+    key: "plotAdvanced",
+    label: "剧情推进",
+    description: '在编辑剧情推进预设的侧抽屉中显示"匹配替换"字段。',
     value: devOptions.plotAdvanced.value,
   },
   {
-    key: 'vectorIndexAdvanced',
-    label: '交火模式 · 高级索引参数',
-    description: '在交火模式页显示"召回参数"和"归档与分块"面板。默认配置已经足够使用；只有需要调整触发阈值、TopK、候选上限、最近固定注入、分块句数或归档批量时再打开。',
+    key: "vectorIndexAdvanced",
+    label: "交火模式",
+    description: "显示召回参数与归档分块面板。需要调整向量相关参数时开启。",
     value: devOptions.vectorIndexAdvanced.value,
   },
 ]);
+const maxConcurrentGroups = computed(
+  () =>
+    settings.numberFields.value.find(
+      (field) => field.key === "maxConcurrentGroups",
+    )?.value ?? 1,
+);
 
 function handleToggleChange(key: string, value: boolean): void {
-  if (key === 'plotAdvanced') {
+  if (key === "plotAdvanced") {
     devOptions.setPlotAdvanced(value);
   }
-  if (key === 'vectorIndexAdvanced') {
+  if (key === "vectorIndexAdvanced") {
     devOptions.setVectorIndexAdvanced(value);
   }
 }
@@ -69,12 +96,6 @@ function handleToggleChange(key: string, value: boolean): void {
   display: flex;
   flex-direction: column;
   gap: 18px;
-}
-
-.acu-v2-developer-page__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
 }
 
 .acu-v2-developer-page__toggle-list {

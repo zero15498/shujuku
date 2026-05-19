@@ -189,7 +189,7 @@ export function generateTableTabHTML(): string {
                                         <div class="acu-col-sm">
                                             <label for="${SCRIPT_ID_PREFIX_ACU}-worldbook-vector-memory-embedding-endpoint">Embedding Endpoint</label>
                                             <input type="text" id="${SCRIPT_ID_PREFIX_ACU}-worldbook-vector-memory-embedding-endpoint" placeholder="https://example.com/embeddings">
-                                            <small class="notes">默认保持留空，避免把特定服务地址硬编码进全局默认配置。</small>
+                                            <small class="notes">默认保持留空，避免把特定 URL 硬编码进全局默认配置。</small>
                                         </div>
                                         <div class="acu-col-sm">
                                             <label for="${SCRIPT_ID_PREFIX_ACU}-worldbook-vector-memory-embedding-model">Embedding Model</label>

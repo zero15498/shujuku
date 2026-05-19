@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
   min-height: 32px; padding: 6px 9px;
   background: var(--acu-bg-2); border: 0;
   border-radius: var(--acu-radius-sm); color: var(--acu-text-1);
-  font: inherit; font-size: 12px; cursor: pointer;
+  font: inherit; font-size: var(--acu-font-size-body, 12px); cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .acu-select__trigger:hover {
@@ -102,7 +102,7 @@ onBeforeUnmount(() => {
 }
 .acu-select__label--placeholder { color: var(--acu-text-3); }
 
-.acu-select__caret { font-size: 10px; color: var(--acu-text-3); transition: transform 0.15s ease; flex-shrink: 0; }
+.acu-select__caret { font-size: var(--acu-font-size-micro, 10px); color: var(--acu-text-3); transition: transform 0.15s ease; flex-shrink: 0; }
 .acu-select__caret--open { transform: rotate(180deg); }
 
 .acu-select__menu {
@@ -114,18 +114,18 @@ onBeforeUnmount(() => {
 }
 
 .acu-select__item {
-  padding: 8px 12px; cursor: pointer; font-size: 13px;
+  padding: 8px 12px; cursor: pointer; font-size: var(--acu-font-size-body-lg, 13px);
   color: var(--acu-text-2); transition: background 0.1s ease;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .acu-select__item:hover { background: var(--acu-hover-overlay); color: var(--acu-text-1); }
 .acu-select__item--active { color: var(--acu-on-accent); background: var(--acu-accent); }
 
-.acu-select__empty { padding: 12px; text-align: center; color: var(--acu-text-3); font-size: 12px; }
+.acu-select__empty { padding: 12px; text-align: center; color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px); }
 
 /* ── sm variant ── */
-.acu-select--sm .acu-select__trigger { min-height: 26px; padding: 3px 7px; font-size: 11px; }
-.acu-select--sm .acu-select__item { padding: 6px 10px; font-size: 12px; }
+.acu-select--sm .acu-select__trigger { min-height: 26px; padding: 3px 7px; font-size: var(--acu-font-size-caption, 11px); }
+.acu-select--sm .acu-select__item { padding: 6px 10px; font-size: var(--acu-font-size-body, 12px); }
 
 .acu-select--disabled { pointer-events: none; opacity: 0.5; }
 </style>

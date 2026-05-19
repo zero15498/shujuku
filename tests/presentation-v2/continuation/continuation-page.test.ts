@@ -129,7 +129,7 @@ describe('ContinuationPage', () => {
     const panels = document.querySelectorAll('.acu-v2-continuation-page .acu-panel');
     expect(panels).toHaveLength(3);
     panels.forEach(panel => {
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
     });
 
     mount.__resetAcuV2MountForTests();

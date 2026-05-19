@@ -52,25 +52,19 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 
 export function useTablePresetManagement() {
   const drawerView = ref<TablePresetDrawerView>('closed');
-  const refreshTick = ref(0);
   const busy = ref(false);
   const message = ref<{ kind: MessageKind; text: string } | null>(null);
+  const presetMeta = ref<TablePresetMeta[]>([]);
+  const defaultPresetName = ref('');
 
   const isDrawerOpen = computed(() => drawerView.value !== 'closed');
   const title = computed(() => (drawerView.value === 'manage' ? '管理表格模板预设' : ''));
 
-  const presetMeta = computed<TablePresetMeta[]>(() => {
-    void refreshTick.value;
-    return listTemplatePresetNames_ACU().map(name => ({ name }));
-  });
-
-  const defaultPresetName = computed<string>(() => {
-    void refreshTick.value;
-    return normalizeTemplatePresetSelectionValue_ACU(getCurrentTemplatePresetName_ACU(settings_ACU, { requireExisting: false }));
-  });
-
   function refresh(): void {
-    refreshTick.value++;
+    presetMeta.value = listTemplatePresetNames_ACU().map(name => ({ name }));
+    defaultPresetName.value = normalizeTemplatePresetSelectionValue_ACU(
+      getCurrentTemplatePresetName_ACU(settings_ACU, { requireExisting: false }),
+    );
   }
 
   function openManage(): void {

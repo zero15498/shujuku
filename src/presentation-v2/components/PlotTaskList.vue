@@ -11,9 +11,10 @@
     </legend>
 
     <div class="acu-v2-plot-tasks__cards">
-      <div
+      <button
         v-for="task in tasks"
         :key="task.id"
+        type="button"
         class="acu-v2-plot-tasks__card"
         :class="{
           'acu-v2-plot-tasks__card--active': task.id === currentTaskId,
@@ -25,7 +26,7 @@
         <span class="acu-v2-plot-tasks__stage" title="阶段号 — 同阶段并发，跨阶段串行">阶段 {{ task.stage }}</span>
         <span class="acu-v2-plot-tasks__seg-count">{{ task.promptGroup.length }} 段</span>
         <span v-if="!task.enabled" class="acu-v2-plot-tasks__disabled-label">已禁用</span>
-      </div>
+      </button>
       <div v-if="!tasks.length" class="acu-v2-plot-tasks__empty">暂无任务，点击右上 + 新增。</div>
     </div>
   </fieldset>
@@ -66,7 +67,7 @@ function canMove(delta: -1 | 1): boolean {
 }
 .acu-v2-plot-tasks > legend {
   padding: 0;
-  font-size: 12px; font-weight: 600; color: var(--acu-text-2);
+  font-size: var(--acu-font-size-section-title, 12px); font-weight: 600; color: var(--acu-text-2);
   display: flex; align-items: center; gap: 10px;
 }
 
@@ -86,10 +87,17 @@ function canMove(delta: -1 | 1): boolean {
   border-radius: var(--acu-radius-sm);
   background: var(--acu-bg-2);
   border: 0;
+  color: inherit;
   cursor: pointer;
+  font: inherit;
+  text-align: left;
   transition: box-shadow 0.15s ease, color 0.15s ease, opacity 0.15s ease;
 }
-.acu-v2-plot-tasks__card:hover { box-shadow: 0 0 0 2px var(--acu-accent-glow); }
+.acu-v2-plot-tasks__card:hover,
+.acu-v2-plot-tasks__card:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--acu-accent-glow);
+  outline: none;
+}
 .acu-v2-plot-tasks__card--active {
   background: var(--acu-accent);
   color: var(--acu-on-accent);
@@ -105,7 +113,7 @@ function canMove(delta: -1 | 1): boolean {
 }
 
 .acu-v2-plot-tasks__name {
-  font-size: 13px; color: var(--acu-text-1); font-weight: 500;
+  font-size: var(--acu-font-size-list-title, 13px); color: var(--acu-text-1); font-weight: 500;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .acu-v2-plot-tasks__card--active .acu-v2-plot-tasks__name,
@@ -116,23 +124,23 @@ function canMove(delta: -1 | 1): boolean {
 }
 
 .acu-v2-plot-tasks__stage {
-  font-size: 11px; color: var(--acu-text-3);
+  font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-3);
   font-family: var(--acu-font-mono);
 }
 
 .acu-v2-plot-tasks__seg-count {
-  font-size: 10px; color: var(--acu-text-3);
+  font-size: var(--acu-font-size-micro, 10px); color: var(--acu-text-3);
   margin-top: auto;
 }
 
 .acu-v2-plot-tasks__disabled-label {
-  font-size: 10px; color: var(--acu-warning);
+  font-size: var(--acu-font-size-micro, 10px); color: var(--acu-warning);
   font-weight: 500;
 }
 
 .acu-v2-plot-tasks__empty {
   padding: 16px 12px; text-align: center;
-  color: var(--acu-text-3); font-size: 12px;
+  color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px);
   flex: 1;
 }
 </style>

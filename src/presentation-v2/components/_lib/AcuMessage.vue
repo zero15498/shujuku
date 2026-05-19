@@ -24,7 +24,7 @@ const visible = computed(() => props.visible);
 .acu-message {
   padding: 8px 0 8px 10px;
   border-radius: 0;
-  font-size: 12px;
+  font-size: var(--acu-font-size-body, 12px);
   border: 0;
   border-left: 2px solid color-mix(in srgb, var(--acu-text-3) 28%, transparent);
   line-height: 1.5;

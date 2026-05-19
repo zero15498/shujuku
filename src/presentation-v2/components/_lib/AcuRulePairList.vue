@@ -173,12 +173,12 @@ function updateField(index: number, field: 'start' | 'end', value: string): void
 .acu-rule-pair-list__field { flex: 1; min-width: 0; }
 
 .acu-rule-pair-list__sep {
-  flex-shrink: 0; font-size: 11px; color: var(--acu-text-3);
+  flex-shrink: 0; font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-3);
 }
 
 .acu-rule-pair-list__empty {
   padding: 8px; text-align: center;
-  color: var(--acu-text-3); font-size: 11px;
+  color: var(--acu-text-3); font-size: var(--acu-font-size-caption, 11px);
 }
 
 .acu-rule-pair-list__add {

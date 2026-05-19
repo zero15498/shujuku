@@ -111,7 +111,7 @@ onBeforeUnmount(() => {
   min-height: 32px; padding: 6px 9px;
   background: var(--acu-bg-2); border: 0;
   border-radius: var(--acu-radius-sm); color: var(--acu-text-1);
-  font: inherit; font-size: 12px; cursor: pointer;
+  font: inherit; font-size: var(--acu-font-size-body, 12px); cursor: pointer;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .acu-preset-dd__trigger:hover {
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
 .acu-preset-dd__trigger:disabled { opacity: 0.5; cursor: not-allowed; }
 .acu-preset-dd--disabled { pointer-events: none; opacity: 0.5; }
 .acu-preset-dd__label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-.acu-preset-dd__caret { font-size: 10px; color: var(--acu-text-3); transition: transform 0.15s ease; }
+.acu-preset-dd__caret { font-size: var(--acu-font-size-micro, 10px); color: var(--acu-text-3); transition: transform 0.15s ease; }
 .acu-preset-dd__caret--open { transform: rotate(180deg); }
 .acu-preset-dd__menu {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 100;
@@ -132,23 +132,23 @@ onBeforeUnmount(() => {
 }
 .acu-preset-dd__item {
   display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; cursor: pointer; font-size: 13px;
+  padding: 8px 12px; cursor: pointer; font-size: var(--acu-font-size-body-lg, 13px);
   color: var(--acu-text-2); transition: background 0.1s ease;
 }
 .acu-preset-dd__item:hover { background: var(--acu-hover-overlay); color: var(--acu-text-1); }
 .acu-preset-dd__item--active { color: var(--acu-on-accent); background: var(--acu-accent); }
 .acu-preset-dd__item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
-.acu-preset-dd__item-meta { font-size: 11px; color: var(--acu-text-3); white-space: nowrap; }
+.acu-preset-dd__item-meta { font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-3); white-space: nowrap; }
 .acu-preset-dd__star {
   width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
   border: 0; background: transparent; color: var(--acu-text-3); cursor: pointer;
-  border-radius: var(--acu-radius-sm); font-size: 12px; transition: color 0.15s ease;
+  border-radius: var(--acu-radius-sm); font-size: var(--acu-font-size-body, 12px); transition: color 0.15s ease;
 }
 .acu-preset-dd__star:hover { color: var(--acu-text-1); background: var(--acu-hover-overlay); }
 .acu-preset-dd__star--active { color: var(--acu-text-1); }
 .acu-preset-dd__item--active .acu-preset-dd__item-meta,
 .acu-preset-dd__item--active .acu-preset-dd__star,
 .acu-preset-dd__item--active .acu-preset-dd__check { color: var(--acu-on-accent); }
-.acu-preset-dd__check { font-size: 11px; color: var(--acu-text-1); }
-.acu-preset-dd__empty { padding: 12px; text-align: center; color: var(--acu-text-3); font-size: 12px; }
+.acu-preset-dd__check { font-size: var(--acu-font-size-caption, 11px); color: var(--acu-text-1); }
+.acu-preset-dd__empty { padding: 12px; text-align: center; color: var(--acu-text-3); font-size: var(--acu-font-size-body, 12px); }
 </style>

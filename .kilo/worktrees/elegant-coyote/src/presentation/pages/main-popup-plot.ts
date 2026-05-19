@@ -1,15 +1,15 @@
 // main-popup-plot.ts
 // Plot标签页（剧情推进）HTML生成
 
-import { SCRIPT_ID_PREFIX_ACU } from '../../shared/constants';
-import { DEFAULT_PRESET_OPTION_VALUE_ACU } from '../components/optimization-ui';
+import { SCRIPT_ID_PREFIX_ACU } from "../../shared/constants";
+import { DEFAULT_PRESET_OPTION_VALUE_ACU } from "../components/optimization-ui";
 
 /**
  * 生成 Plot 标签页的 HTML 片段
  * 包含：剧情推进设置、预设管理、提示词设置、匹配替换、自动循环
  */
 export function generatePlotTabHTML(): string {
-    return `
+  return `
                 <div id="acu-tab-plot" class="acu-tab-content">
                     <div class="acu-card">
                         <!-- 顶部标题和开关区域 -->
@@ -146,7 +146,7 @@ export function generatePlotTabHTML(): string {
                                             <small class="notes">仅作用于当前选中的剧情任务</small>
                                         </div>
                                         <div class="qrf_settings_block" style="margin-bottom:0;">
-                                            <label for="${SCRIPT_ID_PREFIX_ACU}-plot-extract-inject-tags" style="font-weight:500;">提取注入标签</label>
+                                            <label for="${SCRIPT_ID_PREFIX_ACU}-plot-extract-inject-tags" style="font-weight:500;">提取标签</label>
                                             <input id="${SCRIPT_ID_PREFIX_ACU}-plot-extract-inject-tags" type="text" class="text_pole" placeholder="例如: recall,supplement" style="width:100%;">
                                             <small class="notes">优先级高于标签摘取；未使用时不自动注入末尾</small>
                                         </div>

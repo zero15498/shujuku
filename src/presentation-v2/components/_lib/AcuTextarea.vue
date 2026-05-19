@@ -38,8 +38,8 @@ function onInput(ev: Event): void {
   border-radius: var(--acu-radius-sm);
   background: var(--acu-bg-2) !important;
   color: var(--acu-text-1) !important;
-  font: inherit; font-size: 12px;
-  resize: vertical;
+  font: inherit; font-size: var(--acu-font-size-body, 12px);
+  resize: none !important;
   transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 .acu-textarea:hover:not(:disabled) {

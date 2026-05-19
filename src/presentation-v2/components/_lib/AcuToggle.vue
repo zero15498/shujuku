@@ -42,8 +42,9 @@ function onClick(): void {
 <style scoped>
 .acu-toggle {
   display: inline-flex; align-items: center; gap: 8px;
+  flex: 0 0 auto;
   padding: 0; border: 0; background: transparent;
-  font: inherit; font-size: 12px; color: var(--acu-text-2);
+  font: inherit; font-size: var(--acu-font-size-body, 12px); color: var(--acu-text-2);
   cursor: pointer; user-select: none;
 }
 .acu-toggle--disabled { opacity: 0.5; cursor: not-allowed; }

@@ -86,7 +86,6 @@ export function useFormFillWorldbookEntries() {
     try {
       const enabledEntries = ensureEnabledEntries();
       const entriesMap = await getLorebookEntriesByNames_ACU(unique) as Record<string, any[]>;
-      const expandByDefault = unique.length === 1;
       let settingsChanged = false;
       const result: FormFillWorldbookEntryGroup[] = [];
 
@@ -117,7 +116,7 @@ export function useFormFillWorldbookEntries() {
         }
 
         if (visible.length > 0) {
-          result.push({ bookName, entries: visible, expanded: expandByDefault });
+          result.push({ bookName, entries: visible, expanded: false });
         }
       }
 

@@ -12,7 +12,7 @@
         @update:model-value="$emit('update:modelValue', $event)"
       />
     </AcuFormRow>
-    <p v-if="status === 'error'" class="acu-v2-wb-selector__error">{{ error || '加载失败' }}</p>
+    <AcuText v-if="status === 'error'" variant="error" class="acu-v2-wb-selector__error">{{ error || '加载失败' }}</AcuText>
   </div>
 </template>
 
@@ -22,6 +22,7 @@ import AcuFormRow from './_lib/AcuFormRow.vue';
 import AcuInput from './_lib/AcuInput.vue';
 import AcuSelect from './_lib/AcuSelect.vue';
 import type { AcuSelectOption } from './_lib/AcuSelect.vue';
+import AcuText from './_lib/AcuText.vue';
 import type { WorldbookLoadStatus } from '../composables/useWorldbookSelector';
 
 const props = defineProps<{
@@ -31,6 +32,9 @@ const props = defineProps<{
   status: WorldbookLoadStatus;
   error: string;
   filterable?: boolean;
+  showCharacterOption?: boolean;
+  characterOptionLabel?: string;
+  characterFallbackLabel?: string;
 }>();
 
 defineEmits<{
@@ -48,8 +52,10 @@ const filteredNames = computed<string[]>(() => {
 
 const worldbookOptions = computed<AcuSelectOption[]>(() => {
   const result: AcuSelectOption[] = [];
-  if (props.charPrimary) {
-    result.push({ value: 'character', label: `当前角色卡主世界书 · ${props.charPrimary}` });
+  if (props.charPrimary || props.showCharacterOption) {
+    const label = props.characterOptionLabel
+      || (props.charPrimary ? `当前角色卡主世界书 · ${props.charPrimary}` : props.characterFallbackLabel || '当前角色卡主世界书');
+    result.push({ value: 'character', label });
   }
   for (const name of filteredNames.value) {
     result.push({ value: name, label: name });
@@ -60,5 +66,4 @@ const worldbookOptions = computed<AcuSelectOption[]>(() => {
 
 <style scoped>
 .acu-v2-wb-selector { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.acu-v2-wb-selector__error { margin: 0; color: var(--acu-danger); font-size: 12px; }
 </style>

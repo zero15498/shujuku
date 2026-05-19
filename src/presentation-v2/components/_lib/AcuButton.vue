@@ -55,8 +55,8 @@ const sizeClass = computed(() => `acu-btn--${props.size}`);
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
-.acu-btn--md { min-height: 32px; padding: 6px 9px; font-size: 13px; }
-.acu-btn--sm { min-height: 28px; padding: 4px 10px; font-size: 12px; }
+.acu-btn--md { min-height: 32px; padding: 6px 9px; font-size: var(--acu-font-size-body-lg, 13px); }
+.acu-btn--sm { min-height: 28px; padding: 4px 10px; font-size: var(--acu-font-size-body, 12px); }
 .acu-btn--icon-only { min-width: 32px; padding: 6px 8px; }
 .acu-btn--icon-only.acu-btn--sm { min-width: 28px; padding: 4px 8px; }
 

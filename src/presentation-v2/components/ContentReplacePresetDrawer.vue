@@ -23,8 +23,8 @@
     <ul v-if="presets.length" class="acu-v2-manage-list">
       <li v-for="preset in presets" :key="preset.name" class="acu-v2-manage-item">
         <div class="acu-v2-manage-item__info">
-          <span class="acu-v2-manage-item__name">{{ preset.name }}</span>
-          <span class="acu-v2-manage-item__meta">{{ preset.promptGroup.length }} 段提示词</span>
+          <AcuText as="span" variant="list-title" class="acu-v2-manage-item__name">{{ preset.name }}</AcuText>
+          <AcuText as="span" variant="caption" class="acu-v2-manage-item__meta">{{ preset.promptGroup.length }} 段提示词</AcuText>
         </div>
         <div class="acu-v2-manage-item__actions">
           <AcuIconButton icon="fa-solid fa-file-export" title="导出 JSON" @click="$emit('export', preset.name)" />
@@ -34,10 +34,10 @@
         </div>
       </li>
     </ul>
-    <p v-else class="acu-content-replace-preset-drawer__empty">暂无预设。点击上方"从默认新建"，或使用面板下拉栏右侧的导入按钮创建。</p>
-    <p class="acu-content-replace-preset-drawer__hint">
+    <AcuText v-else variant="empty" class="acu-content-replace-preset-drawer__empty">暂无预设。点击上方"从默认新建"，或使用面板下拉栏右侧的导入按钮创建。</AcuText>
+    <AcuText variant="hint" class="acu-content-replace-preset-drawer__hint">
       提示：点击"编辑提示词"会先把该预设载入为当前正文替换提示词，再打开提示词编辑器；保存后会同步更新这个预设。
-    </p>
+    </AcuText>
   </AcuDrawer>
 </template>
 
@@ -47,6 +47,7 @@ import AcuDrawer from './_lib/AcuDrawer.vue';
 import AcuIconButton from './_lib/AcuIconButton.vue';
 import AcuInfoBanner from './_lib/AcuInfoBanner.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
+import AcuText from './_lib/AcuText.vue';
 import type { ContentReplaceMessage, ContentReplacePreset } from '../stores/content-replace-store';
 
 defineProps<{
@@ -73,17 +74,7 @@ defineEmits<{
 }
 
 .acu-content-replace-preset-drawer__empty {
-  text-align: center;
-  color: var(--acu-text-3);
-  font-size: 13px;
   margin: 12px 0;
-}
-
-.acu-content-replace-preset-drawer__hint {
-  margin: 0;
-  color: var(--acu-text-3);
-  font-size: 12px;
-  line-height: 1.55;
 }
 
 .acu-v2-manage-list {
@@ -117,9 +108,6 @@ defineEmits<{
 
 .acu-v2-manage-item__name {
   display: block;
-  font-weight: 500;
-  font-size: 13px;
-  color: var(--acu-text-1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -127,8 +115,6 @@ defineEmits<{
 
 .acu-v2-manage-item__meta {
   display: block;
-  font-size: 11px;
-  color: var(--acu-text-3);
   margin-top: 2px;
 }
 

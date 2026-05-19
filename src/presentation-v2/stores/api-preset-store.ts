@@ -259,6 +259,7 @@ export const useApiPresetStore = defineStore('acu-v2-api-presets', {
     savePreset(presetInput: AcuV2ApiPreset, originalName = ''): boolean {
       const preset = normalizePreset(presetInput);
       if (!preset) return false;
+      const hadPresets = this.presets.length > 0;
       const oldName = String(originalName || '').trim();
       const existingByNewName = this.presets.findIndex(p => p.name === preset.name);
       if (existingByNewName >= 0 && this.presets[existingByNewName].name !== oldName) {
@@ -283,7 +284,7 @@ export const useApiPresetStore = defineStore('acu-v2-api-presets', {
       }
 
       this.persist();
-      if (this.activePresetName === preset.name) {
+      if (!hadPresets || !this.activePresetName || this.activePresetName === preset.name) {
         this.setActivePresetForCurrentChat(preset.name);
       }
       return true;

@@ -24,9 +24,9 @@ export interface ManualUpdateMessage {
 }
 
 export interface ManualUpdateState {
-  tableApiPreset: Ref<string>;
   selectedManualTableKeys: Ref<string[]>;
-  manualExtraHintEnabled: Ref<boolean>;
+  manualContextDepth: Ref<number>;
+  manualBatchSize: Ref<number>;
   manualExtraHint: Ref<string>;
   manualUpdateBusy: Ref<boolean>;
   manualUpdateMessage: Ref<ManualUpdateMessage | null>;
@@ -35,7 +35,8 @@ export interface ManualUpdateState {
   sheetNames: ComputedRef<Record<string, string>>;
   vectorIndexWarning: ComputedRef<boolean>;
   refresh: () => void;
-  setTableApiPreset: (value: string) => void;
+  setManualContextDepth: (value: number | string) => void;
+  setManualBatchSize: (value: number | string) => void;
   setManualSelectedKeys: (keys: string[]) => void;
   selectAllManualTables: () => void;
   selectNoManualTables: () => void;
@@ -65,6 +66,32 @@ function saveManualSelection(keys: string[]): void {
   saveSettings_ACU();
 }
 
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.floor(n);
+}
+
+function normalizePositiveInteger(value: unknown, fallback: number): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 1) return fallback;
+  return Math.floor(n);
+}
+
+function resolveManualContextDepth(): number {
+  const fallback = normalizeNonNegativeInteger(settings_ACU.autoUpdateThreshold, 3);
+  return settings_ACU.manualUpdateContextDepth == null
+    ? fallback
+    : normalizeNonNegativeInteger(settings_ACU.manualUpdateContextDepth, fallback);
+}
+
+function resolveManualBatchSize(): number {
+  const fallback = 3;
+  return settings_ACU.manualUpdateBatchSize == null
+    ? fallback
+    : normalizePositiveInteger(settings_ACU.manualUpdateBatchSize, fallback);
+}
+
 function progressLabel(event: CardUpdateProgressEvent): string {
   const prefix = event.currentBatch && event.totalBatches
     ? `批次 ${event.currentBatch}/${event.totalBatches} · `
@@ -83,9 +110,9 @@ function progressLabel(event: CardUpdateProgressEvent): string {
 }
 
 export function useManualUpdate(): ManualUpdateState {
-  const tableApiPreset = ref(String(settings_ACU.tableApiPreset || ''));
   const selectedManualTableKeys = ref<string[]>(resolveManualSelection(currentSheetKeys()));
-  const manualExtraHintEnabled = ref(false);
+  const manualContextDepth = ref(resolveManualContextDepth());
+  const manualBatchSize = ref(resolveManualBatchSize());
   const manualExtraHint = ref('');
   const manualUpdateBusy = ref(false);
   const manualUpdateMessage = ref<ManualUpdateMessage | null>(null);
@@ -115,14 +142,23 @@ export function useManualUpdate(): ManualUpdateState {
   });
 
   function refresh(): void {
-    tableApiPreset.value = String(settings_ACU.tableApiPreset || '');
     selectedManualTableKeys.value = resolveManualSelection(currentSheetKeys());
+    manualContextDepth.value = resolveManualContextDepth();
+    manualBatchSize.value = resolveManualBatchSize();
     refreshTick.value++;
   }
 
-  function setTableApiPreset(value: string): void {
-    tableApiPreset.value = String(value || '');
-    settings_ACU.tableApiPreset = tableApiPreset.value;
+  function setManualContextDepth(value: number | string): void {
+    const normalized = normalizeNonNegativeInteger(value, manualContextDepth.value);
+    manualContextDepth.value = normalized;
+    settings_ACU.manualUpdateContextDepth = normalized;
+    saveSettings_ACU();
+  }
+
+  function setManualBatchSize(value: number | string): void {
+    const normalized = normalizePositiveInteger(value, manualBatchSize.value);
+    manualBatchSize.value = normalized;
+    settings_ACU.manualUpdateBatchSize = normalized;
     saveSettings_ACU();
   }
 
@@ -150,7 +186,7 @@ export function useManualUpdate(): ManualUpdateState {
     manualUpdateBusy.value = true;
     manualUpdateMessage.value = { kind: 'info', text: '手动填表开始。' };
     lastProgressText.value = '';
-    const extra = manualExtraHintEnabled.value ? manualExtraHint.value.trim() : '';
+    const extra = manualExtraHint.value.trim();
     if (extra) _set_manualExtraHint_ACU(`以下为用户的额外填表要求,请严格遵守:\n${extra}`);
 
     const runProcessBatch = (indices: number[], mode: string, options: any) =>
@@ -204,9 +240,9 @@ export function useManualUpdate(): ManualUpdateState {
   }
 
   return {
-    tableApiPreset,
     selectedManualTableKeys,
-    manualExtraHintEnabled,
+    manualContextDepth,
+    manualBatchSize,
     manualExtraHint,
     manualUpdateBusy,
     manualUpdateMessage,
@@ -215,7 +251,8 @@ export function useManualUpdate(): ManualUpdateState {
     sheetNames,
     vectorIndexWarning,
     refresh,
-    setTableApiPreset,
+    setManualContextDepth,
+    setManualBatchSize,
     setManualSelectedKeys,
     selectAllManualTables,
     selectNoManualTables,

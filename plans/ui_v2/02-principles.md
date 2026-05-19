@@ -221,6 +221,7 @@ Vue 组件**禁止直接 import service 函数或单例状态**（特别是 `set
 - **新增 `<AcuInfoBanner>`**：[components/_lib/AcuInfoBanner.vue](../../src/presentation-v2/components/_lib/AcuInfoBanner.vue)。永远可见，内容可自动换行。tone 三档：`info`（默认 / 解释性）/ `tip`（操作建议）/ `warning`（注意事项）。
 - **`<AcuPanel>` 的 `description` prop / slot**：[components/_lib/AcuPanel.vue](../../src/presentation-v2/components/_lib/AcuPanel.vue)。提供时自动在 body 顶部渲染一个 `<AcuInfoBanner>`，省去页面层重复样板。
 - **`subtitle` prop 移除**：旧 `subtitle` 是 height bug 的源头，不保留也不软兼容。
+- **一级功能页面板分栏统一用 `<AcuPanelGrid>`**：[components/_lib/AcuPanelGrid.vue](../../src/presentation-v2/components/_lib/AcuPanelGrid.vue)。所有一级功能页都进入这个左右等宽骨架；只有一个主面板时左列放内容、右列保留空占位并在移动端隐藏。它固定提供 `repeat(2, minmax(0, 1fr))` 等宽左右列、`gap: 16px`、`align-items: stretch` 和统一单列断点；页面不得再手写 `0.9fr / 1.1fr`、`360px / 520px` 这类左右比例。
 - **网格 `align-items: stretch`**：所有多列页面（ImportPage / ApiPage / ……）的 grid 必须用 `stretch`（默认值，去掉显式 `start`），同行面板自动等高，矮的底部留空可接受。
 
 ### D22.4 内容写作惯例
@@ -234,6 +235,7 @@ Vue 组件**禁止直接 import service 函数或单例状态**（特别是 `set
 ### D22.5 新页面强制约定
 
 - 阶段 3+ 新增的所有一级页：每个 `<AcuPanel>` 都必须提供 `description`（即便短）。空 description 视作设计缺漏，code review 必拒。
+- 一级功能页外层面板区必须使用 `<AcuPanelGrid>`；只有断点可以通过 `collapse-at="md|lg"` 选择，不能在页面 CSS 中重写左右列宽比例。单主面板页面也必须保留右列空占位，保证所有页面的左右节奏一致。
 - 多列布局必须 `align-items: stretch`，禁止 `align-items: start` / `flex-start`。
 - 出现 `description` 不能塞下的复杂操作步骤时，使用页面顶部 hero / 单独的 `<AcuInfoBanner tone="tip">`，而不是堆到面板里。
 
@@ -261,6 +263,8 @@ Vue 组件**禁止直接 import service 函数或单例状态**（特别是 `set
 - [ ] 页面和面板标题右侧只放状态徽章，不放触发按钮或配置开关。
 
 - [ ] 每个 `AcuPanel` 都有 `description` 或等价常驻信息条。
+
+- [ ] 一级功能页面板区使用 `<AcuPanelGrid>`，单主面板页有右列空占位，且没有手写非等宽 `fr` 分栏。
 
 - [ ] 多列布局没有 `align-items: start` / `flex-start`。
 

@@ -40,6 +40,8 @@ watch(() => shell.scrollResetTick, resetScroll);
 }
 
 .acu-v2-main :deep(.acu-v2-dashboard-page),
+.acu-v2-main :deep(.acu-v2-advanced-tools-page),
+.acu-v2-main :deep(.acu-v2-basic-config-page),
 .acu-v2-main :deep(.acu-v2-form-fill-page),
 .acu-v2-main :deep(.acu-v2-api-page),
 .acu-v2-main :deep(.acu-v2-import-page),
@@ -47,27 +49,23 @@ watch(() => shell.scrollResetTick, resetScroll);
 .acu-v2-main :deep(.acu-v2-content-replace-page),
 .acu-v2-main :deep(.acu-v2-data-mgmt-page),
 .acu-v2-main :deep(.acu-v2-developer-page),
-.acu-v2-main :deep(.acu-v2-log-viewer-page),
 .acu-v2-main :deep(.acu-v2-plot-page),
-.acu-v2-main :deep(.acu-v2-sql-console-page),
 .acu-v2-main :deep(.acu-v2-table-page),
 .acu-v2-main :deep(.acu-v2-vector-index-page) {
-  padding: 28px 20px 20px;
+  padding: 20px;
   gap: 14px;
-}
-
-.acu-v2-main :deep(.acu-page-header) {
-  padding-right: 84px;
 }
 
 .acu-v2-main__empty {
   padding: 24px;
-  font-size: 13px;
+  font-size: var(--acu-font-size-body-lg, 13px);
   color: var(--acu-text-3);
 }
 
 @media (max-width: 720px) {
   .acu-v2-main :deep(.acu-v2-dashboard-page),
+  .acu-v2-main :deep(.acu-v2-advanced-tools-page),
+  .acu-v2-main :deep(.acu-v2-basic-config-page),
   .acu-v2-main :deep(.acu-v2-form-fill-page),
   .acu-v2-main :deep(.acu-v2-api-page),
   .acu-v2-main :deep(.acu-v2-import-page),
@@ -75,16 +73,10 @@ watch(() => shell.scrollResetTick, resetScroll);
   .acu-v2-main :deep(.acu-v2-content-replace-page),
   .acu-v2-main :deep(.acu-v2-data-mgmt-page),
   .acu-v2-main :deep(.acu-v2-developer-page),
-  .acu-v2-main :deep(.acu-v2-log-viewer-page),
   .acu-v2-main :deep(.acu-v2-plot-page),
-  .acu-v2-main :deep(.acu-v2-sql-console-page),
   .acu-v2-main :deep(.acu-v2-table-page),
   .acu-v2-main :deep(.acu-v2-vector-index-page) {
     padding: 14px;
-  }
-
-  .acu-v2-main :deep(.acu-page-header) {
-    padding-right: 0;
   }
 }
 </style>

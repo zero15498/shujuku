@@ -152,7 +152,7 @@ function clearCloseTimer(): void {
 }
 
 .acu-v2-drawer__header-left { display: flex; align-items: center; gap: 10px; }
-.acu-v2-drawer__header h3 { margin: 0; font-size: 15px; }
+.acu-v2-drawer__header h3 { margin: 0; font-size: var(--acu-font-size-panel-title, 15px); }
 
 .acu-v2-drawer__body {
   flex: 1; min-height: 0;

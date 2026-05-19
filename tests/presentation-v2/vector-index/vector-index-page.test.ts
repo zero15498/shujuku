@@ -4,6 +4,7 @@
  * @vitest-environment jsdom
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { nextTick } from 'vue';
 import { defaultVectorMemoryConfig_ACU } from '../../../src/shared/defaults';
 
 const STORAGE_KEY = 'acu_v2_ui_state';
@@ -190,11 +191,17 @@ describe('VectorIndexPage', () => {
     expect(page).not.toBeNull();
     const text = page!.textContent || '';
     expect(text).toContain('交火模式');
-    expect(text).toContain('索引状态与维护');
+    expect(text).toContain('索引状态');
     expect(text).not.toContain('向量服务引用');
     expect(text).not.toContain('Embedding 服务');
     expect(text).not.toContain('Rerank 服务（可选）');
     expect(text).toContain('Embedding / Rerank');
+    expect(text).toContain('向量化（Embedding）');
+    expect(text).toContain('重排（Rerank，可选）');
+    expect(text).toContain('URL');
+    expect(text).toContain('模型名');
+    expect(text).not.toContain(`服务${'地址'}`);
+    expect(text).not.toContain(`模型${'名称'}`);
     expect(text).not.toContain('召回参数');
     expect(text).not.toContain('归档与分块');
     expect(text).toContain('关键词生成');
@@ -206,7 +213,7 @@ describe('VectorIndexPage', () => {
     expect(getStats).toHaveBeenCalled();
 
     const maintenancePanel = Array.from(page!.querySelectorAll<HTMLElement>('.acu-panel'))
-      .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('索引状态与维护'))!;
+      .find(panel => panel.id === 'vector-index-status-panel')!;
     const actionButtons = Array.from(maintenancePanel.querySelectorAll<HTMLButtonElement>('.acu-v2-vector-index-page__actions button'))
       .map(button => button.textContent?.trim() || '');
     expect(actionButtons).toEqual([
@@ -215,15 +222,33 @@ describe('VectorIndexPage', () => {
       '清空临时缓存',
       '删除当前索引',
     ]);
+    expect(
+      maintenancePanel.querySelector(
+        '.acu-v2-vector-index-page__maintenance-spacer',
+      ),
+    ).not.toBeNull();
+    expect(maintenancePanel.querySelector('.acu-stats')?.className).not.toContain(
+      'maintenance-spacer',
+    );
     expect(actionButtons.some(label => label.includes('刷新状态'))).toBe(false);
     const clearButton = Array.from(maintenancePanel.querySelectorAll<HTMLButtonElement>('.acu-v2-vector-index-page__actions button'))
       .find(button => button.textContent?.includes('清空临时缓存'))!;
     expect(clearButton.classList.contains('acu-btn--default')).toBe(true);
 
+    const panelStacks = Array.from(page!.querySelectorAll<HTMLElement>('.acu-v2-vector-index-page__panel-stack'));
+    expect(panelStacks.map(stack => Array.from(stack.querySelectorAll<HTMLElement>('.acu-panel__title'))
+      .map(title => title.textContent?.trim()))).toEqual([
+      ['索引状态', '关键词生成'],
+      ['Embedding / Rerank', '关键词生成提示词'],
+    ]);
+
     const promptPanel = Array.from(page!.querySelectorAll<HTMLElement>('.acu-panel'))
       .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('关键词生成提示词'))!;
     expect(promptPanel.querySelector('.acu-panel__actions .acu-badge')?.textContent).toContain('使用默认提示词');
     expect(promptPanel.querySelector('.acu-v2-vector-index-page__prompt-overview')).toBeNull();
+    const mobileNavItems = Array.from(page!.querySelectorAll('.acu-mobile-panel-nav__item'))
+      .map(item => item.textContent?.trim());
+    expect(mobileNavItems).toEqual(['索引状态', '关键词', '向量服务', '提示词']);
 
     mount.__resetAcuV2MountForTests();
   });
@@ -235,7 +260,7 @@ describe('VectorIndexPage', () => {
 
     const { useRouterStore } = await import('../../../src/presentation-v2/stores/router-store');
     useRouterStore().setActivePage('dashboard');
-    await new Promise(r => setTimeout(r, 0));
+    await nextTick();
 
     config.keywordPromptGroup = config.keywordPromptGroup.map((segment: any) => ({
       ...segment,
@@ -243,7 +268,7 @@ describe('VectorIndexPage', () => {
     }));
 
     useRouterStore().setActivePage('vector-index');
-    await new Promise(r => setTimeout(r, 0));
+    await nextTick();
 
     const textAfterReturn = document.querySelector('.acu-v2-vector-index-page')?.textContent || '';
     expect(textAfterReturn).toContain('使用默认提示词');
@@ -258,8 +283,11 @@ describe('VectorIndexPage', () => {
     const text = document.querySelector('.acu-v2-vector-index-page')?.textContent || '';
     expect(text).toContain('召回参数');
     expect(text).toContain('归档与分块');
-    expect(text).toContain('发送前交火触发阈值');
-    expect(text).toContain('每批归档行数');
+    expect(text).toContain('触发阈值');
+    expect(text).toContain('归档批次');
+    const mobileNavItems = Array.from(document.querySelectorAll('.acu-v2-vector-index-page .acu-mobile-panel-nav__item'))
+      .map(item => item.textContent?.trim());
+    expect(mobileNavItems).toEqual(['索引状态', '关键词', '向量服务', '提示词', '召回参数', '归档分块']);
 
     mount.__resetAcuV2MountForTests();
   });
@@ -270,20 +298,39 @@ describe('VectorIndexPage', () => {
     const panels = document.querySelectorAll('.acu-v2-vector-index-page .acu-panel');
     expect(panels.length).toBeGreaterThanOrEqual(3);
     panels.forEach(panel => {
-      expect(panel.querySelector('.acu-panel__body .acu-info-banner')).not.toBeNull();
+      expect(panel.querySelector('.acu-panel__description-region .acu-info-banner')).not.toBeNull();
       expect(panel.querySelector('.acu-panel__header .acu-info-banner')).toBeNull();
     });
 
     mount.__resetAcuV2MountForTests();
   });
 
-  it('header 不放触发按钮或 toggle（仅标题）', async () => {
+  it('全局 header 展示当前页标题，页面内不再渲染重复 header', async () => {
     const { mount } = await mountVectorIndexPage();
 
-    const header = document.querySelector('.acu-v2-vector-index-page .acu-page-header');
-    expect(header).not.toBeNull();
-    expect(header!.querySelector('button')).toBeNull();
-    expect(header!.querySelector('.acu-toggle')).toBeNull();
+    expect(document.querySelector('.acu-v2-vector-index-page .acu-page-header')).toBeNull();
+    const globalTitle = document.querySelector('.acu-v2-app__page-title');
+    expect(globalTitle?.textContent?.trim()).toBe('交火模式');
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('关键词 API 预设下拉的跟随项显示当前活动 API 预设名', async () => {
+    const { mount } = await mountVectorIndexPage();
+
+    const keywordPanel = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-vector-index-page .acu-panel'))
+      .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('关键词生成'))!;
+    const acuSelect = keywordPanel.querySelector('.acu-select') as HTMLElement | null;
+    expect(acuSelect).not.toBeNull();
+    const trigger = acuSelect!.querySelector('.acu-select__trigger') as HTMLButtonElement;
+    expect(trigger.textContent).toContain('跟随当前活动 API（kw-cheap）');
+    trigger.click();
+    await Promise.resolve();
+
+    const labels = Array.from(acuSelect!.querySelectorAll<HTMLElement>('.acu-select__item'))
+      .map(item => (item.textContent || '').trim());
+    expect(labels[0]).toBe('跟随当前活动 API（kw-cheap）');
+    expect(labels).toContain('kw-cheap');
 
     mount.__resetAcuV2MountForTests();
   });
@@ -350,21 +397,6 @@ describe('VectorIndexPage', () => {
     mount.__resetAcuV2MountForTests();
   });
 
-  it('校验失败时渲染顶部 warning banner', async () => {
-    const { mount } = await mountVectorIndexPage({
-      validation: { valid: false, errors: ['缺少 embeddingModel'] },
-    });
-
-    const warning = Array.from(document.querySelectorAll('.acu-info-banner'))
-      .find(el => /配置不完整/.test(el.textContent || ''));
-    expect(warning).not.toBeUndefined();
-    expect(warning!.textContent).toContain('缺少 embeddingModel');
-    expect(warning!.querySelector('button')).toBeNull();
-    expect(warning!.textContent).toContain('Embedding / Rerank');
-
-    mount.__resetAcuV2MountForTests();
-  });
-
   it('交火页渲染 Embedding / Rerank 配置并可保存向量服务', async () => {
     const { mount, config, saveSettings } = await mountVectorIndexPage();
 
@@ -380,9 +412,9 @@ describe('VectorIndexPage', () => {
     embeddingEndpoint!.dispatchEvent(new Event('input', { bubbles: true }));
     await new Promise(r => setTimeout(r, 0));
 
-    const saveButton = Array.from(page.querySelectorAll('button'))
-      .find(btn => btn.textContent?.includes('保存向量服务')) as HTMLButtonElement | undefined;
-    expect(saveButton).not.toBeUndefined();
+    const saveButton = page.querySelector('.acu-v2-vector-api-form__actions button') as HTMLButtonElement | null;
+    expect(saveButton).not.toBeNull();
+    expect(saveButton!.textContent || '').toContain('保存');
     saveButton!.click();
     await new Promise(r => setTimeout(r, 0));
 
@@ -457,7 +489,7 @@ describe('VectorIndexPage', () => {
     const { mount, config, saveSettings } = await mountVectorIndexPage({ devOptions: { vectorIndexAdvanced: true } });
 
     const row = Array.from(document.querySelectorAll('.acu-v2-vector-index-page .acu-form-row'))
-      .find(el => /最近固定注入条数/.test(el.textContent || ''));
+      .find(el => /固定写入/.test(el.textContent || ''));
     const input = row?.querySelector('input') as HTMLInputElement | null;
     expect(input).not.toBeNull();
 
@@ -475,7 +507,7 @@ describe('VectorIndexPage', () => {
     const { mount, config, saveSettings } = await mountVectorIndexPage({ devOptions: { vectorIndexAdvanced: true } });
 
     const row = Array.from(document.querySelectorAll('.acu-v2-vector-index-page .acu-form-row'))
-      .find(el => /每批归档行数/.test(el.textContent || ''));
+      .find(el => /归档批次/.test(el.textContent || ''));
     const input = row?.querySelector('input') as HTMLInputElement | null;
     expect(input).not.toBeNull();
 

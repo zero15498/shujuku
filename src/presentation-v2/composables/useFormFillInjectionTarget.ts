@@ -43,10 +43,10 @@ export function useFormFillInjectionTarget() {
       try {
         const charLorebooks = await getCharLorebooks_ACU({ type: 'all' });
         return charLorebooks.primary
-          ? `角色卡主世界书 · ${charLorebooks.primary}`
-          : '角色卡主世界书（角色卡未指定）';
+          ? `角色卡绑定世界书 · ${charLorebooks.primary}`
+          : '角色卡绑定世界书（当前未解析到角色卡）';
       } catch {
-        return '角色卡主世界书';
+        return '角色卡绑定世界书';
       }
     }
     return target.value || '（未选择）';

@@ -32,6 +32,8 @@ interface DraftContextRules {
   excludeRules: PlotContextRulePair[];
 }
 
+const DEFAULT_NEW_PRESET_NAME = '新预设';
+
 function emptyDraftMeta(): DraftMeta {
   return { name: '', taskApiPreset: '' };
 }
@@ -42,6 +44,18 @@ function emptyContextRules(): DraftContextRules {
 
 function defaultRawPreset(): Record<string, any> {
   return getDefaultPlotPresetRawForV2();
+}
+
+function uniquePresetName(baseName: string, names: string[]): string {
+  const normalizedBase = String(baseName || '').trim();
+  if (!normalizedBase) return '';
+  const usedNames = new Set(names.map(name => String(name || '').trim()).filter(Boolean));
+  if (!usedNames.has(normalizedBase)) return normalizedBase;
+  for (let i = 2; i <= 99; i += 1) {
+    const candidate = `${normalizedBase} (${i})`;
+    if (!usedNames.has(candidate)) return candidate;
+  }
+  return `${normalizedBase} (${Date.now()})`;
 }
 
 function normalizeRulePairs(rules: unknown, legacyTags: unknown, kind: 'extract' | 'exclude'): PlotContextRulePair[] {
@@ -143,7 +157,7 @@ export function usePlotPresetManagement() {
   function openCreate(): void {
     resetDraft();
     const raw = defaultRawPreset();
-    draftMeta.name = '';
+    draftMeta.name = uniquePresetName(DEFAULT_NEW_PRESET_NAME, store.presets.map(p => p.name));
     draftRaw.value = raw;
     contextRules.extractRules = normalizeRulePairs(raw.contextExtractRules, raw.contextExtractTags || '', 'extract');
     contextRules.excludeRules = normalizeRulePairs(raw.contextExcludeRules, raw.contextExcludeTags || '', 'exclude');
@@ -172,7 +186,10 @@ export function usePlotPresetManagement() {
   /** "编辑当前预设"按钮：打开抽屉并直接进入 edit 视图。 */
   function openEditCurrent(): boolean {
     const active = store.activePreset;
-    if (!active) return false;
+    if (!active) {
+      openCreate();
+      return true;
+    }
     openEdit(active.name);
     return true;
   }

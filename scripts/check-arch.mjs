@@ -124,6 +124,12 @@ const checks = [
     pattern: /clip: rect\(0 0 0 0\)|position: absolute; width: 1px; height: 1px/,
   },
   {
+    label: 'presentation-v2 pages weighted panel columns',
+    dir: 'src/presentation-v2/pages',
+    extensions: new Set(['.vue']),
+    pattern: /grid-template-columns:.*(?:\d+\.\d+|[2-9]\d*)fr/,
+  },
+  {
     section: 'presentation-v2 boundary checks (D17 / D21.2)',
     label: 'presentation-v2 -> service/runtime/state-manager (D17, .vue only)',
     dir: 'src/presentation-v2',

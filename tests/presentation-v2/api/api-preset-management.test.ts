@@ -1,207 +1,77 @@
 /**
- * API preset management composable — 编辑即弃草稿 + 脏检测 + 退出确认
+ * API preset draft helpers — 面板内新建/编辑表单的数据转换
  *
  * @vitest-environment jsdom
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import {
+  apiPresetDraftFromPreset,
+  apiPresetFromDraft,
+  applyConnectionMode,
+  connectionModeFromDraft,
+  createEmptyApiPresetDraft,
+} from '../../../src/presentation-v2/composables/useApiPresetManagement';
 
-async function importComposable() {
-  vi.resetModules();
-  const settings = {
-    apiMode: 'custom' as const,
-    apiConfig: { url: '', apiKey: '', model: '', useMainApi: true, max_tokens: 60000, temperature: 1 },
-    tavernProfile: '',
-    streamingEnabled: false,
-    apiPresets: [
-      {
-        name: 'preset-a',
-        apiMode: 'custom',
-        apiConfig: { url: 'https://a.test', apiKey: 'k', model: 'gpt-4', useMainApi: false, max_tokens: 4096, temperature: 0.7 },
-        tavernProfile: '',
+describe('api preset draft helpers', () => {
+  it('从空白草稿开始新建预设', () => {
+    const draft = createEmptyApiPresetDraft();
+
+    expect(draft.name).toBe('');
+    expect(draft.apiMode).toBe('custom');
+    expect(draft.useMainApi).toBe(true);
+    expect(connectionModeFromDraft(draft)).toBe('main');
+  });
+
+  it('把预设转换为可编辑草稿', () => {
+    const draft = apiPresetDraftFromPreset({
+      name: 'preset-a',
+      apiMode: 'custom',
+      apiConfig: {
+        url: 'https://a.test',
+        apiKey: 'k',
+        model: 'gpt-4',
+        useMainApi: false,
+        max_tokens: 4096,
+        temperature: 0.7,
       },
-    ],
-    defaultApiPresetName: 'preset-a',
-    apiPresetBindingsByChat: {},
-  };
-  vi.doMock('../../../src/service/runtime/state-manager', () => ({
-    settings_ACU: settings,
-    currentChatFileIdentifier_ACU: 'chat-draft',
-  }));
-  vi.doMock('../../../src/service/settings/settings-service', () => ({
-    saveSettings_ACU: vi.fn(() => ({ saved: true, storageType: 'memory' })),
-  }));
-  vi.doMock('../../../src/service/ai/ai-service', () => ({
-    getConnectionManagerProfiles_ACU: () => [],
-    fetchAvailableModels_ACU: vi.fn(async () => ({ success: true, models: [] })),
-  }));
-  const [{ setActivePinia, createPinia }, { useApiPresetManagement }, { useApiPresetStore }] = await Promise.all([
-    import('pinia'),
-    import('../../../src/presentation-v2/composables/useApiPresetManagement'),
-    import('../../../src/presentation-v2/stores/api-preset-store'),
-  ]);
-  setActivePinia(createPinia());
-  const store = useApiPresetStore();
-  store.refreshFromSettings();
-  return { useApiPresetManagement, store };
-}
+      tavernProfile: '',
+    });
 
-beforeEach(() => {
-  localStorage.clear();
-  vi.restoreAllMocks();
-});
-
-describe('useApiPresetManagement', () => {
-  it('openEdit 总是加载预设当前状态，不恢复旧草稿', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    const preset = store.presets[0];
-
-    m.openEdit(preset);
-    m.draft.model = 'modified-model';
-
-    // 关闭后重新打开同一预设 — 应该看到原始值，不是修改后的
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    m.closeDrawer();
-
-    m.openEdit(preset);
-    expect(m.draft.model).toBe('gpt-4');
+    expect(draft.name).toBe('preset-a');
+    expect(draft.url).toBe('https://a.test');
+    expect(draft.model).toBe('gpt-4');
+    expect(connectionModeFromDraft(draft)).toBe('custom');
   });
 
-  it('openCreate 总是从空白开始', async () => {
-    const { useApiPresetManagement } = await importComposable();
-    const m = useApiPresetManagement();
+  it('连接方式切换会写回草稿字段', () => {
+    const draft = createEmptyApiPresetDraft();
 
-    m.openCreate();
-    m.draft.name = 'half-written';
+    applyConnectionMode(draft, 'tavern');
+    expect(draft.apiMode).toBe('tavern');
+    expect(draft.useMainApi).toBe(false);
+    expect(connectionModeFromDraft(draft)).toBe('tavern');
 
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-    m.closeDrawer();
-
-    m.openCreate();
-    expect(m.draft.name).toBe('');
+    applyConnectionMode(draft, 'custom');
+    expect(draft.apiMode).toBe('custom');
+    expect(draft.useMainApi).toBe(false);
+    expect(connectionModeFromDraft(draft)).toBe('custom');
   });
 
-  it('未修改时 isDirty 为 false', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
+  it('保存前归一化名称、端点、模型和数字参数', () => {
+    const preset = apiPresetFromDraft({
+      ...createEmptyApiPresetDraft(),
+      name: '  preset-b  ',
+      useMainApi: false,
+      url: '  https://b.test/v1  ',
+      model: '  model-b  ',
+      max_tokens: 128.8,
+      temperature: Number.NaN,
+    });
 
-    m.openEdit(store.presets[0]);
-    expect(m.isDirty.value).toBe(false);
-  });
-
-  it('修改后 isDirty 为 true', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-
-    m.openEdit(store.presets[0]);
-    m.draft.temperature = 0.5;
-    expect(m.isDirty.value).toBe(true);
-  });
-
-  it('未修改时 closeDrawer 直接关闭，不弹确认', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    const confirmSpy = vi.spyOn(window, 'confirm');
-
-    m.openEdit(store.presets[0]);
-    m.closeDrawer();
-
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(m.drawerView.value).toBe('closed');
-  });
-
-  it('有修改时 confirmIfDirty 弹确认，用户确认后允许关闭', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-
-    m.openEdit(store.presets[0]);
-    m.draft.model = 'changed';
-    const allowed = m.confirmIfDirty();
-
-    expect(window.confirm).toHaveBeenCalled();
-    expect(allowed).toBe(true);
-    m.closeDrawer();
-    expect(m.drawerView.value).toBe('closed');
-  });
-
-  it('有修改时 confirmIfDirty 弹确认，用户取消后阻止关闭', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-
-    m.openEdit(store.presets[0]);
-    m.draft.model = 'changed';
-    const allowed = m.confirmIfDirty();
-
-    expect(window.confirm).toHaveBeenCalled();
-    expect(allowed).toBe(false);
-    expect(m.drawerView.value).toBe('edit');
-  });
-
-  it('有修改时 confirmIfDirty 阻止 backToManage', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
-
-    m.openEdit(store.presets[0]);
-    m.draft.url = 'https://changed.test';
-    const allowed = m.confirmIfDirty();
-
-    expect(window.confirm).toHaveBeenCalled();
-    expect(allowed).toBe(true);
-    m.backToManage();
-    expect(m.drawerView.value).toBe('manage');
-  });
-
-  it('有修改时 confirmIfDirty 取消则保持编辑', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
-
-    m.openEdit(store.presets[0]);
-    m.draft.url = 'https://changed.test';
-    const allowed = m.confirmIfDirty();
-
-    expect(window.confirm).toHaveBeenCalled();
-    expect(allowed).toBe(false);
-    expect(m.drawerView.value).toBe('edit');
-  });
-
-  it('discardDraft 不弹确认直接返回管理视图', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-    const confirmSpy = vi.spyOn(window, 'confirm');
-
-    m.openEdit(store.presets[0]);
-    m.draft.model = 'changed';
-    m.discardDraft();
-
-    expect(confirmSpy).not.toHaveBeenCalled();
-    expect(m.drawerView.value).toBe('manage');
-  });
-
-  it('saveDraft 成功后 isDirty 重置', async () => {
-    const { useApiPresetManagement } = await importComposable();
-    const m = useApiPresetManagement();
-
-    m.openCreate();
-    m.draft.name = 'new-preset';
-    expect(m.isDirty.value).toBe(true);
-
-    expect(m.saveDraft()).toBe(true);
-    expect(m.drawerView.value).toBe('manage');
-  });
-
-  it('不再向 localStorage 写入草稿', async () => {
-    const { useApiPresetManagement, store } = await importComposable();
-    const m = useApiPresetManagement();
-
-    m.openEdit(store.presets[0]);
-    m.draft.model = 'changed-model';
-
-    const persisted = localStorage.getItem('acu_v2_ui_state');
-    const parsed = persisted ? JSON.parse(persisted) : {};
-    expect(parsed.apiPresetDraft).toBeUndefined();
+    expect(preset.name).toBe('preset-b');
+    expect(preset.apiConfig.url).toBe('https://b.test/v1');
+    expect(preset.apiConfig.model).toBe('model-b');
+    expect(preset.apiConfig.max_tokens).toBe(128);
+    expect(preset.apiConfig.temperature).toBe(1);
   });
 });

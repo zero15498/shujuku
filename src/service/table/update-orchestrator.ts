@@ -36,6 +36,18 @@ function resolveTableApiPresetOverride_ACU(tableName: any): string {
     const preset = overrides[normalizedName];
     return (typeof preset === 'string' && preset.trim()) ? preset.trim() : '';
 }
+
+function normalizeManualNonNegativeInteger_ACU(value: any, fallback: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 0) return fallback;
+    return Math.floor(n);
+}
+
+function normalizeManualPositiveInteger_ACU(value: any, fallback: number): number {
+    const n = Number(value);
+    if (!Number.isFinite(n) || n < 1) return fallback;
+    return Math.floor(n);
+}
 import { checkIfFirstTimeInit_ACU, saveIndependentTableToChatHistory_ACU } from './table-service';
 import { parseAndApplyTableEdits_ACU, prepareAIInput_ACU } from '../ai/prompt-builder';
 import { buildGuidedBaseDataFromSheetGuide_ACU, getSortedSheetKeys_ACU } from '../template/chat-scope';
@@ -666,8 +678,14 @@ export async function orchestrateManualUpdate_ACU(
             return { success: false, error: '未选择需要更新的表格。' };
         }
 
-        const uiThreshold = settings_ACU.autoUpdateThreshold || 3;
-        const uiBatchSize = settings_ACU.updateBatchSize || 3;
+        const fallbackThreshold = normalizeManualNonNegativeInteger_ACU(settings_ACU.autoUpdateThreshold, 3);
+        const fallbackBatchSize = 3;
+        const uiThreshold = settings_ACU.manualUpdateContextDepth == null
+            ? fallbackThreshold
+            : normalizeManualNonNegativeInteger_ACU(settings_ACU.manualUpdateContextDepth, fallbackThreshold);
+        const uiBatchSize = settings_ACU.manualUpdateBatchSize == null
+            ? fallbackBatchSize
+            : normalizeManualPositiveInteger_ACU(settings_ACU.manualUpdateBatchSize, fallbackBatchSize);
         const uiSkip = settings_ACU.skipUpdateFloors || 0;
 
         const effectiveAiIndices = uiSkip > 0 ? allAiMessageIndices.slice(0, -uiSkip) : allAiMessageIndices.slice();
