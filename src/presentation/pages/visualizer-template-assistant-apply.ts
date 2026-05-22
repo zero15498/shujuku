@@ -15,6 +15,12 @@ function clone_ACU<T>(value: T): T {
 }
 
 export function applyTemplateAssistantDraftToVisualizer_ACU(result: TemplateAssistantGenerateResult_ACU) {
+    const draftAnchorKey = String(result?.draft?.selectedSheetKey || '').trim();
+    if (draftAnchorKey && draftAnchorKey !== (_acuVisState.currentSheetKey || null)) {
+        showToastr_ACU('warning', '这份 assistant 草稿属于其他锚点表，请切回原表或重新生成。');
+        return false;
+    }
+
     const baselineFingerprint = getTemplateAssistantApplyBaselineFingerprint_ACU(result);
     const currentFingerprint = buildTemplateAssistantFingerprint_ACU(_acuVisState.tempData || {});
     if (!baselineFingerprint || currentFingerprint !== baselineFingerprint) {

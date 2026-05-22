@@ -6,10 +6,14 @@
  * 也不维护 ACUThemeFile 导入导出契约。这些都按 D14 的"丢弃"决策处理。
  */
 
-export type AcuV2ThemeId =
+export type AcuV2BuiltinThemeId =
   | 'default-light'
   | 'default-dark'
   | 'strawberry-dragon';
+
+export type AcuV2CustomThemeId = `custom:${string}`;
+
+export type AcuV2ThemeId = AcuV2BuiltinThemeId | AcuV2CustomThemeId;
 
 export type AcuV2ColorScheme = 'light' | 'dark';
 
@@ -48,6 +52,20 @@ export interface AcuV2Theme {
   name: string;
   colorScheme: AcuV2ColorScheme;
   tokens: AcuV2ThemeTokens;
+}
+
+export const ACU_V2_CUSTOM_THEME_FILE_KIND = 'acu-v2-theme';
+export const ACU_V2_CUSTOM_THEME_FILE_VERSION = 1;
+
+export interface AcuV2CustomThemeFile {
+  kind: typeof ACU_V2_CUSTOM_THEME_FILE_KIND;
+  version: typeof ACU_V2_CUSTOM_THEME_FILE_VERSION;
+  theme: {
+    id?: AcuV2CustomThemeId;
+    name: string;
+    colorScheme: AcuV2ColorScheme;
+    tokens: AcuV2ThemeTokens;
+  };
 }
 
 /** token key 到 CSS 变量名的映射，集中保存供 store 与注入器共用。 */

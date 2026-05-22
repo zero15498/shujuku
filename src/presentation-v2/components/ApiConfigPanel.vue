@@ -134,11 +134,6 @@
       <AcuMessage v-if="activeDraftError" kind="error">{{
         activeDraftError
       }}</AcuMessage>
-      <AcuMessage
-        v-else-if="activeDraftSavedAt && !activeDraftDirty"
-        kind="success"
-        >已保存当前 API 预设。</AcuMessage
-      >
 
       <div class="acu-api-config-panel__actions">
         <AcuButton :disabled="!activeDraftDirty" @click="syncActiveDraft"
@@ -177,6 +172,7 @@ import {
   useApiPresetStore,
   type AcuV2ApiPreset,
 } from "../stores/api-preset-store";
+import { useToastStore } from "../stores/toast-store";
 import AcuButton from "./_lib/AcuButton.vue";
 import AcuFormRow from "./_lib/AcuFormRow.vue";
 import AcuIconButton from "./_lib/AcuIconButton.vue";
@@ -190,6 +186,7 @@ import AcuSegmentedControl from "./_lib/AcuSegmentedControl.vue";
 import AcuSelect, { type AcuSelectOption } from "./_lib/AcuSelect.vue";
 
 const store = useApiPresetStore();
+const toast = useToastStore();
 const formMode = ref<"empty" | "edit" | "create">("empty");
 const activeDraft = reactive<ApiPresetDraft>(createEmptyApiPresetDraft());
 const activeDraftOriginalName = ref("");
@@ -327,6 +324,7 @@ function saveActiveDraft(): void {
   store.refreshFromSettings();
   syncActiveDraft();
   activeDraftSavedAt.value = Date.now();
+  toast.success("已保存当前 API 预设。");
 }
 
 function setActiveConnectionMode(value: string): void {

@@ -9,6 +9,7 @@ import type { SqlQueryResult } from '../../shared/table-storage-provider';
 import { logDebug_ACU, logError_ACU } from '../../shared/utils';
 import { getStorageProvider } from '../../service/table/table-storage-strategy';
 import { isSqliteMode } from '../../service/table/storage-mode';
+import { useToastStore } from '../stores/toast-store';
 
 export type SqlConsoleMessageKind = 'info' | 'success' | 'warning' | 'error';
 export type SqlResultKind = 'idle' | 'query' | 'mutation' | 'error';
@@ -55,10 +56,6 @@ function emptyResult(): SqlResultState {
   };
 }
 
-function setMessage(target: ReturnType<typeof ref<SqlConsoleMessage | null>>, kind: SqlConsoleMessageKind, text: string): void {
-  target.value = { kind, text, at: Date.now() };
-}
-
 function addHistory(sql: string, success: boolean): void {
   sqlHistory.value = [
     { sql, timestamp: Date.now(), success },
@@ -71,8 +68,8 @@ export function __resetSqlConsoleHistoryForTests(): void {
 }
 
 export function useSqlConsole() {
+  const toast = useToastStore();
   const sqlText = ref('');
-  const message = ref<SqlConsoleMessage | null>(null);
   const busyAction = ref('');
   const isSqliteAvailable = ref(false);
   const result = shallowRef<SqlResultState>(emptyResult());
@@ -102,7 +99,6 @@ export function useSqlConsole() {
 
   function clearSql(): void {
     sqlText.value = '';
-    message.value = null;
   }
 
   function showTables(): void {
@@ -117,20 +113,20 @@ export function useSqlConsole() {
 
   function useHistoryItem(item: SqlHistoryItem): void {
     sqlText.value = item.sql;
-    setMessage(message, 'info', '已把历史 SQL 填入编辑器。');
+    toast.info('已把历史 SQL 填入编辑器。');
   }
 
   function executeCurrent(): void {
     const sql = sqlText.value.trim();
     if (!sql) {
-      setMessage(message, 'warning', 'SQL 语句不能为空。');
+      toast.warning('SQL 语句不能为空。');
       return;
     }
 
     refresh();
     if (!isSqliteAvailable.value) {
       result.value = { ...emptyResult(), kind: 'error', error: 'SQL 控制台仅在 SQLite 模式下可用。' };
-      setMessage(message, 'error', 'SQL 控制台仅在 SQLite 模式下可用。');
+      toast.error('SQL 控制台仅在 SQLite 模式下可用。');
       return;
     }
 
@@ -151,7 +147,7 @@ export function useSqlConsole() {
           elapsedMs,
         };
         addHistory(sql, true);
-        setMessage(message, 'success', queryResult.rowCount === 0 ? '查询成功，没有返回行。' : `查询成功，返回 ${queryResult.rowCount} 行。`);
+        toast.success(queryResult.rowCount === 0 ? '查询成功，没有返回行。' : `查询成功，返回 ${queryResult.rowCount} 行。`);
         logDebug_ACU(`[ACU-V2 SQL Console] query ok: ${queryResult.rowCount} rows, ${elapsedMs}ms`);
         return;
       }
@@ -162,7 +158,7 @@ export function useSqlConsole() {
         const error = mutationResult.errors.join('\n');
         result.value = { ...emptyResult(), kind: 'error', elapsedMs, error };
         addHistory(sql, false);
-        setMessage(message, 'error', '执行失败，请检查结果区中的错误信息。');
+        toast.error('执行失败，请检查结果区中的错误信息。');
         return;
       }
 
@@ -173,14 +169,14 @@ export function useSqlConsole() {
         elapsedMs,
       };
       addHistory(sql, true);
-      setMessage(message, 'success', `执行成功，${mutationResult.changes} 行受影响。`);
+      toast.success(`执行成功，${mutationResult.changes} 行受影响。`);
       logDebug_ACU(`[ACU-V2 SQL Console] mutation ok: ${mutationResult.changes} changes, ${elapsedMs}ms`);
     } catch (e: any) {
       const elapsedMs = (performance.now() - startTime).toFixed(1);
       const error = e?.message || String(e);
       result.value = { ...emptyResult(), kind: 'error', elapsedMs, error };
       addHistory(sql, false);
-      setMessage(message, 'error', '执行失败，请检查结果区中的错误信息。');
+      toast.error('执行失败，请检查结果区中的错误信息。');
       logError_ACU(`[ACU-V2 SQL Console] execute failed: ${error}`);
     } finally {
       busyAction.value = '';
@@ -189,7 +185,6 @@ export function useSqlConsole() {
 
   return {
     sqlText,
-    message,
     busyAction,
     isSqliteAvailable,
     result,

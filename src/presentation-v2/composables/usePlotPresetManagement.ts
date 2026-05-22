@@ -6,6 +6,7 @@
  */
 import { computed, reactive, ref } from 'vue';
 import { getDefaultPlotPresetRawForV2, usePlotPresetStore } from '../stores/plot-preset-store';
+import { useToastStore } from '../stores/toast-store';
 import { usePlotTaskEditing } from './usePlotTaskEditing';
 import { normalizeExcludeRules_ACU, normalizeExtractRules_ACU } from '../../shared/utils';
 
@@ -83,6 +84,7 @@ function rulesForSave(rules: PlotContextRulePair[], kind: 'extract' | 'exclude')
 
 export function usePlotPresetManagement() {
   const store = usePlotPresetStore();
+  const toast = useToastStore();
   const taskEditing = usePlotTaskEditing();
 
   const drawerView = ref<PlotDrawerView>('closed');
@@ -241,6 +243,7 @@ export function usePlotPresetManagement() {
     }
     drawerView.value = 'manage';
     resetDraft();
+    toast.success('剧情推进预设已保存。');
     return true;
   }
 
@@ -258,6 +261,7 @@ export function usePlotPresetManagement() {
       error.value = '已保存到预设库，但无法切换为当前聊天预设。可在下拉框手动选择。';
       return false;
     }
+    toast.success('剧情推进预设 JSON 已导入。', { muteable: false });
     return true;
   }
 

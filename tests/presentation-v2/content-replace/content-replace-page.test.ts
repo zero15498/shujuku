@@ -343,7 +343,7 @@ describe('ContentReplacePage', () => {
     await new Promise(r => setTimeout(r, 0));
 
     expect(performOptimization).toHaveBeenCalledWith('这是一段足够长的测试正文。', { currentLoop: 1, userMessage: '' });
-    expect(document.querySelector('.acu-v2-content-replace-page')?.textContent || '').toContain('测试完成');
+    expect(document.querySelector('.acu-v2-content-replace-page')?.textContent || '').not.toContain('测试完成');
     expect(document.querySelector('.acu-v2-content-replace-page__test-output')?.textContent || '').toContain('优化完成：1 处建议');
 
     app.unmount();

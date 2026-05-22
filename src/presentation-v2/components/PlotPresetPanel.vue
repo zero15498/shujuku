@@ -115,6 +115,7 @@ import { usePlotRates } from "../composables/usePlotRates";
 import { useUiCloseGuard } from "../composables/useUiCloseGuard";
 import { plotCopy } from "../copy/plot-copy";
 import { usePlotPresetStore } from "../stores/plot-preset-store";
+import { useToastStore } from "../stores/toast-store";
 import AcuBadge from "./_lib/AcuBadge.vue";
 import AcuFileButton from "./_lib/AcuFileButton.vue";
 import AcuFormRow from "./_lib/AcuFormRow.vue";
@@ -138,6 +139,7 @@ withDefaults(
 );
 
 const store = usePlotPresetStore();
+const toast = useToastStore();
 const {
   apiStore,
   followActiveApiLabel,
@@ -205,8 +207,9 @@ function onExport(name: string): void {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    toast.success("剧情推进预设 JSON 已导出。");
   } catch {
-    /* ignore */
+    toast.error("剧情推进预设 JSON 导出失败。");
   }
 }
 

@@ -132,7 +132,8 @@ describe('ApiPage', () => {
 
     expect(settings.apiPresets.some((preset: any) => preset.name === 'beta-renamed')).toBe(true);
     expect(settings.apiPresetBindingsByChat['chat-page'].presetName).toBe('beta-renamed');
-    expect(page.textContent || '').toContain('已保存当前 API 预设');
+    expect(page.textContent || '').not.toContain('已保存当前 API 预设');
+    expect(document.body.textContent || '').toContain('已保存当前 API 预设');
 
     mount.__resetAcuV2MountForTests();
   });
@@ -190,7 +191,8 @@ describe('ApiPage', () => {
 
     expect(settings.apiPresets.some((preset: any) => preset.name === 'first-api')).toBe(true);
     expect(settings.apiPresetBindingsByChat['chat-page'].presetName).toBe('first-api');
-    expect(page.textContent || '').toContain('已保存当前 API 预设');
+    expect(page.textContent || '').not.toContain('已保存当前 API 预设');
+    expect(document.body.textContent || '').toContain('已保存当前 API 预设');
 
     mount.__resetAcuV2MountForTests();
   });

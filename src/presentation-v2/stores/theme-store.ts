@@ -12,35 +12,213 @@ import {
   ACU_V2_BUILTIN_THEMES,
   ACU_V2_DEFAULT_THEME_ID,
 } from '../theme/builtin-themes';
-import type { AcuV2Theme, AcuV2ThemeId } from '../theme/theme-types';
+import {
+  ACU_V2_CUSTOM_THEME_FILE_KIND,
+  ACU_V2_CUSTOM_THEME_FILE_VERSION,
+  TOKEN_VAR_MAP,
+  type AcuV2BuiltinThemeId,
+  type AcuV2ColorScheme,
+  type AcuV2CustomThemeFile,
+  type AcuV2CustomThemeId,
+  type AcuV2Theme,
+  type AcuV2ThemeId,
+  type AcuV2ThemeTokens,
+} from '../theme/theme-types';
 import { readSection, writeSection } from './persistence';
 
 const SECTION_KEY = 'theme';
+const CUSTOM_THEME_ID_PREFIX = 'custom:';
+const MAX_CUSTOM_THEMES = 24;
+const MAX_THEME_NAME_LENGTH = 40;
+const MAX_TOKEN_VALUE_LENGTH = 240;
 
 interface PersistedTheme {
-  activeId: AcuV2ThemeId;
+  activeId?: unknown;
+  customThemes?: unknown;
 }
 
 interface ThemeState {
   activeId: AcuV2ThemeId;
+  customThemes: AcuV2Theme[];
 }
 
-function isValidId(id: unknown): id is AcuV2ThemeId {
+interface InitialThemeState {
+  activeId: AcuV2ThemeId;
+  customThemes: AcuV2Theme[];
+}
+
+type ThemeImportSource = AcuV2CustomThemeFile | {
+  id?: unknown;
+  name?: unknown;
+  colorScheme?: unknown;
+  tokens?: unknown;
+};
+
+function isBuiltinThemeId(id: unknown): id is AcuV2BuiltinThemeId {
   return typeof id === 'string' && ACU_V2_BUILTIN_THEMES.some(t => t.id === id);
 }
 
-function readInitialId(): AcuV2ThemeId {
+export function isCustomThemeId(id: unknown): id is AcuV2CustomThemeId {
+  return typeof id === 'string' && id.startsWith(CUSTOM_THEME_ID_PREFIX);
+}
+
+function isSafeCustomThemeId(id: unknown): id is AcuV2CustomThemeId {
+  return isCustomThemeId(id) && /^custom:[a-z0-9][a-z0-9_-]{2,48}$/i.test(id);
+}
+
+function themeExists(id: unknown, customThemes: readonly AcuV2Theme[]): id is AcuV2ThemeId {
+  return isBuiltinThemeId(id) || customThemes.some(t => t.id === id);
+}
+
+function sanitizeThemeName(value: unknown): string {
+  const name = String(value || '').trim().replace(/\s+/g, ' ').slice(0, MAX_THEME_NAME_LENGTH);
+  return name || '自定义主题';
+}
+
+function sanitizeSlug(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 36);
+  return slug || 'theme';
+}
+
+function isColorScheme(value: unknown): value is AcuV2ColorScheme {
+  return value === 'light' || value === 'dark';
+}
+
+function isSafeTokenValue(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > MAX_TOKEN_VALUE_LENGTH) return false;
+  if (/[;{}<>!]/.test(trimmed)) return false;
+  if (trimmed.includes('/*') || trimmed.includes('*/')) return false;
+  if (/url\s*\(/i.test(trimmed)) return false;
+  return true;
+}
+
+function sanitizeThemeTokens(value: unknown): AcuV2ThemeTokens | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as Record<string, unknown>;
+  const result: Partial<AcuV2ThemeTokens> = {};
+  const keys = Object.keys(TOKEN_VAR_MAP) as Array<keyof AcuV2ThemeTokens>;
+  for (const key of keys) {
+    if (!isSafeTokenValue(source[key])) return null;
+    result[key] = source[key].trim();
+  }
+  return result as AcuV2ThemeTokens;
+}
+
+function makeUniqueCustomThemeId(
+  name: string,
+  customThemes: readonly AcuV2Theme[],
+): AcuV2CustomThemeId {
+  const base = `${CUSTOM_THEME_ID_PREFIX}${sanitizeSlug(name)}`;
+  let candidate = base as AcuV2CustomThemeId;
+  let index = 2;
+  while (customThemes.some(t => t.id === candidate)) {
+    candidate = `${base}-${index}` as AcuV2CustomThemeId;
+    index += 1;
+  }
+  return candidate;
+}
+
+function normalizeThemeSource(
+  source: ThemeImportSource,
+  customThemes: readonly AcuV2Theme[],
+): AcuV2Theme {
+  const isWrapped =
+    source &&
+    typeof source === 'object' &&
+    (source as Partial<AcuV2CustomThemeFile>).kind === ACU_V2_CUSTOM_THEME_FILE_KIND;
+  if (isWrapped && (source as Partial<AcuV2CustomThemeFile>).version !== ACU_V2_CUSTOM_THEME_FILE_VERSION) {
+    throw new Error('主题文件版本不受支持。');
+  }
+
+  const wrapped = isWrapped
+    ? (source as Partial<AcuV2CustomThemeFile>).theme
+    : source;
+  if (!wrapped || typeof wrapped !== 'object') {
+    throw new Error('主题文件格式不正确。');
+  }
+
+  const theme = wrapped as Record<string, unknown>;
+  const name = sanitizeThemeName(theme.name);
+  const colorScheme = theme.colorScheme;
+  const tokens = sanitizeThemeTokens(theme.tokens);
+  if (!isColorScheme(colorScheme) || !tokens) {
+    throw new Error('主题文件缺少 v2 主题所需的颜色模式或 token。');
+  }
+
+  const id = isSafeCustomThemeId(theme.id)
+    ? theme.id
+    : makeUniqueCustomThemeId(name, customThemes);
+
+  return { id, name, colorScheme, tokens };
+}
+
+function sanitizePersistedCustomThemes(value: unknown): AcuV2Theme[] {
+  if (!Array.isArray(value)) return [];
+  const themes: AcuV2Theme[] = [];
+  for (const item of value) {
+    if (themes.length >= MAX_CUSTOM_THEMES) break;
+    try {
+      const normalized = normalizeThemeSource(item as ThemeImportSource, themes);
+      if (!isSafeCustomThemeId((item as { id?: unknown })?.id)) continue;
+      const index = themes.findIndex(t => t.id === normalized.id);
+      if (index >= 0) themes[index] = normalized;
+      else themes.push(normalized);
+    } catch {
+      /* 忽略损坏的持久化主题，保留其余可用项。 */
+    }
+  }
+  return themes;
+}
+
+function readInitialThemeState(): InitialThemeState {
   const persisted = readSection<PersistedTheme>(SECTION_KEY);
-  if (persisted && isValidId(persisted.activeId)) return persisted.activeId;
-  return ACU_V2_DEFAULT_THEME_ID;
+  const customThemes = sanitizePersistedCustomThemes(persisted?.customThemes);
+  const activeId = themeExists(persisted?.activeId, customThemes)
+    ? persisted!.activeId as AcuV2ThemeId
+    : ACU_V2_DEFAULT_THEME_ID;
+  return { activeId, customThemes };
+}
+
+function buildPersistedTheme(state: ThemeState): PersistedTheme {
+  const payload: PersistedTheme = { activeId: state.activeId };
+  if (state.customThemes.length > 0) {
+    payload.customThemes = state.customThemes.map(t => ({
+      id: t.id,
+      name: t.name,
+      colorScheme: t.colorScheme,
+      tokens: { ...t.tokens },
+    }));
+  }
+  return payload;
+}
+
+function findThemeById(id: AcuV2ThemeId, customThemes: readonly AcuV2Theme[]): AcuV2Theme | undefined {
+  return ACU_V2_BUILTIN_THEMES.find(t => t.id === id) ?? customThemes.find(t => t.id === id);
+}
+
+function parseThemeFileText(text: string): ThemeImportSource {
+  try {
+    return JSON.parse(text) as ThemeImportSource;
+  } catch {
+    throw new Error('主题文件不是有效 JSON。');
+  }
 }
 
 export const useThemeStore = defineStore('acu-v2-theme', {
-  state: (): ThemeState => ({ activeId: readInitialId() }),
+  state: (): ThemeState => readInitialThemeState(),
   getters: {
-    themes: (): readonly AcuV2Theme[] => ACU_V2_BUILTIN_THEMES,
+    themes: (state): readonly AcuV2Theme[] => [
+      ...ACU_V2_BUILTIN_THEMES,
+      ...state.customThemes,
+    ],
     activeTheme(state): AcuV2Theme {
-      const found = ACU_V2_BUILTIN_THEMES.find(t => t.id === state.activeId);
+      const found = findThemeById(state.activeId, state.customThemes);
       // 启动时从 localStorage 读到合法 id；不存在的 id 不会被 isValidId 放进 state，
       // 所以这里走 fallback 仅是兜底（手动篡改 storage 之类）
       return found ?? ACU_V2_BUILTIN_THEMES[0];
@@ -48,13 +226,52 @@ export const useThemeStore = defineStore('acu-v2-theme', {
   },
   actions: {
     setTheme(id: AcuV2ThemeId): void {
-      if (!isValidId(id)) return;
+      if (!themeExists(id, this.customThemes)) return;
       if (this.activeId === id) return;
       this.activeId = id;
       this.persist();
     },
+    importCustomThemeFromJsonText(text: string): AcuV2Theme {
+      const source = parseThemeFileText(text);
+      const theme = normalizeThemeSource(source, this.customThemes);
+      const index = this.customThemes.findIndex(t => t.id === theme.id);
+      if (index >= 0) this.customThemes.splice(index, 1, theme);
+      else {
+        if (this.customThemes.length >= MAX_CUSTOM_THEMES) {
+          throw new Error(`最多只能保存 ${MAX_CUSTOM_THEMES} 个自定义主题。`);
+        }
+        this.customThemes.push(theme);
+      }
+      this.activeId = theme.id;
+      this.persist();
+      return theme;
+    },
+    deleteCustomTheme(id: AcuV2ThemeId): boolean {
+      if (!isCustomThemeId(id)) return false;
+      const before = this.customThemes.length;
+      this.customThemes = this.customThemes.filter(t => t.id !== id);
+      if (this.customThemes.length === before) return false;
+      if (this.activeId === id) this.activeId = ACU_V2_DEFAULT_THEME_ID;
+      this.persist();
+      return true;
+    },
+    buildThemeFile(id: AcuV2ThemeId): AcuV2CustomThemeFile {
+      const theme = findThemeById(id, this.customThemes);
+      if (!theme) throw new Error('主题不存在。');
+      const isCustom = isCustomThemeId(theme.id);
+      return {
+        kind: ACU_V2_CUSTOM_THEME_FILE_KIND,
+        version: ACU_V2_CUSTOM_THEME_FILE_VERSION,
+        theme: {
+          ...(isCustom ? { id: theme.id as AcuV2CustomThemeId } : {}),
+          name: theme.name,
+          colorScheme: theme.colorScheme,
+          tokens: { ...theme.tokens },
+        },
+      };
+    },
     persist(): void {
-      writeSection(SECTION_KEY, { activeId: this.activeId } satisfies PersistedTheme);
+      writeSection(SECTION_KEY, buildPersistedTheme(this.$state));
     },
   },
 });

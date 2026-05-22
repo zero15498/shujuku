@@ -27,6 +27,9 @@ function mockSqlConsoleDeps(opts: {
   vi.doMock('../../../src/service/table/table-storage-strategy', () => ({
     getStorageProvider,
   }));
+  vi.doMock('../../../src/service/runtime/state-manager', () => ({
+    settings_ACU: { toastMuteEnabled: false },
+  }));
 
   return { executeQuery, executeMutation, getStorageProvider };
 }
@@ -37,16 +40,25 @@ beforeEach(() => {
 });
 
 describe('useSqlConsole', () => {
+  async function freshFlow() {
+    const [{ createPinia, setActivePinia }, { useSqlConsole, __resetSqlConsoleHistoryForTests }, { useToastStore }] =
+      await Promise.all([
+        import('pinia'),
+        import('../../../src/presentation-v2/composables/useSqlConsole'),
+        import('../../../src/presentation-v2/stores/toast-store'),
+      ]);
+    setActivePinia(createPinia());
+    __resetSqlConsoleHistoryForTests();
+    return { flow: useSqlConsole(), toast: useToastStore() };
+  }
+
   it('空 SQL 不调用 provider，并提示 warning', async () => {
     const deps = mockSqlConsoleDeps({});
-    const { useSqlConsole, __resetSqlConsoleHistoryForTests } = await import('../../../src/presentation-v2/composables/useSqlConsole');
-    __resetSqlConsoleHistoryForTests();
-
-    const flow = useSqlConsole();
+    const { flow, toast } = await freshFlow();
     flow.executeCurrent();
 
     expect(deps.getStorageProvider).not.toHaveBeenCalled();
-    expect(flow.message.value?.kind).toBe('warning');
+    expect(toast.items.at(-1)).toMatchObject({ kind: 'warning' });
     expect(flow.history.value).toHaveLength(0);
   });
 
@@ -58,10 +70,7 @@ describe('useSqlConsole', () => {
         rowCount: 1,
       },
     });
-    const { useSqlConsole, __resetSqlConsoleHistoryForTests } = await import('../../../src/presentation-v2/composables/useSqlConsole');
-    __resetSqlConsoleHistoryForTests();
-
-    const flow = useSqlConsole();
+    const { flow } = await freshFlow();
     flow.sqlText.value = 'SELECT id, name FROM item;';
     flow.executeCurrent();
 
@@ -77,10 +86,7 @@ describe('useSqlConsole', () => {
     const deps = mockSqlConsoleDeps({
       mutationResult: { changes: 0, errors: ['no such table: item'] },
     });
-    const { useSqlConsole, __resetSqlConsoleHistoryForTests } = await import('../../../src/presentation-v2/composables/useSqlConsole');
-    __resetSqlConsoleHistoryForTests();
-
-    const flow = useSqlConsole();
+    const { flow, toast } = await freshFlow();
     flow.sqlText.value = "UPDATE item SET name = 'x';";
     flow.executeCurrent();
 
@@ -88,15 +94,12 @@ describe('useSqlConsole', () => {
     expect(flow.result.value.kind).toBe('error');
     expect(flow.result.value.error).toContain('no such table');
     expect(flow.history.value[0]).toMatchObject({ success: false });
-    expect(flow.message.value?.kind).toBe('error');
+    expect(toast.items.at(-1)).toMatchObject({ kind: 'error' });
   });
 
   it('非 SQLite 模式下拒绝执行', async () => {
     const deps = mockSqlConsoleDeps({ sqlite: false });
-    const { useSqlConsole, __resetSqlConsoleHistoryForTests } = await import('../../../src/presentation-v2/composables/useSqlConsole');
-    __resetSqlConsoleHistoryForTests();
-
-    const flow = useSqlConsole();
+    const { flow } = await freshFlow();
     flow.sqlText.value = 'SELECT 1;';
     flow.executeCurrent();
 

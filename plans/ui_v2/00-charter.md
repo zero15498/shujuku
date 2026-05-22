@@ -103,13 +103,14 @@ PC 宽屏下已经是左侧 sidebar，但窄屏会退化为横向滚动的胶囊
 - token 表只保留 `--acu-*` 主集合（背景 / 边框 / 文本 / 强调 / 状态 / 圆角 / 阴影 / 字体）
 - 注入到新 UI 根元素（如 `#acu-app-v2`），与旧主题 `<style>` 节点物理隔离、互不影响
 - 切换主题 = 替换根元素上的 style 文本；持久化走新 UI 自己的 store，不走 `settings_ACU + saveSettingsAndNotify_ACU`
-- 阶段 1 范围：4 个内置主题切换；自定义主题导入导出推迟
+- 阶段 1 范围：4 个内置主题切换；2026-05-19 补充：自定义主题导入 / 导出 / 删除已按 v2 自有 JSON 格式落地，仍不兼容旧 `ACUThemeFile`
 
 **Toast / custom-confirm / visualizer 处置（选择 A）**：
 
-- 阶段 1-3 期间：新 UI 内的 toast / 确认弹窗调用**沿用旧 `showToastr_ACU` / `customConfirm`**，视觉上稍有不一致可接受
+- 阶段 1-3 期间的原决策：新 UI 内的 toast / 确认弹窗调用可沿用旧 `showToastr_ACU` / `customConfirm`，视觉上稍有不一致可接受。
+- 2026-05-21 规划修订：v2 toast / confirm / input dialog 的试做实现已回滚；当前只保留方案文档。短期 v2 toast 收窄为 [04-toast-notification-plan.md](04-toast-notification-plan.md) 的主界面内短反馈；[08-toast-routing-consolidation.md](08-toast-routing-consolidation.md) 的全局路由方向暂停为历史备选。
 - visualizer 阶段 1-3+ 不动（独立窗口，不在新 UI 内嵌）；SQL 控制台 / 运行日志已在 2026-05-09 的 v2 主弹窗覆盖审查中落为 v2 一级页
-- 等下线旧 UI 时再用 Vue 重写 toast / confirm 的新版本，归并到新主题系统
+- 下线旧 UI 前仍需迁移 / 删除旧 confirm、旧 visualizer、旧 window system 与旧 `presentation/` runtime 胶水；长期反馈通道见 [07-architecture.md](07-architecture.md)。
 
 ---
 

@@ -127,10 +127,6 @@
             >
           </div>
 
-          <AcuMessage v-if="loop.message.value" :kind="loop.message.value.kind">
-            {{ loop.message.value.text }}
-          </AcuMessage>
-
           <div class="acu-v2-continuation-page__actions">
             <AcuButton
               v-if="!loop.running.value"
@@ -158,7 +154,6 @@ import AcuButton from "../components/_lib/AcuButton.vue";
 import AcuFormRow from "../components/_lib/AcuFormRow.vue";
 import AcuIconButton from "../components/_lib/AcuIconButton.vue";
 import AcuInput from "../components/_lib/AcuInput.vue";
-import AcuMessage from "../components/_lib/AcuMessage.vue";
 import AcuPanel from "../components/_lib/AcuPanel.vue";
 import AcuPanelGrid from "../components/_lib/AcuPanelGrid.vue";
 import AcuTextarea from "../components/_lib/AcuTextarea.vue";

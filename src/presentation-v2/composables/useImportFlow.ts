@@ -5,7 +5,6 @@
  * AI 注入循环使用 service/table/update-orchestrator 的纯业务入口接通，
  * v2 代码不跨进旧 presentation/。
  */
-import { ref } from 'vue';
 import { useImportFlowStore } from '../stores/import-flow-store';
 import { importTempGet_ACU, importTempRemove_ACU, importTempSet_ACU } from '../../shared/idb-import-temp';
 import {
@@ -28,26 +27,16 @@ import {
   executeCardUpdateCore_ACU,
   type CardUpdateProgressEvent,
 } from '../../service/table/update-orchestrator';
+import { useToastStore } from '../stores/toast-store';
 
 export type ImportMessageKind = 'info' | 'success' | 'warning' | 'error';
 
-export interface ImportMessage {
-  kind: ImportMessageKind;
-  text: string;
-  at: number;
-}
-
 export interface UseImportFlow {
-  message: ReturnType<typeof ref<ImportMessage | null>>;
   splitFile(file: File): Promise<void>;
   clearStaging(): Promise<void>;
   clearImportedEntries(): Promise<void>;
   deleteImportedEntries(): Promise<void>;
   injectChunks(): Promise<void>;
-}
-
-function setMessage(target: ReturnType<typeof ref<ImportMessage | null>>, kind: ImportMessageKind, text: string): void {
-  target.value = { kind, text, at: Date.now() };
 }
 
 function progressLabel(event: CardUpdateProgressEvent): string {
@@ -94,13 +83,32 @@ async function resolveTargetLorebook(target: string): Promise<string | null> {
 
 export function useImportFlow(): UseImportFlow {
   const store = useImportFlowStore();
-  const message = ref<ImportMessage | null>(null);
+  const toast = useToastStore();
+  let progressToastId: string | null = null;
+
+  function notify(kind: ImportMessageKind, text: string, options: { durationMs?: number; muteable?: boolean } = {}): void {
+    if (progressToastId) {
+      if (toast.update(progressToastId, kind, text, options)) {
+        if (options.durationMs !== 0) progressToastId = null;
+        return;
+      }
+      progressToastId = null;
+    }
+    toast[kind](text, options);
+  }
+
+  function notifyProgress(text: string): void {
+    if (progressToastId && toast.update(progressToastId, 'info', text, { durationMs: 0, muteable: false })) {
+      return;
+    }
+    progressToastId = toast.info(text, { durationMs: 0, muteable: false });
+  }
 
   async function splitFile(file: File): Promise<void> {
     if (!file) return;
     const splitSize = store.splitSize;
     if (!Number.isFinite(splitSize) || splitSize <= 0) {
-      setMessage(message, 'error', '请输入有效的字符分割数。');
+      notify('error', '请输入有效的字符分割数。');
       return;
     }
 
@@ -108,7 +116,7 @@ export function useImportFlow(): UseImportFlow {
     try {
       const content = await readFileText(file, store.encoding);
       if (!content) {
-        setMessage(message, 'warning', '文件为空或读取失败。');
+        notify('warning', '文件为空或读取失败。');
         await store.refreshStaging();
         return;
       }
@@ -127,10 +135,10 @@ export function useImportFlow(): UseImportFlow {
       }
       await importTempSet_ACU(STORAGE_KEY_IMPORTED_ENTRIES_ACU, JSON.stringify(chunks));
       logDebug_ACU(`[ACU-V2 import] saved ${chunks.length} chunks (split=${splitSize})`);
-      setMessage(message, 'success', `文件已成功拆分成 ${chunks.length} 个部分。`);
+      notify('success', `文件已成功拆分成 ${chunks.length} 个部分。`);
     } catch (e: any) {
       logError_ACU('[ACU-V2] splitFile failed', e);
-      setMessage(message, 'error', e?.message || '读取文件时出错。');
+      notify('error', e?.message || '读取文件时出错。');
     } finally {
       await store.refreshStaging();
       store.setBusy(false);
@@ -148,14 +156,13 @@ export function useImportFlow(): UseImportFlow {
         importTempRemove_ACU(STORAGE_KEY_IMPORTED_STATUS_SUMMARY_ACU),
         importTempRemove_ACU(STORAGE_KEY_IMPORTED_STATUS_FULL_ACU),
       ]);
-      setMessage(
-        message,
+      notify(
         before ? 'success' : 'info',
-        before ? '已成功清除导入暂存缓存。' : '没有需要清除的导入暂存缓存。'
+        before ? '已成功清除导入暂存缓存。' : '没有需要清除的导入暂存缓存。',
       );
     } catch (e: any) {
       logError_ACU('[ACU-V2] clearStaging failed', e);
-      setMessage(message, 'error', '清除导入缓存时出错。');
+      notify('error', '清除导入缓存时出错。');
     } finally {
       await store.refreshStaging();
       store.setBusy(false);
@@ -165,20 +172,20 @@ export function useImportFlow(): UseImportFlow {
   async function clearImportedEntries(): Promise<void> {
     const target = await resolveTargetLorebook(store.worldbookTarget);
     if (!target) {
-      setMessage(message, 'error', '无法清除导入条目：未设置数据注入目标。');
+      notify('error', '无法清除导入条目：未设置数据注入目标。');
       return;
     }
     store.setBusy(true);
     try {
       const result = await clearImportedEntriesCore_ACU(target);
       if (result.deletedCount > 0) {
-        setMessage(message, 'success', `成功清除了 ${result.deletedCount} 个导入条目。`);
+        notify('success', `成功清除了 ${result.deletedCount} 个导入条目。`);
       } else {
-        setMessage(message, 'info', '没有找到可清除的已注入世界书条目。');
+        notify('info', '没有找到可清除的已注入世界书条目。');
       }
     } catch (e: any) {
       logError_ACU('[ACU-V2] clearImportedEntries failed', e);
-      setMessage(message, 'error', '清除导入条目时出错。');
+      notify('error', '清除导入条目时出错。');
     } finally {
       await store.refreshStaging();
       store.setBusy(false);
@@ -188,20 +195,20 @@ export function useImportFlow(): UseImportFlow {
   async function deleteImportedEntries(): Promise<void> {
     const target = await resolveTargetLorebook(store.worldbookTarget);
     if (!target) {
-      setMessage(message, 'error', '无法删除注入条目：未设置导入数据注入目标世界书。');
+      notify('error', '无法删除注入条目：未设置导入数据注入目标世界书。');
       return;
     }
     store.setBusy(true);
     try {
       const deletedCount = await deleteImportedEntriesCore_ACU(target);
       if (deletedCount > 0) {
-        setMessage(message, 'success', `成功删除了 ${deletedCount} 个外部导入注入的条目。`);
+        notify('success', `成功删除了 ${deletedCount} 个外部导入注入的条目。`);
       } else {
-        setMessage(message, 'info', `在世界书 "${target}" 中没有找到符合当前标识的外部导入条目。`);
+        notify('info', `在世界书 "${target}" 中没有找到符合当前标识的外部导入条目。`);
       }
     } catch (e: any) {
       logError_ACU('[ACU-V2] deleteImportedEntries failed', e);
-      setMessage(message, 'error', '删除注入条目时出错。');
+      notify('error', '删除注入条目时出错。');
     } finally {
       store.setBusy(false);
     }
@@ -212,7 +219,7 @@ export function useImportFlow(): UseImportFlow {
 
     const savedEntriesJson = await importTempGet_ACU(STORAGE_KEY_IMPORTED_ENTRIES_ACU);
     if (!savedEntriesJson) {
-      setMessage(message, 'warning', '尚未加载 TXT 文件。请先选择并拆分文件。');
+      notify('warning', '尚未加载 TXT 文件。请先选择并拆分文件。');
       await store.refreshStaging();
       return;
     }
@@ -228,19 +235,19 @@ export function useImportFlow(): UseImportFlow {
         importTempRemove_ACU(STORAGE_KEY_IMPORTED_STATUS_ACU),
       ]);
       await store.refreshStaging();
-      setMessage(message, 'error', '导入暂存数据已损坏，已清空。请重新选择 TXT 文件。');
+      notify('error', '导入暂存数据已损坏，已清空。请重新选择 TXT 文件。');
       return;
     }
 
     if (allChunks.length === 0) {
       await store.refreshStaging();
-      setMessage(message, 'warning', '没有可注入的分块。请重新选择 TXT 文件。');
+      notify('warning', '没有可注入的分块。请重新选择 TXT 文件。');
       return;
     }
 
     const target = await resolveTargetLorebook(store.worldbookTarget);
     if (!target) {
-      setMessage(message, 'error', '无法注入：未设置导入数据注入目标世界书。');
+      notify('error', '无法注入：未设置导入数据注入目标世界书。');
       return;
     }
 
@@ -249,16 +256,17 @@ export function useImportFlow(): UseImportFlow {
       ? store.selectedSheetKeys.slice()
       : store.availableSheetKeys.slice();
     if (store.hasTableSelection && selectedSheetKeys.length === 0) {
-      setMessage(message, 'error', '未选择任何表格，无法注入。请先在"注入表选择"中勾选至少一个表。');
+      notify('error', '未选择任何表格，无法注入。请先在"注入表选择"中勾选至少一个表。');
       return;
     }
 
     store.setBusy(true);
+    progressToastId = null;
     try {
       const selectionSig = JSON.stringify(selectedSheetKeys);
       const initResult = await initImportDatabase_ACU(target, selectedSheetKeys, allChunks, selectionSig);
       if (!initResult.success || !initResult.status || !initResult.modeSuffix) {
-        setMessage(message, 'error', initResult.error || '导入初始化失败。');
+        notify('error', initResult.error || '导入初始化失败。');
         return;
       }
 
@@ -274,7 +282,7 @@ export function useImportFlow(): UseImportFlow {
         const maxOuterRetries = 3;
 
         for (let attempt = 1; attempt <= maxOuterRetries && !success; attempt++) {
-          setMessage(message, 'info', `正在处理分块 ${i + 1}/${allChunks.length}（尝试 ${attempt}/${maxOuterRetries}）...`);
+          notifyProgress(`正在处理分块 ${i + 1}/${allChunks.length}（尝试 ${attempt}/${maxOuterRetries}）...`);
           const result = await executeCardUpdateCore_ACU(
             [mockMessage],
             -1,
@@ -286,7 +294,7 @@ export function useImportFlow(): UseImportFlow {
             new AbortController(),
             { currentBatch: i + 1, totalBatches: allChunks.length },
             event => {
-              setMessage(message, 'info', progressLabel(event));
+              notifyProgress(progressLabel(event));
             },
           );
           success = result.success;
@@ -300,36 +308,36 @@ export function useImportFlow(): UseImportFlow {
           status.currentIndex = i;
           await importTempSet_ACU(STORAGE_KEY_IMPORTED_STATUS_ACU, JSON.stringify(status));
           await store.refreshStaging();
-          setMessage(message, 'error', `分块 ${i + 1}/${allChunks.length} 处理失败，已保存断点。${lastError || '请稍后点击继续注入。'}`);
+          notify('error', `分块 ${i + 1}/${allChunks.length} 处理失败，已保存断点。${lastError || '请稍后点击继续注入。'}`, { muteable: false });
           return;
         }
 
         const saved = await saveChunkProgress_ACU(target, modeSuffix, status, i);
         if (!saved) {
-          setMessage(message, 'error', `第 ${i + 1} 个分块已处理，但无法保存临时数据库条目，已停止继续导入。`);
+          notify('error', `第 ${i + 1} 个分块已处理，但无法保存临时数据库条目，已停止继续导入。`, { muteable: false });
           return;
         }
         await store.refreshStaging();
       }
 
-      setMessage(message, 'info', '所有文本块已处理完毕，正在生成最终世界书条目...');
+      notifyProgress('所有文本块已处理完毕，正在生成最终世界书条目...');
       const finalResult = await finalizeImportAndCleanup_ACU(target, selectedSheetKeys, modeSuffix, allChunks.length);
       if (!finalResult.success) {
-        setMessage(message, 'error', finalResult.error || '最终注入失败。');
+        notify('error', finalResult.error || '最终注入失败。', { muteable: false });
         return;
       }
 
       store.setWorldbookTarget('');
-      setMessage(
-        message,
+      notify(
         'success',
         finalResult.cleanedCount && finalResult.cleanedCount > 0
           ? `外部导入已完成：已注入 ${allChunks.length} 个分块，并清理 ${finalResult.cleanedCount} 个旧数据库条目。`
           : `外部导入已完成：已注入 ${allChunks.length} 个分块并解除与世界书的绑定。`,
+        { muteable: false },
       );
     } catch (e: any) {
       logError_ACU('[ACU-V2] injectChunks failed', e);
-      setMessage(message, 'error', `外部导入失败：${e?.message || '未知错误'}`);
+      notify('error', `外部导入失败：${e?.message || '未知错误'}`, { muteable: false });
     } finally {
       await store.refreshStaging();
       store.setBusy(false);
@@ -337,7 +345,6 @@ export function useImportFlow(): UseImportFlow {
   }
 
   return {
-    message,
     splitFile,
     clearStaging,
     clearImportedEntries,

@@ -12,6 +12,7 @@ import { performContentOptimization_ACU } from '../../service/optimization/conte
 import { getLastOptimizedMessageIndex_ACU } from '../../service/plot/plot-logic';
 import { settings_ACU } from '../../service/runtime/state-manager';
 import { saveSettings_ACU } from '../../service/settings/settings-service';
+import { useToastStore } from './toast-store';
 
 export type ContentReplaceMessageKind = 'info' | 'success' | 'warning' | 'error';
 export type ContentReplaceBusyAction = '' | 'test' | 'reoptimize' | 'import-presets' | 'export-preset';
@@ -162,6 +163,11 @@ function readApiPresetNames(): string[] {
 
 function setMessage(store: ContentReplaceState, kind: ContentReplaceMessageKind, text: string): void {
   store.message = { kind, text, at: Date.now() };
+}
+
+function clearMessageAndToast(store: ContentReplaceState, kind: 'success' | 'info' | 'warning' | 'error', text: string, options?: { muteable?: boolean }): void {
+  store.message = null;
+  useToastStore()[kind](text, options);
 }
 
 function promptFingerprint(segments: ContentReplacePromptSegment[]): string {
@@ -417,7 +423,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
     },
     savePromptGroup(): void {
       this.saveToSettings();
-      setMessage(this, 'success', `已保存 ${this.promptGroup.length} 段正文替换提示词。`);
+      clearMessageAndToast(this, 'success', '正文替换提示词已保存。');
     },
     savePromptGroupToPreset(name: string): void {
       const normalized = String(name || '').trim();
@@ -437,7 +443,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       this.activePresetHint = normalized;
       this.presetNameDraft = normalized;
       this.saveToSettings();
-      setMessage(this, 'success', `预设"${normalized}"已更新。`);
+      clearMessageAndToast(this, 'success', `预设"${normalized}"已更新。`);
     },
     selectPreset(name: string): void {
       const normalized = String(name || '').trim();
@@ -447,7 +453,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
         this.presetNameDraft = '';
         this.promptGroup = defaultPromptGroup();
         this.saveToSettings();
-        setMessage(this, 'success', '已加载默认预设。');
+        this.message = null;
         return;
       }
       const preset = this.promptPresets.find(p => p.name === normalized);
@@ -456,7 +462,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       this.presetNameDraft = preset.name;
       this.promptGroup = clone(preset.promptGroup);
       this.saveToSettings();
-      setMessage(this, 'success', `已加载预设"${preset.name}"。`);
+      this.message = null;
     },
     savePreset(): void {
       const selected = this.hasSelectedPreset ? this.selectedPresetName : '';
@@ -476,7 +482,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       this.activePresetHint = name;
       this.presetNameDraft = name;
       this.saveToSettings();
-      setMessage(this, 'success', `预设"${name}"已保存。`);
+      clearMessageAndToast(this, 'success', `预设"${name}"已保存。`);
     },
     createPresetFromDefault(): void {
       const name = uniquePresetName(this.promptPresets, '新正文替换预设');
@@ -486,7 +492,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       this.presetNameDraft = name;
       this.promptGroup = clone(nextPreset.promptGroup);
       this.saveToSettings();
-      setMessage(this, 'success', `已从默认预设新建"${name}"。`);
+      this.message = null;
     },
     deletePreset(): void {
       this.deletePresetByName(this.selectedPresetName);
@@ -500,7 +506,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       }
       if (this.presetNameDraft === name) this.presetNameDraft = '';
       this.saveToSettings();
-      setMessage(this, 'success', `预设"${name}"已删除。`);
+      this.message = null;
     },
     renamePreset(oldName: string, newName: string): void {
       const source = String(oldName || '').trim();
@@ -526,7 +532,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       if (this.activePresetHint === source) this.activePresetHint = target;
       if (this.presetNameDraft === source) this.presetNameDraft = target;
       this.saveToSettings();
-      setMessage(this, 'success', `预设已重命名为"${target}"。`);
+      this.message = null;
     },
     exportSelectedPreset(): void {
       this.exportPresetByName(this.selectedPresetName);
@@ -541,7 +547,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       try {
         const safeName = preset.name.replace(/[^a-z0-9_\-\u4e00-\u9fa5]/gi, '_');
         downloadJson(`optimization_preset_${safeName}.json`, [preset]);
-        setMessage(this, 'success', `预设"${preset.name}"已导出。`);
+        clearMessageAndToast(this, 'success', '正文替换预设 JSON 已导出。');
       } finally {
         this.busyAction = '';
       }
@@ -568,7 +574,7 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
         this.presetNameDraft = imported[0].name;
         this.promptGroup = clone(imported[0].promptGroup);
         this.saveToSettings();
-        setMessage(this, 'success', `已导入 ${added} 个新预设，覆盖 ${replaced} 个同名预设。`);
+        clearMessageAndToast(this, 'success', `已导入 ${added} 个正文替换预设，覆盖 ${replaced} 个同名预设。`, { muteable: false });
       } catch (e: any) {
         logError_ACU('[ACU-V2] import content replace presets failed', e);
         setMessage(this, 'error', `导入预设失败：${e?.message || '未知错误'}`);
@@ -587,11 +593,17 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
       try {
         const result = await performContentOptimization_ACU(input, { currentLoop: 1, userMessage: '' });
         this.testOutput = formatOptimizationResult(result);
-        setMessage(this, result?.success ? 'success' : 'error', result?.success ? '测试完成。' : `测试失败：${result?.error || '未知错误'}`);
+        if (result?.success) {
+          clearMessageAndToast(this, 'success', '正文替换测试完成。', { muteable: false });
+        } else {
+          setMessage(this, 'error', '上一次正文替换测试失败，请检查配置或查看运行日志。');
+          useToastStore().error(`正文替换测试失败：${result?.error || '未知错误'}`, { muteable: false });
+        }
       } catch (e: any) {
         logError_ACU('[ACU-V2] content replace test failed', e);
         this.testOutput = `优化出错：${e?.message || '未知错误'}`;
-        setMessage(this, 'error', this.testOutput);
+        setMessage(this, 'error', '上一次正文替换测试失败，请检查配置或查看运行日志。');
+        useToastStore().error(`正文替换测试失败：${e?.message || '未知错误'}`, { muteable: false });
       } finally {
         this.busyAction = '';
       }
@@ -614,16 +626,17 @@ export const useContentReplaceStore = defineStore('acu-v2-content-replace', {
         const result = await performContentOptimization_ACU(originalContent, { currentLoop: 1, userMessage: '' });
         if (!result?.success) throw new Error(result?.error || '正文替换失败。');
         if (!Array.isArray(result.optimizations) || result.optimizations.length === 0) {
-          setMessage(this, 'info', '原文已足够好，无需重新替换。');
+          clearMessageAndToast(this, 'info', '原文已足够好，无需重新替换。', { muteable: false });
           return;
         }
         const success = await replaceChatMessage_ACU(messageIndex, result.optimizedContent, { originalContent });
         if (!success) throw new Error('写回聊天消息失败。');
         this.refreshFromSettings();
-        setMessage(this, 'success', `已重新优化并替换 ${result.optimizations.length} 处内容。`);
+        clearMessageAndToast(this, 'success', `已重新优化并替换 ${result.optimizations.length} 处内容。`, { muteable: false });
       } catch (e: any) {
         logError_ACU('[ACU-V2] reoptimize latest failed', e);
-        setMessage(this, 'error', `重新优化失败：${e?.message || '未知错误'}`);
+        setMessage(this, 'error', '上一次重新优化失败，请检查配置或查看运行日志。');
+        useToastStore().error(`重新优化失败：${e?.message || '未知错误'}`, { muteable: false });
       } finally {
         this.busyAction = '';
       }

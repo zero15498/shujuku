@@ -63,10 +63,6 @@
           {{ store.statusText }}
         </AcuMessage>
 
-        <AcuMessage v-if="message" :kind="message.kind">{{
-          message.text
-        }}</AcuMessage>
-
         <div class="acu-v2-import-page__action-grid">
           <AcuFileButton
             variant="primary"
@@ -123,8 +119,6 @@ const encodingOptions: AcuSelectOption[] = [
 const store = useImportFlowStore();
 const flow = useImportFlow();
 const wb = useWorldbookSelector();
-
-const message = computed(() => flow.message.value);
 
 const statusKind = computed(() => {
   if (store.busy) return "info";

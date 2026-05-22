@@ -13,6 +13,8 @@
 - 当前一级页：仪表盘、更新参数、表格模板、剧情推进、API、智能续写、外部导入、交火模式、正文替换、数据管理、SQL 控制台、运行日志、开发者选项。
 - 仍不纳入测试版替代范围：toast / confirm 视觉归一、visualizer Vue 化、旧 `presentation/` 删除、api-registry 搬离 `presentation/`。
 
+2026-05-21 后续修订：v2 toast / confirm / input dialog 试做已回滚；本阶段记录保留 2026-05-09 当时的测试版边界。当前 toast 下线前置债务仍以 [07-architecture.md](../07-architecture.md) 的 feedback port / runtime 分层为长期目标。
+
 ## 覆盖核对
 
 | 旧 UI 区域 | v2 当前归属 | 状态 |
@@ -58,6 +60,6 @@
 ## 已知缺口
 
 - visualizer 仍是旧窗口系统。
-- toast / confirm 尚未 Vue 化。
+- toast / confirm 在本阶段尚未 Vue 化；2026-05-21 试做实现已回滚，下一步 toast 收窄为 v2 主界面内短反馈，旧 `showToastr_ACU` 暂时继续服务旧 runtime / 旧 UI。
 - 真机目视验收仍需覆盖 ImportPage / PlotPage 以及 2026-05-09 新增的一轮全量 smoke。
 - v2 全量 Vitest 并跑稳定性需要修复或调整运行策略。

@@ -15,13 +15,9 @@ import {
   type BatchUpdateProgressContext,
   type CardUpdateProgressEvent,
 } from '../../service/table/update-orchestrator';
+import { useToastStore } from '../stores/toast-store';
 
 type MessageKind = 'info' | 'success' | 'warning' | 'error';
-
-export interface ManualUpdateMessage {
-  kind: MessageKind;
-  text: string;
-}
 
 export interface ManualUpdateState {
   selectedManualTableKeys: Ref<string[]>;
@@ -29,8 +25,6 @@ export interface ManualUpdateState {
   manualBatchSize: Ref<number>;
   manualExtraHint: Ref<string>;
   manualUpdateBusy: Ref<boolean>;
-  manualUpdateMessage: Ref<ManualUpdateMessage | null>;
-  lastProgressText: Ref<string>;
   sheetKeys: ComputedRef<string[]>;
   sheetNames: ComputedRef<Record<string, string>>;
   vectorIndexWarning: ComputedRef<boolean>;
@@ -110,14 +104,32 @@ function progressLabel(event: CardUpdateProgressEvent): string {
 }
 
 export function useManualUpdate(): ManualUpdateState {
+  const toast = useToastStore();
   const selectedManualTableKeys = ref<string[]>(resolveManualSelection(currentSheetKeys()));
   const manualContextDepth = ref(resolveManualContextDepth());
   const manualBatchSize = ref(resolveManualBatchSize());
   const manualExtraHint = ref('');
   const manualUpdateBusy = ref(false);
-  const manualUpdateMessage = ref<ManualUpdateMessage | null>(null);
-  const lastProgressText = ref('');
   const refreshTick = ref(0);
+  let progressToastId: string | null = null;
+
+  function notifyProgress(text: string): void {
+    if (progressToastId && toast.update(progressToastId, 'info', text, { durationMs: 0, muteable: false })) {
+      return;
+    }
+    progressToastId = toast.info(text, { durationMs: 0, muteable: false });
+  }
+
+  function finishToast(kind: MessageKind, text: string): void {
+    if (progressToastId) {
+      if (toast.update(progressToastId, kind, text, { muteable: false })) {
+        progressToastId = null;
+        return;
+      }
+      progressToastId = null;
+    }
+    toast[kind](text, { muteable: false });
+  }
 
   const sheetKeys = computed(() => {
     void refreshTick.value;
@@ -179,13 +191,13 @@ export function useManualUpdate(): ManualUpdateState {
   async function runManualUpdate(): Promise<void> {
     if (manualUpdateBusy.value) return;
     if (!selectedManualTableKeys.value.length) {
-      manualUpdateMessage.value = { kind: 'warning', text: '未选择需要手动填表的表格。' };
+      toast.warning('未选择需要手动填表的表格。');
       return;
     }
 
     manualUpdateBusy.value = true;
-    manualUpdateMessage.value = { kind: 'info', text: '手动填表开始。' };
-    lastProgressText.value = '';
+    progressToastId = null;
+    notifyProgress('手动填表开始。');
     const extra = manualExtraHint.value.trim();
     if (extra) _set_manualExtraHint_ACU(`以下为用户的额外填表要求,请严格遵守:\n${extra}`);
 
@@ -209,7 +221,7 @@ export function useManualUpdate(): ManualUpdateState {
         new AbortController(),
         progressContext,
         (event) => {
-          lastProgressText.value = progressLabel(event);
+          notifyProgress(progressLabel(event));
         },
       ));
 
@@ -223,16 +235,16 @@ export function useManualUpdate(): ManualUpdateState {
         async () => { await reloadStorageProvider(); },
         { clearBeforeUpdate },
       );
-      manualUpdateMessage.value = result.success
-        ? {
-            kind: 'success',
-            text: result.autoMergeTriggered
+      finishToast(
+        result.success ? 'success' : 'error',
+        result.success
+          ? (result.autoMergeTriggered
               ? `手动填表完成;自动合并总结${result.autoMergeSuccess ? '已完成' : '未完成'}。`
-              : '手动填表完成。',
-          }
-        : { kind: 'error', text: result.error || '手动填表失败。' };
+              : '手动填表完成。')
+          : (result.error || '手动填表失败。'),
+      );
     } catch (error: any) {
-      manualUpdateMessage.value = { kind: 'error', text: error?.message || '手动填表执行异常。' };
+      finishToast('error', error?.message || '手动填表执行异常。');
     } finally {
       manualUpdateBusy.value = false;
       refresh();
@@ -245,8 +257,6 @@ export function useManualUpdate(): ManualUpdateState {
     manualBatchSize,
     manualExtraHint,
     manualUpdateBusy,
-    manualUpdateMessage,
-    lastProgressText,
     sheetKeys,
     sheetNames,
     vectorIndexWarning,

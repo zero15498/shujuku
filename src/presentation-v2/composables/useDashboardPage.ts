@@ -37,6 +37,7 @@ import {
 import { getAllLogs, subscribe, type LogEntry } from "../../shared/log-buffer";
 import type { StorageMode } from "../../shared/table-storage-provider";
 import {
+  logError_ACU,
   isSummaryOrOutlineTable_ACU,
   normalizeNonNegativeInteger_ACU,
   normalizePositiveInteger_ACU,
@@ -48,6 +49,7 @@ import {
   syncContentReplaceAvailability,
 } from "../stores/content-replace-gate";
 import { dashboardCopy } from "../copy/dashboard-copy";
+import { useToastStore } from "../stores/toast-store";
 import { useDevOptions } from "./useDevOptions";
 
 type MessageKind = "info" | "success" | "warning" | "error";
@@ -748,6 +750,7 @@ function buildLogHealthItem(): DashboardHealthItem {
 }
 
 export function useDashboardPage(): DashboardPageState {
+  const toast = useToastStore();
   const {
     developerOptionsEnabled,
     setDeveloperOptionsEnabled,
@@ -1073,15 +1076,12 @@ export function useDashboardPage(): DashboardPageState {
     saveSettings_ACU();
     try {
       await switchStorageMode(mode);
-      storageMessage.value = {
-        kind: "success",
-        text: dashboardCopy.storage.switched(mode),
-      };
+      storageMessage.value = null;
+      toast.success(dashboardCopy.storage.switched(mode));
     } catch (error: any) {
-      storageMessage.value = {
-        kind: "error",
-        text: error?.message || dashboardCopy.storage.switchFailed,
-      };
+      logError_ACU("[ACU-V2] storage mode switch failed", error);
+      storageMessage.value = null;
+      toast.error("存储模式切换失败，详情见运行日志");
     } finally {
       await refresh();
     }

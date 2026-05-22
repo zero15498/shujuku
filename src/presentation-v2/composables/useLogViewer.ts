@@ -16,6 +16,7 @@ import {
   setDebugLogEnabled,
   subscribe,
 } from '../../shared/log-buffer';
+import { useToastStore } from '../stores/toast-store';
 
 export type LogLevelFilter = LogLevel | 'all';
 
@@ -52,6 +53,7 @@ function downloadJson(filename: string, data: unknown): void {
 }
 
 export function useLogViewer() {
+  const toast = useToastStore();
   const logs = ref<LogEntry[]>([]);
   const knownTags = ref<string[]>([]);
   const totalCount = ref(0);
@@ -120,16 +122,16 @@ export function useLogViewer() {
     clearLogs();
     pendingEntries.value = [];
     refresh();
-    message.value = { kind: 'success', text: '日志缓冲区已清空。' };
+    message.value = null;
+    toast.success('日志缓冲区已清空。');
   }
 
   function setDebugCollection(enabled: boolean): void {
     setDebugLogEnabled(enabled);
     debugLogEnabled.value = enabled;
-    message.value = {
-      kind: enabled ? 'info' : 'success',
-      text: enabled ? '已开始采集 Debug 日志；排查完成后建议关闭。' : '已停止采集 Debug 日志。',
-    };
+    message.value = null;
+    if (enabled) toast.info('已开始采集 Debug 日志；排查完成后建议关闭。');
+    else toast.success('已停止采集 Debug 日志。');
   }
 
   function exportFiltered(): void {
@@ -141,7 +143,8 @@ export function useLogViewer() {
     }));
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
     downloadJson(`acu-logs-${stamp}.json`, exportData);
-    message.value = { kind: 'success', text: `已导出 ${exportData.length} 条日志。` };
+    message.value = null;
+    toast.success(`已导出 ${exportData.length} 条日志。`);
   }
 
   onMounted(() => {

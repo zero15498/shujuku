@@ -4,6 +4,7 @@ import {
   getCurrentVectorMemoryConfig_ACU,
   validateSummaryVectorIndexConfig_ACU,
 } from "../../service/vector/vector-memory-config";
+import { useToastStore } from "../stores/toast-store";
 
 export interface VectorApiForm {
   embeddingEndpoint: string;
@@ -26,6 +27,7 @@ function createEmptyForm(): VectorApiForm {
 }
 
 export function useVectorApiConfig() {
+  const toast = useToastStore();
   const form = reactive<VectorApiForm>(createEmptyForm());
   const errors = ref<string[]>([]);
   const savedAt = ref<number | null>(null);
@@ -59,6 +61,7 @@ export function useVectorApiConfig() {
     errors.value = [];
     saveSettings_ACU();
     savedAt.value = Date.now();
+    toast.success("向量服务配置已保存。");
     return true;
   }
 

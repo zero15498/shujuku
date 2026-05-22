@@ -17,6 +17,7 @@ import {
   normalizeNonNegativeInteger_ACU,
   normalizePositiveInteger_ACU,
 } from "../../shared/utils";
+import { useToastStore } from "../stores/toast-store";
 
 type MessageKind = "info" | "success" | "warning" | "error";
 
@@ -284,6 +285,7 @@ function promptFingerprint(segments: FormFillPromptSegment[]): string {
 }
 
 export function useFormFillSettings(): FormFillSettingsState {
+  const toast = useToastStore();
   const values = ref<Record<NumberSettingKey, number>>({ ...FALLBACKS });
   const tableApiPreset = ref(String(settings_ACU.tableApiPreset || ""));
   const tableEditLastPairOnly = ref(
@@ -336,11 +338,7 @@ export function useFormFillSettings(): FormFillSettingsState {
     tableApiPreset.value = String(value || "");
     settings_ACU.tableApiPreset = tableApiPreset.value;
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "填表 API 预设已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function setNumber(key: NumberSettingKey, rawValue: number | string): void {
@@ -348,11 +346,7 @@ export function useFormFillSettings(): FormFillSettingsState {
     values.value = { ...values.value, [key]: normalized };
     settings_ACU[key] = normalized;
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "设置已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function setNumbers(
@@ -366,22 +360,14 @@ export function useFormFillSettings(): FormFillSettingsState {
     }
     values.value = nextValues;
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "设置已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function setTableEditLastPairOnly(value: boolean): void {
     tableEditLastPairOnly.value = !!value;
     settings_ACU.tableEditLastPairOnly = tableEditLastPairOnly.value;
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "正文截取方式已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function setExtractRules(rules: FormFillRulePair[]): void {
@@ -391,11 +377,7 @@ export function useFormFillSettings(): FormFillSettingsState {
     );
     settings_ACU.tableContextExtractTags = "";
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "提取规则已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function setExcludeRules(rules: FormFillRulePair[]): void {
@@ -405,11 +387,7 @@ export function useFormFillSettings(): FormFillSettingsState {
     );
     settings_ACU.tableContextExcludeTags = "";
     saveSettings_ACU();
-    message.value = {
-      kind: "success",
-      text: "排除规则已保存。",
-      scope: "settings",
-    };
+    message.value = null;
   }
 
   function addPromptSegment(position: "top" | "bottom"): void {
@@ -481,11 +459,8 @@ export function useFormFillSettings(): FormFillSettingsState {
     saveSettings_ACU();
     promptSegments.value = prepared;
     promptDirty.value = false;
-    message.value = {
-      kind: "success",
-      text: "填表提示词已保存。",
-      scope: "prompt",
-    };
+    message.value = null;
+    toast.success("提示词已保存");
   }
 
   function resetPrompt(): void {
@@ -504,11 +479,8 @@ export function useFormFillSettings(): FormFillSettingsState {
       if (!Array.isArray(parsed)) throw new Error("提示词 JSON 必须是数组。");
       promptSegments.value = normalizePromptSegments(parsed);
       promptDirty.value = true;
-      message.value = {
-        kind: "success",
-        text: "提示词 JSON 已载入，保存后生效。",
-        scope: "prompt",
-      };
+      message.value = null;
+      toast.success("提示词 JSON 已载入，保存后生效");
     } catch (error: any) {
       message.value = {
         kind: "error",
@@ -534,11 +506,8 @@ export function useFormFillSettings(): FormFillSettingsState {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      message.value = {
-        kind: "success",
-        text: "提示词 JSON 已导出。",
-        scope: "prompt",
-      };
+      message.value = null;
+      toast.success("提示词 JSON 已导出");
     } catch (error: any) {
       message.value = {
         kind: "error",

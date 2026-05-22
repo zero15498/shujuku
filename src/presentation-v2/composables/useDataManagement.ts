@@ -29,6 +29,7 @@ import { cleanupWorldbookEntriesAfterDataDeletion_ACU } from '../../service/worl
 import { deleteAllGeneratedEntries_ACU, refreshMergedDataAndNotify_ACU } from '../../service/worldbook/pipeline';
 import { applyTemplateSnapshotToScope_ACU, getDefaultTemplateSnapshot_ACU } from '../../service/template/template-preset-service';
 import { sanitizeChatSheetsObject_ACU } from '../../service/template/chat-scope';
+import { useToastStore } from '../stores/toast-store';
 
 export type DataMgmtMessageKind = 'info' | 'success' | 'warning' | 'error';
 
@@ -110,6 +111,7 @@ function buildCombinedExportPayload(): Record<string, unknown> {
 }
 
 export function useDataManagement() {
+  const toast = useToastStore();
   const message = ref<DataMgmtMessage | null>(null);
   const busyAction = ref('');
   const isolationCode = ref('');
@@ -164,10 +166,12 @@ export function useDataManagement() {
       activeIsolationCode.value = targetCode;
       isolationCode.value = targetCode;
       isolationHistory.value = getDataIsolationHistory_ACU();
-      setMessage(message, 'success', `已切换到 ${targetCode || '默认数据（未隔离）'}。`);
+      message.value = null;
+      toast.success(`已切换到 ${targetCode || '默认数据（未隔离）'}。`);
     } catch (e: any) {
       logError_ACU('[ACU-V2] applyIsolation failed', e);
-      setMessage(message, 'error', `切换隔离标识失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('切换隔离标识失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -188,13 +192,16 @@ export function useDataManagement() {
         activeIsolationCode.value = '';
         isolationCode.value = '';
         isolationHistory.value = getDataIsolationHistory_ACU();
-        setMessage(message, 'success', `已从历史记录移除标识：${target}；当前已切换到默认数据（未隔离）。`);
+        message.value = null;
+        toast.success(`已从历史记录移除标识：${target}；当前已切换到默认数据（未隔离）。`);
       } else {
-        setMessage(message, 'success', `已从历史记录移除标识：${target}`);
+        message.value = null;
+        toast.success(`已从历史记录移除标识：${target}`);
       }
     } catch (e: any) {
       logError_ACU('[ACU-V2] removeHistory failed', e);
-      setMessage(message, 'error', `移除历史标识失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('移除历史标识失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -204,10 +211,12 @@ export function useDataManagement() {
     busyAction.value = 'delete-isolation-entries';
     try {
       await deleteAllGeneratedEntries_ACU();
-      setMessage(message, 'success', '已删除当前标识对应的数据库注入条目。');
+      message.value = null;
+      toast.success('已删除当前标识对应的数据库注入条目。');
     } catch (e: any) {
       logError_ACU('[ACU-V2] deleteCurrentIsolationEntries failed', e);
-      setMessage(message, 'error', `删除注入条目失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('删除注入条目失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -231,7 +240,8 @@ export function useDataManagement() {
       });
       if (!applied) throw new Error('模板结构无效，无法应用到当前全局模板。');
       refresh();
-      setMessage(message, 'success', '合并配置已导入：提示词、合并设置和全局模板已更新。');
+      message.value = null;
+      toast.success('合并配置已导入：提示词、合并设置和全局模板已更新。', { muteable: false });
     } catch (e: any) {
       logError_ACU('[ACU-V2] importCombinedSettings failed', e);
       setMessage(message, 'error', `合并导入失败：${e?.message || '未知错误'}`);
@@ -244,26 +254,31 @@ export function useDataManagement() {
     try {
       const payload = buildCombinedExportPayload();
       downloadJson('TavernDB_Combined_Settings.json', payload);
-      setMessage(message, 'success', '合并配置已导出。');
+      message.value = null;
+      toast.success('合并配置已导出。');
     } catch (e: any) {
       logError_ACU('[ACU-V2] exportCombinedSettings failed', e);
-      setMessage(message, 'error', `合并导出失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('合并配置导出失败，详情见运行日志。');
     }
   }
 
   function exportJsonData(): void {
     if (!currentJsonTableData_ACU) {
-      setMessage(message, 'warning', '没有可导出的数据库。请先开始一个对话或加载当前聊天数据。');
+      message.value = null;
+      toast.warning('没有可导出的数据库。请先开始一个对话或加载当前聊天数据。');
       return;
     }
     try {
       const sanitized = sanitizeChatSheetsObject_ACU(currentJsonTableData_ACU, { ensureMate: true });
       const chatName = String(currentChatFileIdentifier_ACU || 'current_chat').replace(/[\\/:*?"<>|]+/g, '_');
       downloadJson(`TavernDB_data_${chatName}.json`, sanitized);
-      setMessage(message, 'success', '当前聊天数据库 JSON 已导出。');
+      message.value = null;
+      toast.success('当前聊天数据库 JSON 已导出。');
     } catch (e: any) {
       logError_ACU('[ACU-V2] exportJsonData failed', e);
-      setMessage(message, 'error', `导出 JSON 失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('导出 JSON 失败，详情见运行日志。');
     }
   }
 
@@ -283,10 +298,12 @@ export function useDataManagement() {
       });
       if (!applied) throw new Error('默认模板应用失败。');
       saveSettings_ACU();
-      setMessage(message, 'success', '默认模板及提示词已恢复；当前聊天已有本地数据不会被自动覆盖。');
+      message.value = null;
+      toast.success('默认模板及提示词已恢复。');
     } catch (e: any) {
       logError_ACU('[ACU-V2] resetAllDefaults failed', e);
-      setMessage(message, 'error', `恢复默认失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('恢复默认失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -302,13 +319,16 @@ export function useDataManagement() {
       if (modifiedCount > 0) {
         await loadOrCreateJsonTableFromChatHistory_ACU();
         await refreshMergedDataAndNotify_ACU();
-        setMessage(message, 'success', `已使用当前生效模板覆盖最新 AI 楼层的 ${modifiedCount} 个表格。`);
+        message.value = null;
+        toast.success(`已使用当前生效模板覆盖最新 AI 楼层的 ${modifiedCount} 个表格。`, { muteable: false });
       } else {
-        setMessage(message, 'info', '没有找到可覆盖的最新 AI 楼层表格数据。');
+        message.value = null;
+        toast.info('没有找到可覆盖的最新 AI 楼层表格数据。', { muteable: false });
       }
     } catch (e: any) {
       logError_ACU('[ACU-V2] overrideLatestLayerWithTemplate failed', e);
-      setMessage(message, 'error', `模板覆盖失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('模板覆盖失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -334,12 +354,17 @@ export function useDataManagement() {
           'success',
           `已删除 ${deletedCount} 条消息中的本地数据${worldbookDeleted ? `，并清理 ${worldbookDeleted} 个世界书条目` : ''}。`,
         );
+        const text = message.value?.text || '';
+        message.value = null;
+        toast.success(text, { muteable: false });
       } else {
-        setMessage(message, 'info', '没有发现符合当前范围的数据。');
+        message.value = null;
+        toast.info('没有发现符合当前范围的数据。', { muteable: false });
       }
     } catch (e: any) {
       logError_ACU('[ACU-V2] deleteLocalData failed', e);
-      setMessage(message, 'error', `删除本地数据失败：${e?.message || '未知错误'}`);
+      message.value = null;
+      toast.error('删除本地数据失败，详情见运行日志。');
     } finally {
       busyAction.value = '';
     }
@@ -350,13 +375,7 @@ export function useDataManagement() {
     retainRecentLayers.value = normalized;
     settings_ACU.retainRecentLayers = normalized;
     saveSettings_ACU();
-    setMessage(
-      message,
-      'success',
-      normalized > 0
-        ? `自动清理策略已保存：保留最近 ${normalized} 层本地数据。`
-        : '自动清理策略已保存：不会按层数自动清理旧本地数据。',
-    );
+    message.value = null;
   }
 
   return {

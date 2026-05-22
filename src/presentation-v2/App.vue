@@ -1,89 +1,122 @@
 <template>
   <div class="acu-v2-app">
-    <div class="acu-v2-app__body">
-      <Sidebar class="acu-v2-app__desktop-sidebar" />
-      <div class="acu-v2-app__content">
-        <header class="acu-v2-app__header">
-          <div class="acu-v2-app__header-left">
-            <AcuIconButton
-              class="acu-v2-app__menu"
-              icon="fa-solid fa-bars"
-              title="打开导航"
-              :aria-expanded="isMobileNavOpen"
-              @click="openMobileNav"
-            />
-            <h1 class="acu-v2-app__page-title">{{ router.activePage?.title || 'SP·数据库 III' }}</h1>
-          </div>
-          <div class="acu-v2-app__header-right">
-            <div class="acu-v2-app__theme-switcher">
+    <div v-show="rootShell.isOpen" class="acu-v2-app__shell">
+      <div class="acu-v2-app__body">
+        <Sidebar v-if="!visualizer.isActive" class="acu-v2-app__desktop-sidebar" />
+        <div class="acu-v2-app__content">
+          <header v-if="!visualizer.isActive" class="acu-v2-app__header">
+            <div class="acu-v2-app__header-left">
               <AcuIconButton
-                class="acu-v2-app__theme-btn"
-                icon="fa-solid fa-palette"
-                :title="'主题：' + themeStore.activeTheme.name"
-                @click="toggleThemeMenu"
+                v-if="!visualizer.isActive"
+                class="acu-v2-app__menu"
+                icon="fa-solid fa-bars"
+                title="打开导航"
+                :aria-expanded="isMobileNavOpen"
+                @click="openMobileNav"
               />
-              <ul
-                v-if="isThemeMenuRendered"
-                class="acu-v2-app__theme-menu"
-                :class="{ 'is-closing': isThemeMenuClosing }"
-                role="listbox"
-                :aria-label="'选择主题'"
-              >
-                <li
-                  v-for="t in themeStore.themes"
-                  :key="t.id"
-                  role="option"
-                  :aria-selected="t.id === themeStore.activeId"
-                  class="acu-v2-app__theme-option"
-                  :class="{ 'is-active': t.id === themeStore.activeId }"
-                  @click="selectTheme(t.id)"
-                >
-                  <span
-                    class="acu-v2-app__theme-swatch"
-                    :style="{
-                      '--acu-theme-swatch-bg': t.tokens.bg0,
-                      '--acu-theme-swatch-accent': t.tokens.accent,
-                    }"
-                  ></span>
-                  {{ t.name }}
-                </li>
-              </ul>
+              <h1 class="acu-v2-app__page-title">{{ shellTitle }}</h1>
             </div>
-            <AcuIconButton
-              class="acu-v2-app__close"
-              icon="fa-solid fa-xmark"
-              title="关闭新 UI"
-              aria-label="关闭新 UI"
-              @click="closeApp"
-            />
-          </div>
-        </header>
-        <MainArea />
+            <div class="acu-v2-app__header-right">
+              <div class="acu-v2-app__theme-switcher">
+                <AcuIconButton
+                  class="acu-v2-app__theme-btn"
+                  icon="fa-solid fa-palette"
+                  :title="'主题：' + themeStore.activeTheme.name"
+                  @click="toggleThemeMenu"
+                />
+                <ul
+                  v-if="isThemeMenuRendered"
+                  class="acu-v2-app__theme-menu"
+                  :class="{ 'is-closing': isThemeMenuClosing }"
+                  role="listbox"
+                  :aria-label="'选择主题'"
+                >
+                  <li
+                    v-for="t in themeStore.themes"
+                    :key="t.id"
+                    role="option"
+                    :aria-selected="t.id === themeStore.activeId"
+                    class="acu-v2-app__theme-option"
+                    :class="{ 'is-active': t.id === themeStore.activeId }"
+                    @click="selectTheme(t.id)"
+                  >
+                    <span class="acu-v2-app__theme-option-main">
+                      <span
+                        class="acu-v2-app__theme-swatch"
+                        :style="{
+                          '--acu-theme-swatch-bg': t.tokens.bg0,
+                          '--acu-theme-swatch-accent': t.tokens.accent,
+                        }"
+                      ></span>
+                      <span class="acu-v2-app__theme-name">{{ t.name }}</span>
+                      <span v-if="isCustomThemeId(t.id)" class="acu-v2-app__theme-tag">自定义</span>
+                    </span>
+                    <span class="acu-v2-app__theme-tools" @click.stop>
+                      <AcuIconButton
+                        icon="fa-solid fa-download"
+                        size="sm"
+                        :title="'导出主题：' + t.name"
+                        @click="exportTheme(t.id)"
+                      />
+                      <AcuIconButton
+                        icon="fa-solid fa-trash"
+                        size="sm"
+                        :variant="isCustomThemeId(t.id) ? 'danger' : 'default'"
+                        :title="isCustomThemeId(t.id) ? '删除自定义主题：' + t.name : '内置主题不可删除：' + t.name"
+                        @click="deleteTheme(t.id)"
+                      />
+                    </span>
+                  </li>
+                  <li class="acu-v2-app__theme-menu-footer">
+                    <AcuFileButton size="sm" accept="application/json,.json" @file="importThemeFile">
+                      <i class="fa-solid fa-file-import"></i>
+                      导入主题
+                    </AcuFileButton>
+                  </li>
+                </ul>
+              </div>
+              <AcuIconButton
+                class="acu-v2-app__close"
+                icon="fa-solid fa-xmark"
+                :title="visualizer.isActive ? '关闭数据库编辑器' : '关闭新 UI'"
+                :aria-label="visualizer.isActive ? '关闭数据库编辑器' : '关闭新 UI'"
+                @click="closeApp"
+              />
+            </div>
+          </header>
+          <VisualizerSurface v-if="visualizer.isActive" @close="closeApp" />
+          <MainArea v-else />
+        </div>
       </div>
+
+      <div
+        v-if="isMobileNavRendered"
+        class="acu-v2-app__mobile-nav-layer"
+        :class="{ 'is-closing': isMobileNavClosing }"
+        @click.self="closeMobileNav"
+      >
+        <aside
+          class="acu-v2-app__mobile-nav"
+          role="dialog"
+          aria-modal="true"
+          aria-label="一级页导航"
+          @click.stop
+        >
+          <Sidebar variant="drawer" @navigate="closeMobileNav" />
+        </aside>
+      </div>
+
+      <AcuToastViewport />
     </div>
 
-    <div
-      v-if="isMobileNavRendered"
-      class="acu-v2-app__mobile-nav-layer"
-      :class="{ 'is-closing': isMobileNavClosing }"
-      @click.self="closeMobileNav"
-    >
-      <aside
-        class="acu-v2-app__mobile-nav"
-        role="dialog"
-        aria-modal="true"
-        aria-label="一级页导航"
-        @click.stop
-      >
-        <Sidebar variant="drawer" @navigate="closeMobileNav" />
-      </aside>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import AcuFileButton from "./components/_lib/AcuFileButton.vue";
 import AcuIconButton from "./components/_lib/AcuIconButton.vue";
+import AcuToastViewport from "./components/_lib/AcuToastViewport.vue";
 import MainArea from "./components/MainArea.vue";
 import Sidebar from "./components/Sidebar.vue";
 import { useChatChangedListener } from "./composables/useChatChangedListener";
@@ -91,8 +124,11 @@ import { useDevOptions } from "./composables/useDevOptions";
 import { canCloseUi } from "./composables/useUiCloseGuard";
 import { useRootShellStore } from "./stores/root-shell-store";
 import { useRouterStore } from "./stores/router-store";
-import { useThemeStore } from "./stores/theme-store";
+import { isCustomThemeId, useThemeStore } from "./stores/theme-store";
+import { useToastStore } from "./stores/toast-store";
 import { useUiModeStore } from "./stores/ui-mode-store";
+import { useVisualizerStore } from "./stores/visualizer-store";
+import VisualizerSurface from "./surfaces/visualizer/VisualizerSurface.vue";
 import type { AcuV2ThemeId } from "./theme/theme-types";
 import { getAcuHostDocument } from "./bootstrap/host-document";
 
@@ -100,7 +136,9 @@ const emit = defineEmits<{ (event: "close"): void }>();
 const rootShell = useRootShellStore();
 const router = useRouterStore();
 const themeStore = useThemeStore();
+const toastStore = useToastStore();
 const uiMode = useUiModeStore();
+const visualizer = useVisualizerStore();
 const isMobileNavOpen = ref(false);
 const isMobileNavRendered = ref(false);
 const isMobileNavClosing = ref(false);
@@ -112,6 +150,10 @@ const MOBILE_NAV_LEAVE_MS = 150;
 let themeMenuCloseTimer: ReturnType<typeof setTimeout> | undefined;
 let mobileNavCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
+const shellTitle = computed(() =>
+  visualizer.isActive ? "数据库编辑器" : router.activePage?.title || "SP·数据库 III",
+);
+
 function toggleThemeMenu(): void {
   if (isThemeMenuOpen.value) closeThemeMenu();
   else openThemeMenu();
@@ -120,6 +162,67 @@ function toggleThemeMenu(): void {
 function selectTheme(id: AcuV2ThemeId): void {
   themeStore.setTheme(id);
   closeThemeMenu();
+}
+
+function readFileText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("主题文件读取失败。"));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+async function importThemeFile(file: File): Promise<void> {
+  try {
+    const text = await readFileText(file);
+    themeStore.importCustomThemeFromJsonText(text);
+    closeThemeMenu();
+  } catch (error) {
+    toastStore.error(error instanceof Error ? error.message : "主题导入失败。");
+  }
+}
+
+function exportTheme(id: AcuV2ThemeId): void {
+  try {
+    const theme = themeStore.themes.find(t => t.id === id);
+    const file = themeStore.buildThemeFile(id);
+    const filename = `acu-v2-theme-${sanitizeFilename(theme?.name || "custom-theme")}.json`;
+    downloadJson(filename, file);
+  } catch {
+    toastStore.error("主题导出失败。");
+  }
+}
+
+function deleteTheme(id: AcuV2ThemeId): void {
+  if (!isCustomThemeId(id)) {
+    return;
+  }
+  const theme = themeStore.themes.find(t => t.id === id);
+  const confirmed = window.confirm(
+    `删除"${theme?.name || "自定义主题"}"后会从本浏览器移除；如果正在使用它，界面会切回默认深色主题。`,
+  );
+  if (!confirmed) return;
+  themeStore.deleteCustomTheme(id);
+  closeThemeMenu();
+}
+
+function sanitizeFilename(value: string): string {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, "-")
+    .replace(/\s+/g, "-")
+    .slice(0, 48) || "custom-theme";
+}
+
+function downloadJson(filename: string, data: unknown): void {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = getAcuHostDocument().createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function onDocPointer(e: Event): void {
@@ -157,6 +260,9 @@ watch(() => devOptions.developerOptionsEnabled.value, () => {
 
 onMounted(() => router.ensureActiveVisible());
 watch(() => uiMode.mode, () => router.ensureActiveVisible());
+watch(() => rootShell.isOpen, (isOpen) => {
+  if (!isOpen) toastStore.clear();
+});
 
 function openMobileNav(): void {
   clearMobileNavCloseTimer();
@@ -182,6 +288,12 @@ async function closeApp(): Promise<void> {
   if (!(await canCloseUi())) return;
   closeThemeMenu();
   closeMobileNav();
+  if (visualizer.isActive) {
+    const result = visualizer.closeSurface();
+    if (result.previousPageId) router.setActivePage(result.previousPageId);
+    if (result.shouldCloseShell) emit("close");
+    return;
+  }
   emit("close");
 }
 
@@ -220,6 +332,23 @@ function clearMobileNavCloseTimer(): void {
 
 <style scoped>
 .acu-v2-app {
+  color: var(--acu-text-1);
+  font-family: var(--acu-font-ui);
+  --acu-font-size-micro: 10px;
+  --acu-font-size-caption: 11px;
+  --acu-font-size-body: 12px;
+  --acu-font-size-body-lg: 13px;
+  --acu-font-size-section-title: 12px;
+  --acu-font-size-list-title: 13px;
+  --acu-font-size-panel-title: 15px;
+  --acu-font-size-page-title: 22px;
+  --acu-line-height-caption: 1.5;
+  --acu-line-height-body: 1.45;
+  --acu-line-height-readable: 1.55;
+  font-size: var(--acu-font-size-body);
+}
+
+.acu-v2-app__shell {
   position: fixed;
   top: 0;
   right: 0;
@@ -241,17 +370,6 @@ function clearMobileNavCloseTimer(): void {
   background: var(--acu-bg-0);
   color: var(--acu-text-1);
   font-family: var(--acu-font-ui);
-  --acu-font-size-micro: 10px;
-  --acu-font-size-caption: 11px;
-  --acu-font-size-body: 12px;
-  --acu-font-size-body-lg: 13px;
-  --acu-font-size-section-title: 12px;
-  --acu-font-size-list-title: 13px;
-  --acu-font-size-panel-title: 15px;
-  --acu-font-size-page-title: 22px;
-  --acu-line-height-caption: 1.5;
-  --acu-line-height-body: 1.45;
-  --acu-line-height-readable: 1.55;
   font-size: var(--acu-font-size-body);
 }
 
@@ -529,7 +647,8 @@ function clearMobileNavCloseTimer(): void {
   list-style: none;
   margin: 0;
   padding: 4px;
-  min-width: 160px;
+  width: min(280px, calc(100vw - 24px));
+  min-width: 240px;
   background: var(--acu-bg-1);
   border: 1px solid var(--acu-border);
   border-radius: var(--acu-radius-md);
@@ -545,6 +664,7 @@ function clearMobileNavCloseTimer(): void {
 .acu-v2-app__theme-option {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 7px 10px;
   font-size: var(--acu-font-size-body-lg, 13px);
@@ -565,6 +685,49 @@ function clearMobileNavCloseTimer(): void {
   font-weight: 600;
 }
 
+.acu-v2-app__theme-option-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.acu-v2-app__theme-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.acu-v2-app__theme-tag {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: var(--acu-radius-sm);
+  background: color-mix(in srgb, var(--acu-accent) 12%, transparent);
+  color: var(--acu-accent);
+  font-size: var(--acu-font-size-micro, 10px);
+  font-weight: 600;
+}
+
+.acu-v2-app__theme-option.is-active .acu-v2-app__theme-tag {
+  background: color-mix(in srgb, var(--acu-on-accent) 18%, transparent);
+  color: var(--acu-on-accent);
+}
+
+.acu-v2-app__theme-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  opacity: 0.72;
+}
+
+.acu-v2-app__theme-option:hover .acu-v2-app__theme-tools,
+.acu-v2-app__theme-option.is-active .acu-v2-app__theme-tools {
+  opacity: 1;
+}
+
 .acu-v2-app__theme-swatch {
   display: block;
   width: 18px;
@@ -581,6 +744,19 @@ function clearMobileNavCloseTimer(): void {
 
 .acu-v2-app__theme-option.is-active .acu-v2-app__theme-swatch {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-on-accent) 62%, transparent);
+}
+
+.acu-v2-app__theme-menu-footer {
+  display: flex;
+  justify-content: stretch;
+  margin-top: 4px;
+  padding: 7px 6px 4px;
+  border-top: 1px solid var(--acu-border);
+}
+
+.acu-v2-app__theme-menu-footer :deep(.acu-file-button),
+.acu-v2-app__theme-menu-footer :deep(.acu-btn) {
+  width: 100%;
 }
 
 @keyframes theme-menu-in {

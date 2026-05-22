@@ -136,6 +136,17 @@ describe('applyTemplateAssistantDraftToVisualizer_ACU', () => {
     expect(mockRenderSidebar).not.toHaveBeenCalled();
   });
 
+  it('草稿锚点表与当前选中表不一致时阻止应用', () => {
+    const ok = applyTemplateAssistantDraftToVisualizer_ACU(buildApplyResult_ACU({
+      draft: { selectedSheetKey: 'sheet_b' },
+    }));
+
+    expect(ok).toBe(false);
+    expect(mockShowToastr).toHaveBeenCalledWith('warning', '这份 assistant 草稿属于其他锚点表，请切回原表或重新生成。');
+    expect(mockRenderSidebar).not.toHaveBeenCalled();
+  });
+
+
   it('未提供 originalBaseFingerprint 时回退到 draft.baseFingerprint', () => {
     const fp = buildTemplateAssistantFingerprint_ACU(state.tempData);
     const ok = applyTemplateAssistantDraftToVisualizer_ACU({

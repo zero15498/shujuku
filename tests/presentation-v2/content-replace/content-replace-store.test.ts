@@ -68,7 +68,9 @@ async function setupStore() {
   const pinia = await import('pinia');
   pinia.setActivePinia(pinia.createPinia());
   const mod = await import('../../../src/presentation-v2/stores/content-replace-store');
+  const toastMod = await import('../../../src/presentation-v2/stores/toast-store');
   const store = mod.useContentReplaceStore();
+  const toast = toastMod.useToastStore();
   store.refreshFromSettings();
 
   return {
@@ -79,6 +81,7 @@ async function setupStore() {
     replaceChatMessage,
     getOriginalContent,
     getLastOptimizedMessageIndex,
+    toast,
   };
 }
 
@@ -172,18 +175,19 @@ describe('useContentReplaceStore', () => {
   });
 
   it('手动测试调用正文优化 service 并展示结果', async () => {
-    const { store, performOptimization } = await setupStore();
+    const { store, performOptimization, toast } = await setupStore();
 
     store.setString('testInput', '这是一段足够长的测试正文。');
     await store.runTest();
 
     expect(performOptimization).toHaveBeenCalledWith('这是一段足够长的测试正文。', { currentLoop: 1, userMessage: '' });
     expect(store.testOutput).toContain('优化完成：1 处建议');
-    expect(store.message?.kind).toBe('success');
+    expect(store.message).toBeNull();
+    expect(toast.items.map(item => item.text)).toContain('正文替换测试完成。');
   });
 
   it('重新优化最近一次会读取原文、优化并写回聊天消息', async () => {
-    const { store, performOptimization, replaceChatMessage, getOriginalContent } = await setupStore();
+    const { store, performOptimization, replaceChatMessage, getOriginalContent, toast } = await setupStore();
 
     store.setBoolean('enabled', true);
     await store.reoptimizeLatest();
@@ -191,6 +195,7 @@ describe('useContentReplaceStore', () => {
     expect(getOriginalContent).toHaveBeenCalledWith(2);
     expect(performOptimization).toHaveBeenCalledWith('旧句子', { currentLoop: 1, userMessage: '' });
     expect(replaceChatMessage).toHaveBeenCalledWith(2, '新句子', { originalContent: '旧句子' });
-    expect(store.message?.text).toContain('已重新优化并替换 1 处内容');
+    expect(store.message).toBeNull();
+    expect(toast.items.map(item => item.text)).toContain('已重新优化并替换 1 处内容。');
   });
 });

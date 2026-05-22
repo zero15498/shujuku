@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockShowToastr, mockRunSession, mockApply, state, mockSettings_ACU, viewportState_ACU } = vi.hoisted(() => ({
@@ -142,6 +145,15 @@ class FakeHTMLElement_ACU {
 
   click() {
     this.dispatchEvent({ type: 'click' });
+  }
+
+  appendChild(child: FakeHTMLElement_ACU) {
+    child.parentElement = this;
+    return child;
+  }
+
+  remove() {
+    this.parentElement = null;
   }
 
   getAttribute(name: string) {
@@ -374,6 +386,10 @@ class FakeDocument_ACU {
     return this.querySelectorAll(selector)[0] || null;
   }
 
+  getElementById(id: string) {
+    return this.querySelector(`#${id}`);
+  }
+
   querySelectorAll(selector: string) {
     if (!this.elementCache.has(selector)) {
       this.elementCache.set(selector, this.buildElements(selector));
@@ -508,7 +524,7 @@ describe('visualizer template assistant panel', () => {
     expect(panel.style.inset).toBe('0');
     expect(panel.style.width).toBe('100vw');
     expect(panel.style.height).toBe('100dvh');
-    expect(panel.style.background).toContain('var(--vis-assistant-window-bg, var(--vis-bg-color))');
+    expect(panel.style.background).toContain('var(--vis-assistant-window-bg, var(--vis-bg-color');
   });
 
   it('窄屏模式下 assistant 面板切换为全屏 overlay 且按钮纵向堆叠', () => {
@@ -536,33 +552,30 @@ describe('visualizer template assistant panel', () => {
     expect(String(source.createACUWindow_ACU || source.createACUWindow || '')).toContain('forcePhoneFullscreen');
   });
 
-  it('窄屏模式下 assistant 可以最小化为悬浮恢复按钮并保留打开状态', () => {
+  it('窄屏模式下 assistant 使用全屏关闭按钮而非最小化入口', () => {
     viewportState_ACU.width = 768;
     setVisualizerTemplateAssistantOpen_ACU(true);
     renderVisualizerTemplateAssistantPanel_ACU();
 
     const minimizeBtn = document.querySelector('#acu-vis-assistant-minimize') as HTMLButtonElement;
-    expect(minimizeBtn).toBeTruthy();
-
-    minimizeBtn.click();
-
     const host = document.querySelector('#acu-vis-assistant-host') as HTMLElement;
     const panel = document.querySelector('.acu-vis-assistant-panel') as HTMLElement;
-    const restoreBtn = document.querySelector('#acu-vis-assistant-restore') as HTMLButtonElement;
+    const closeBtn = document.querySelector('#acu-vis-assistant-close') as HTMLButtonElement;
+    expect(minimizeBtn).toBeNull();
+    expect(closeBtn).toBeTruthy();
     expect(host.getAttribute('data-open')).toBe('true');
-    expect(host.getAttribute('data-minimized')).toBe('true');
-    expect(panel.style.display).toBe('none');
-    expect(restoreBtn).toBeTruthy();
-    expect(document.body.innerHTML).toContain('恢复 AI 改表助手');
+    expect(host.getAttribute('data-minimized')).toBe('false');
+    expect(panel.style.display).toBe('flex');
   });
 
-  it('窄屏模式下 assistant 从最小化恢复后继续显示全屏窗口', () => {
+  it('窄屏模式下 assistant 关闭后可以再次打开全屏窗口', () => {
     viewportState_ACU.width = 768;
     setVisualizerTemplateAssistantOpen_ACU(true);
     renderVisualizerTemplateAssistantPanel_ACU();
 
-    (document.querySelector('#acu-vis-assistant-minimize') as HTMLButtonElement).click();
-    (document.querySelector('#acu-vis-assistant-restore') as HTMLButtonElement).click();
+    (document.querySelector('#acu-vis-assistant-close') as HTMLButtonElement).click();
+    setVisualizerTemplateAssistantOpen_ACU(true);
+    renderVisualizerTemplateAssistantPanel_ACU();
 
     const host = document.querySelector('#acu-vis-assistant-host') as HTMLElement;
     const panel = document.querySelector('.acu-vis-assistant-panel') as HTMLElement;
@@ -731,12 +744,7 @@ describe('visualizer template assistant panel', () => {
     const beforeHtml = document.body.innerHTML;
     const checkbox = document.querySelector('.acu-assistant-risk-confirm') as HTMLInputElement;
     const applyBtn = document.querySelector('#acu-vis-assistant-apply') as HTMLButtonElement;
-    expect(checkbox.checked).toBe(true);
-    expect(applyBtn.disabled).toBe(false);
-
-    checkbox.checked = false;
-    checkbox.dispatchEvent(new Event('change'));
-
+    expect(checkbox.checked).toBe(false);
     expect(applyBtn.disabled).toBe(true);
 
     checkbox.checked = true;
@@ -746,7 +754,7 @@ describe('visualizer template assistant panel', () => {
     expect(document.body.innerHTML).toBe(beforeHtml);
   });
 
-  it('DDL 高风险项默认通过时点击应用按钮会真正触发 apply', async () => {
+  it('DDL 高风险项未确认时点击应用按钮不会触发 apply', async () => {
     setVisualizerTemplateAssistantOpen_ACU(true);
     renderVisualizerTemplateAssistantPanel_ACU();
     mockRunSession.mockResolvedValue({
@@ -778,10 +786,11 @@ describe('visualizer template assistant panel', () => {
     await Promise.resolve();
 
     const applyBtn = document.querySelector('#acu-vis-assistant-apply') as HTMLButtonElement;
-    expect(applyBtn.disabled).toBe(false);
+    expect(applyBtn.disabled).toBe(true);
     applyBtn.click();
 
-    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(mockApply).not.toHaveBeenCalled();
+    expect(mockShowToastr).toHaveBeenCalledWith('warning', '请先确认所有高风险项后再应用。');
   });
 
   it('非 DDL 高风险项未确认时即使触发 apply click 也不会执行应用', async () => {
@@ -823,7 +832,7 @@ describe('visualizer template assistant panel', () => {
     expect(mockShowToastr).toHaveBeenCalledWith('warning', '请先确认所有高风险项后再应用。');
   });
 
-  it('混合高风险时只对 DDL 项默认通过，其他项仍需确认', async () => {
+  it('混合高风险时所有项目都需要确认', async () => {
     setVisualizerTemplateAssistantOpen_ACU(true);
     renderVisualizerTemplateAssistantPanel_ACU();
     mockRunSession.mockResolvedValue({
@@ -860,12 +869,17 @@ describe('visualizer template assistant panel', () => {
     const checkboxes = document.querySelectorAll('.acu-assistant-risk-confirm') as unknown as HTMLInputElement[];
     const applyBtn = document.querySelector('#acu-vis-assistant-apply') as HTMLButtonElement;
     expect(checkboxes).toHaveLength(2);
-    expect(checkboxes[0].checked).toBe(true);
+    expect(checkboxes[0].checked).toBe(false);
     expect(checkboxes[1].checked).toBe(false);
     expect(applyBtn.disabled).toBe(true);
 
     checkboxes[1].checked = true;
     checkboxes[1].dispatchEvent(new Event('change'));
+
+    expect(applyBtn.disabled).toBe(true);
+
+    checkboxes[0].checked = true;
+    checkboxes[0].dispatchEvent(new Event('change'));
 
     expect(applyBtn.disabled).toBe(false);
   });
@@ -1012,7 +1026,7 @@ describe('visualizer template assistant panel', () => {
       expect(html).toContain('acu-chat-scroll-frame');
       expect(html).toContain('border-radius:12px');
       expect(html).toContain('overflow:hidden');
-      expect(html).toContain('background:var(--vis-assistant-surface-bg, var(--vis-bg-light))');
+      expect(html).toContain('background:var(--vis-assistant-surface-bg, var(--vis-bg-light');
       const chatContainer = document.querySelector('.acu-chat-container');
       expect(chatContainer).toBeTruthy();
       expect(html).toContain('overflow-y:auto');

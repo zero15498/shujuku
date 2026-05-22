@@ -13,9 +13,9 @@
 | P3-5 | design | closed | 剩余功能页内部布局 | 填表/智能续写/数据管理/正文替换/SQL/日志 | 否 | 2026-05-02 |
 | P3-6 | design | closed | 填表提示词预设升级迁移 | 填表页 | 否 | 2026-05-02 |
 | P-VI-1 | design | closed | VectorIndexPage 新配置字段接入 | 交火模式页 | 否 | 2026-05-04 |
-| SUN-1 | shutdown | open | v2 toast 当前落地；custom-confirm 后续 Vue 化 | v2 toast / 旧 UI 下线 | 是 | 2026-05-02 |
+| SUN-1 | shutdown | open | v2 toast / confirm / input dialog 试做已回滚；toast 收窄为 v2 主界面内反馈 | v2 feedback / 旧 UI 下线 | 是 | 2026-05-02 |
 | SUN-2 | shutdown | partially-closed | 工具窗口 Vue 化 + 全屏化；剩余 visualizer | visualizer | 是 | 2026-05-02 |
-| SUN-3 | shutdown | open | 自定义主题导入导出 | 主题系统 | 否 | 2026-05-02 |
+| SUN-3 | shutdown | closed | 自定义主题导入导出删除 | 主题系统 | 否 | 2026-05-02 |
 | SUN-4 | shutdown | open | 旧 settings_ACU 处置 | data/service/runtime | 是 | 2026-05-02 |
 | SUN-5 | shutdown | open | 旧 window-system.ts 废弃 | 工具窗口 | 是 | 2026-05-02 |
 | SUN-6 | shutdown | closed | api-registry 接口扩展暂不做 | 对外 API | 否 | 2026-05-02 |
@@ -67,17 +67,19 @@
 ### SUN-1. toast / custom-confirm Vue 化
 [charter D14](00-charter.md) 选择 A 推迟。“下线旧 UI 时”在这里不是指等旧 UI 文件全部删除后才开始，而是指：v2 主界面已覆盖主要功能，只剩 toast / confirm / 可视化表格编辑器等少数表层能力仍沿用旧实现的收尾时间点。当前已经进入这个时间点。
 
-**2026-05-18 修订**：v2 toast 先行落地，作为 `src/presentation-v2/**` 内部能力实现，不复用旧 `src/presentation/theme/toast` / `showToastr_ACU`，也不要求同阶段完成 custom-confirm。Vue 版 confirm、旧 UI 全项目 `showToastr_ACU` / `customConfirm` 调用替换、旧 toast 删除，仍保留为旧 UI 下线清理项。
+**2026-05-18 修订**：v2 toast 先行落地，作为 `src/presentation-v2/**` 内部能力实现，不复用旧 `src/presentation/theme/toast` / `showToastr_ACU`，也不要求同阶段完成 custom-confirm。旧 UI 全项目 `showToastr_ACU` / `customConfirm` 调用替换、旧 toast 删除，仍保留为旧 UI 下线清理项。
+
+**2026-05-21 修订**：v2 toast / confirm / input dialog 表层试做已回滚，当前实现层不保留新 toast 痕迹。toast 的下一步收窄为 [04-toast-notification-plan.md](04-toast-notification-plan.md) 的 v2 主界面内短反馈：不接管旧 `showToastr_ACU`，不做常驻全局 layer，不要求 v2 关闭时仍显示新 toast。[08-toast-routing-consolidation.md](08-toast-routing-consolidation.md) 暂停为历史备选；旧 runtime / 旧 UI 全局反馈后续按 [07-architecture.md](07-architecture.md) 的长期分层重新处理。
 
 **2026-05-11 补充**：toast 的产品语义与迁移顺序见 [04-toast-notification-plan.md](04-toast-notification-plan.md)。核心原则：实时保存普通参数成功不 toast；显式保存 dirty 草稿、导入/导出摘要、复杂失败短反馈使用 toast；警告/错误详情进入运行日志；局部 `AcuMessage` 只保留可修正或需持续展示的信息。
 
-**当前实现审计**：截至 2026-05-18，`src/presentation-v2/` 尚未出现 `toast-store` / `AcuToastViewport`，短反馈仍主要由局部 `AcuMessage` 承担。因此 SUN-1 保持 open。
+**当前实现审计**：截至 2026-05-21 回滚后，`src/presentation-v2/` 不保留 `toast-store` / `confirm-store` / `input-dialog-store` 及对应 viewport。SUN-1 保持 open：v2 面板内 toast 尚待重做；旧 `showToastr_ACU` 仍是旧 runtime / 旧 UI 的主要入口，暂不通过 v2 toast 收敛；visualizer 与旧 UI 删除也尚未完成。
 
 ### SUN-2. 工具窗口 Vue 化 + 全屏化
 **2026-05-09 部分关闭**：SQL 控制台和运行日志已 Vue 化为 v2 全屏一级页。剩余阻塞项是 visualizer：体量大（[visualizer.ts](../../src/presentation/pages/visualizer.ts) 等多文件），且承担 DDL 编辑、SQLite 模式、模板 AI 助手挂载（[实现地图 §2.5](01-architecture-map.md)），全屏化时需一起迁移。
 
 ### SUN-3. 自定义主题导入导出
-[charter D14](00-charter.md) 推迟。新主题系统下导入导出格式重新设计，还是兼容旧 ACUThemeFile？
+**2026-05-19 已关闭**：v2 主题菜单已支持自定义主题导入、导出和删除。格式采用 v2 自有 JSON：`kind: "acu-v2-theme"`、`version: 1`、`theme.tokens` 只包含 v2 稳定 token；导出内置主题时不携带 custom id，可作为新自定义主题模板导入。旧 `ACUThemeFile` 不兼容，符合 [charter D14](00-charter.md) 的丢弃决策。
 
 ### SUN-4. 旧 settings_ACU 处置
 data / service 层有大量代码读 `settings_ACU`，全部改造成本巨大。是否完全移除，还是保留作为新 store 的 storage adapter？关系到 [charter D1](00-charter.md) "presentation 层重写但不动业务层"原则的边界。

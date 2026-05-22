@@ -442,16 +442,9 @@ function getRiskConfirmationKey_ACU(index: number) {
     return String(index);
 }
 
-function isHighRiskItemAutoConfirmed_ACU(item: TemplateAssistantDiff_ACU extends never ? never : ReturnType<typeof getAssistantCompileResult_ACU>['highRiskItems'][number]) {
-    return item?.type === 'patch_sheet_schema';
-}
-
 function isHighRiskItemConfirmed_ACU(turn: ChatTurnAssistant, index: number) {
     const item = getAssistantCompileResult_ACU(turn).highRiskItems[index];
     if (!item) return true;
-    if (isHighRiskItemAutoConfirmed_ACU(item)) {
-        return turn.riskConfirmations[getRiskConfirmationKey_ACU(index)] !== false;
-    }
     return !!turn.riskConfirmations[getRiskConfirmationKey_ACU(index)];
 }
 
@@ -900,6 +893,11 @@ function bindEvents_ACU() {
         const turnId = readDataAttrFromElement_ACU(this, 'turn-id');
         const turn = assistantUiState_ACU.transcript.find(t => t.id === turnId && t.type === 'assistant') as ChatTurnAssistant | undefined;
         if (!turn || !isFinalAssistantTurn_ACU(turn)) return;
+        const draftAnchorKey = String(turn.result.draft?.selectedSheetKey || '').trim();
+        if (draftAnchorKey && draftAnchorKey !== (_acuVisState.currentSheetKey || null)) {
+            showToastr_ACU('warning', '这份 assistant 草稿属于其他锚点表，请切回原表或重新生成。');
+            return;
+        }
         if (getAssistantCompileResult_ACU(turn).highRiskItems.length > 0 && !areHighRiskItemsConfirmed_ACU(turn)) {
             showToastr_ACU('warning', '请先确认所有高风险项后再应用。');
             return;

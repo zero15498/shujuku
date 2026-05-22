@@ -23,8 +23,15 @@ async function importComposable(config: any) {
   vi.doMock("../../../src/service/settings/settings-service", () => ({
     saveSettings_ACU: saveSettings,
   }));
-  const { useVectorApiConfig } =
-    await import("../../../src/presentation-v2/composables/useVectorApiConfig");
+  vi.doMock("../../../src/service/runtime/state-manager", () => ({
+    settings_ACU: { toastMuteEnabled: false },
+  }));
+  const [{ createPinia, setActivePinia }, { useVectorApiConfig }] =
+    await Promise.all([
+      import("pinia"),
+      import("../../../src/presentation-v2/composables/useVectorApiConfig"),
+    ]);
+  setActivePinia(createPinia());
   return { vector: useVectorApiConfig(), saveSettings };
 }
 

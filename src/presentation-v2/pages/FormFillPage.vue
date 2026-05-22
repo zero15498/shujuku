@@ -137,15 +137,6 @@
           </AcuFormRow>
         </div>
 
-        <AcuMessage
-          v-if="manualUpdate.manualUpdateMessage.value"
-          :kind="manualUpdate.manualUpdateMessage.value.kind"
-        >
-          {{ manualUpdate.manualUpdateMessage.value.text }}
-        </AcuMessage>
-        <AcuMessage v-if="manualUpdate.lastProgressText.value" kind="info">
-          {{ manualUpdate.lastProgressText.value }}
-        </AcuMessage>
         <AcuMessage v-if="manualUpdate.vectorIndexWarning.value" kind="warning">
           交火模式纪要索引启用时不建议手动更新表格；特殊场景下仍可点击执行。
         </AcuMessage>

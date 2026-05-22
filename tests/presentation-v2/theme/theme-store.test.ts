@@ -98,6 +98,159 @@ describe('theme-store', () => {
     ]);
   });
 
+  it('导入 v2 自定义主题后加入列表、切为活动主题并持久化', async () => {
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    const base = store.themes.find(t => t.id === 'default-dark')!;
+
+    const imported = store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        name: '夜航主题',
+        colorScheme: 'dark',
+        tokens: {
+          ...base.tokens,
+          bg0: '#101820',
+          accent: '#91D9F7',
+        },
+      },
+    }));
+
+    expect(imported.id).toBe('custom:theme');
+    expect(imported.name).toBe('夜航主题');
+    expect(store.activeId).toBe(imported.id);
+    expect(store.activeTheme.tokens.bg0).toBe('#101820');
+    expect(store.themes.map(t => t.id)).toEqual([
+      'default-light',
+      'default-dark',
+      'strawberry-dragon',
+      'custom:theme',
+    ]);
+
+    const raw = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
+    expect(raw.theme.activeId).toBe('custom:theme');
+    expect(raw.theme.customThemes).toHaveLength(1);
+    expect(raw.theme.customThemes[0]).toMatchObject({
+      id: 'custom:theme',
+      name: '夜航主题',
+      colorScheme: 'dark',
+    });
+  });
+
+  it('localStorage 中已有自定义主题时可以恢复活动主题', async () => {
+    const m1 = await freshImport();
+    m1.pinia.setActivePinia(m1.pinia.createPinia());
+    const store1 = m1.themeStore.useThemeStore();
+    const base = store1.themes.find(t => t.id === 'default-light')!;
+    store1.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        id: 'custom:saved-theme',
+        name: '保存主题',
+        colorScheme: 'light',
+        tokens: base.tokens,
+      },
+    }));
+
+    const m2 = await freshImport();
+    m2.pinia.setActivePinia(m2.pinia.createPinia());
+    const store2 = m2.themeStore.useThemeStore();
+    expect(store2.activeId).toBe('custom:saved-theme');
+    expect(store2.activeTheme.name).toBe('保存主题');
+  });
+
+  it('删除当前自定义主题时回退默认主题，并拒绝删除内置主题', async () => {
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    const base = store.themes.find(t => t.id === 'default-dark')!;
+    const imported = store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        id: 'custom:delete-me',
+        name: '删除测试',
+        colorScheme: 'dark',
+        tokens: base.tokens,
+      },
+    }));
+
+    expect(store.deleteCustomTheme('default-dark')).toBe(false);
+    expect(store.deleteCustomTheme(imported.id)).toBe(true);
+    expect(store.activeId).toBe('default-dark');
+    expect(store.themes.some(t => t.id === imported.id)).toBe(false);
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual({
+      theme: { activeId: 'default-dark' },
+    });
+  });
+
+  it('导出主题使用 v2 自定义主题文件格式，内置主题不携带 custom id', async () => {
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    const baseFile = store.buildThemeFile('default-light');
+    expect(baseFile).toMatchObject({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        name: '浅色管理台',
+        colorScheme: 'light',
+      },
+    });
+    expect(baseFile.theme.id).toBeUndefined();
+
+    const imported = store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        id: 'custom:export-me',
+        name: '导出测试',
+        colorScheme: 'light',
+        tokens: baseFile.theme.tokens,
+      },
+    }));
+    expect(store.buildThemeFile(imported.id).theme.id).toBe('custom:export-me');
+  });
+
+  it('拒绝旧主题格式、缺失 token 与危险 CSS token', async () => {
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    const base = store.themes.find(t => t.id === 'default-dark')!;
+
+    expect(() => store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-theme',
+      version: 1,
+      theme: { name: '旧主题' },
+    }))).toThrow('主题文件缺少 v2 主题所需的颜色模式或 token。');
+
+    expect(() => store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        name: '缺字段',
+        colorScheme: 'dark',
+        tokens: { bg0: '#000' },
+      },
+    }))).toThrow('主题文件缺少 v2 主题所需的颜色模式或 token。');
+
+    expect(() => store.importCustomThemeFromJsonText(JSON.stringify({
+      kind: 'acu-v2-theme',
+      version: 1,
+      theme: {
+        name: '危险主题',
+        colorScheme: 'dark',
+        tokens: {
+          ...base.tokens,
+          bg0: '#000; } body { color: red',
+        },
+      },
+    }))).toThrow('主题文件缺少 v2 主题所需的颜色模式或 token。');
+  });
+
   it('深色管理台使用灰蓝底色与冷薄荷 accent', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());

@@ -75,6 +75,11 @@ export async function openAcuV2App(): Promise<void> {
   if (wasMounted && !wasOpen) store.requestOpenRefresh();
 }
 
+/** Bridge 层在 Vue 组件外访问现有 Pinia；不会主动创建应用。 */
+export function getAcuV2PiniaForBridge(): Pinia | null {
+  return state?.pinia ?? null;
+}
+
 /**
  * 关闭新 UI：保留根 DOM 与 Pinia 状态，仅隐藏容器并请求滚动重置（P0-6 修订）。
  * - 路由：activePageId 留在 store + localStorage，重开后回到原页

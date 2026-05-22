@@ -36,6 +36,7 @@ import { updateReadableLorebookEntry_ACU } from '../../service/worldbook/pipelin
 import { defaultVectorMemoryConfig_ACU } from '../../shared/defaults';
 import { currentJsonTableData_ACU } from '../../service/runtime/state-manager';
 import type { SummaryVectorIndexStats_ACU } from '../../shared/models/summary-vector-index-types';
+import { useToastStore } from '../stores/toast-store';
 
 type MessageKind = 'info' | 'success' | 'warning' | 'error';
 type BadgeVariant = 'neutral' | 'accent' | 'success' | 'warning' | 'danger';
@@ -165,6 +166,7 @@ function promptFingerprint(segments: VectorMemoryKeywordPromptSegment_ACU[]): st
 }
 
 export function useVectorIndexConfig() {
+  const toast = useToastStore();
   const form = reactive<VectorIndexForm>(createEmptyForm());
   const promptSegments = ref<VectorMemoryKeywordPromptSegment_ACU[]>([]);
   const promptDirty = ref(false);
@@ -176,6 +178,25 @@ export function useVectorIndexConfig() {
   const indexStats = ref<SummaryVectorIndexStats_ACU | null>(null);
   const displayRowCount = ref(0);
   const displayChunkCount = ref(0);
+  let progressToastId: string | null = null;
+
+  function notify(kind: MessageKind, text: string, options: { durationMs?: number; muteable?: boolean } = {}): void {
+    if (progressToastId) {
+      if (toast.update(progressToastId, kind, text, options)) {
+        if (options.durationMs !== 0) progressToastId = null;
+        return;
+      }
+      progressToastId = null;
+    }
+    toast[kind](text, options);
+  }
+
+  function notifyProgress(text: string): void {
+    if (progressToastId && toast.update(progressToastId, 'info', text, { durationMs: 0, muteable: false })) {
+      return;
+    }
+    progressToastId = toast.info(text, { durationMs: 0, muteable: false });
+  }
 
   function readFromConfig(): void {
     const config = getCurrentVectorMemoryConfig_ACU();
@@ -206,7 +227,7 @@ export function useVectorIndexConfig() {
   }
 
   function pushSavedMessage(text = '设置已保存。'): void {
-    message.value = { kind: 'success', text };
+    void text;
   }
 
   function runValidation(): boolean {
@@ -297,13 +318,13 @@ export function useVectorIndexConfig() {
     saveSettings_ACU();
     promptSegments.value = cloneSegments(segs);
     promptDirty.value = false;
-    message.value = { kind: 'success', text: '关键词生成提示词已保存。' };
+    notify('success', '关键词生成提示词已保存。');
   }
 
   function resetPromptGroup(): void {
     promptSegments.value = defaultKeywordPromptGroup();
     promptDirty.value = true;
-    message.value = { kind: 'warning', text: '已载入默认关键词提示词，保存后生效。' };
+    notify('warning', '已载入默认关键词提示词，保存后生效。');
   }
 
   function formatBytes(bytes: number): string {
@@ -341,9 +362,9 @@ export function useVectorIndexConfig() {
       const stateChunks = Array.isArray(state?.chunks) ? state.chunks.length : 0;
       displayRowCount.value = stateRows > 0 ? stateRows : stats.rowCount;
       displayChunkCount.value = stateChunks > 0 ? stateChunks : stats.chunkCount;
-      if (notify) message.value = { kind: 'success', text: '交火索引状态已刷新。' };
+      if (notify) toast.success('交火索引状态已刷新。');
     } catch (error: any) {
-      message.value = { kind: 'error', text: `交火索引状态读取失败：${error?.message || '未知错误'}` };
+      toast.error(`交火索引状态读取失败：${error?.message || '未知错误'}`);
     } finally {
       statusLoading.value = false;
     }
@@ -355,9 +376,9 @@ export function useVectorIndexConfig() {
     try {
       await clearSummaryVectorIndexTempCache_ACU();
       await refreshIndexStatus(false);
-      message.value = { kind: 'success', text: '交火索引临时缓存已清空。权威外置文件和聊天记录不会被删除。' };
+      notify('success', '交火索引临时缓存已清空。权威外置文件和聊天记录不会被删除。', { muteable: false });
     } catch (error: any) {
-      message.value = { kind: 'error', text: `清空交火索引缓存失败：${error?.message || '未知错误'}` };
+      notify('error', `清空交火索引缓存失败：${error?.message || '未知错误'}`, { muteable: false });
     } finally {
       maintenanceBusy.value = false;
     }
@@ -369,14 +390,15 @@ export function useVectorIndexConfig() {
     try {
       const changed = await deleteCurrentSummaryVectorIndexForCurrentChat_ACU();
       await refreshIndexStatus(false);
-      message.value = {
-        kind: changed ? 'success' : 'info',
-        text: changed
+      notify(
+        changed ? 'success' : 'info',
+        changed
           ? '当前聊天的交火索引已删除。需要使用时请重新构建。'
           : '当前聊天没有可删除的交火索引。',
-      };
+        { muteable: false },
+      );
     } catch (error: any) {
-      message.value = { kind: 'error', text: `删除当前交火索引失败：${error?.message || '未知错误'}` };
+      notify('error', `删除当前交火索引失败：${error?.message || '未知错误'}`, { muteable: false });
     } finally {
       maintenanceBusy.value = false;
     }
@@ -385,34 +407,30 @@ export function useVectorIndexConfig() {
   async function migrateLegacyIndex(): Promise<void> {
     if (maintenanceBusy.value || buildBusy.value) return;
     maintenanceBusy.value = true;
-    message.value = { kind: 'info', text: '正在检查旧交火索引...' };
+    progressToastId = null;
+    notifyProgress('正在检查旧交火索引...');
     try {
       const report = await inspectSummaryVectorIndexHealth_ACU();
       const legacyCount = report.legacyManifestCount || 0;
       if (legacyCount === 0) {
-        message.value = { kind: 'info', text: '当前没有可迁移的旧交火索引。' };
+        notify('info', '当前没有可迁移的旧交火索引。', { muteable: false });
         return;
       }
 
+      notifyProgress('正在迁移旧交火索引...');
       const result = await migrateLegacySummaryVectorIndexToContentAddressed_ACU();
       await refreshIndexStatus(false);
       if (result.success && !result.skipped) {
-        message.value = {
-          kind: 'success',
-          text: `旧交火索引非破坏迁移完成：${result.indexedRowCount || 0} 行，${result.chunkCount || 0} 个 chunks。旧楼层引用保持不变。`,
-        };
+        notify('success', `旧交火索引非破坏迁移完成：${result.indexedRowCount || 0} 行，${result.chunkCount || 0} 个 chunks。旧楼层引用保持不变。`, { muteable: false });
         return;
       }
 
       const reason = result.errors?.length
         ? result.errors.join('；')
         : (result.reason || '无可迁移内容');
-      message.value = {
-        kind: result.success ? 'info' : 'warning',
-        text: `旧交火索引迁移未执行：${reason}`,
-      };
+      notify(result.success ? 'info' : 'warning', `旧交火索引迁移未执行：${reason}`, { muteable: false });
     } catch (error: any) {
-      message.value = { kind: 'error', text: `旧交火索引迁移失败：${error?.message || '未知错误'}` };
+      notify('error', `旧交火索引迁移失败：${error?.message || '未知错误'}`, { muteable: false });
     } finally {
       maintenanceBusy.value = false;
     }
@@ -432,13 +450,14 @@ export function useVectorIndexConfig() {
   async function buildNow(): Promise<void> {
     if (buildBusy.value) return;
     buildBusy.value = true;
-    message.value = { kind: 'info', text: '正在重建交火索引快照...' };
+    progressToastId = null;
+    notifyProgress('正在重建交火索引快照...');
     try {
       if (!currentJsonTableData_ACU) {
         await loadOrCreateJsonTableFromChatHistory_ACU();
       }
       if (!currentJsonTableData_ACU) {
-        message.value = { kind: 'warning', text: '数据库未加载，无法重建交火索引快照。' };
+        notify('warning', '数据库未加载，无法重建交火索引快照。', { muteable: false });
         return;
       }
       const summaryKey = findSummaryTableKey();
@@ -452,25 +471,16 @@ export function useVectorIndexConfig() {
       const result = await archiveSummaryVectorIndexNow_ACU({ mode: 'sync' });
       if (result.success && !result.skipped) {
         try { await updateReadableLorebookEntry_ACU(true); } catch { /* non-fatal */ }
-        message.value = {
-          kind: 'success',
-          text: `交火索引快照重建完成：${result.indexedRowCount || 0} 行，${result.chunkCount || 0} 个 chunks。`,
-        };
+        notify('success', `交火索引快照重建完成：${result.indexedRowCount || 0} 行，${result.chunkCount || 0} 个 chunks。`, { muteable: false });
         await refreshIndexStatus(false);
         return;
       }
       const reason = result.errors?.length
         ? result.errors.join('；')
         : (result.reason || '无可重建内容');
-      message.value = {
-        kind: result.success ? 'info' : 'error',
-        text: `交火索引快照未完成：${reason}`,
-      };
+      notify(result.success ? 'info' : 'error', `交火索引快照未完成：${reason}`, { muteable: false });
     } catch (error: any) {
-      message.value = {
-        kind: 'error',
-        text: `交火索引快照重建失败：${error?.message || '未知错误'}`,
-      };
+      notify('error', `交火索引快照重建失败：${error?.message || '未知错误'}`, { muteable: false });
     } finally {
       buildBusy.value = false;
     }

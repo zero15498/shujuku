@@ -116,7 +116,7 @@ function createSqlTableData() {
 async function mountDashboardPage(
   settings = createSettings(),
   tableData = createTableData(),
-  options: { chatFileIdentifier?: string } = {},
+  options: { chatFileIdentifier?: string; failStorageSwitch?: boolean } = {},
 ) {
   vi.resetModules();
   document.body.innerHTML = "";
@@ -186,6 +186,7 @@ async function mountDashboardPage(
   }));
   vi.doMock("../../../src/service/table/table-storage-strategy", () => ({
     switchStorageMode: vi.fn(async (mode: string) => {
+      if (options.failStorageSwitch) throw new Error("switch failed");
       settings.storageMode = mode;
     }),
   }));
@@ -703,7 +704,63 @@ describe("DashboardPage", () => {
       ),
     ).toEqual([false, true]);
     expect(saveSettings).toHaveBeenCalled();
-    expect(page.textContent || "").toContain("已切换到 SQLite 模式。");
+    expect(page.textContent || "").not.toContain("已切换到 SQLite 模式。");
+    expect(document.body.textContent || "").toContain("已切换到 SQLite 模式。");
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it("关闭 v2 后清空 toast，重开不显示旧通知", async () => {
+    const { mount } = await mountDashboardPage();
+
+    const segmentedButtons = Array.from(
+      document.querySelectorAll('button[role="radio"]'),
+    ) as HTMLButtonElement[];
+    segmentedButtons.find((b) => (b.textContent || "").trim() === "高级设置")!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const storageButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        'div[role="radiogroup"][aria-label="存储模式"] button[role="radio"]',
+      ),
+    );
+    storageButtons[1].click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.body.textContent || "").toContain("已切换到 SQLite 模式。");
+
+    document.querySelector<HTMLButtonElement>(".acu-v2-app__close")!.click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.body.textContent || "").not.toContain("已切换到 SQLite 模式。");
+
+    await mount.openAcuV2App();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.body.textContent || "").not.toContain("已切换到 SQLite 模式。");
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it("存储模式切换失败时写日志并显示短 toast", async () => {
+    const { mount } = await mountDashboardPage(createSettings(), createTableData(), {
+      failStorageSwitch: true,
+    });
+
+    const segmentedButtons = Array.from(
+      document.querySelectorAll('button[role="radio"]'),
+    ) as HTMLButtonElement[];
+    segmentedButtons.find((b) => (b.textContent || "").trim() === "高级设置")!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const storageButtons = Array.from(
+      document.querySelectorAll<HTMLButtonElement>(
+        'div[role="radiogroup"][aria-label="存储模式"] button[role="radio"]',
+      ),
+    );
+    storageButtons[1].click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(document.body.textContent || "").toContain("存储模式切换失败，详情见运行日志");
+    const { getAllLogs } = await import("../../../src/shared/log-buffer");
+    expect(getAllLogs().some((entry) => entry.message.includes("switch failed"))).toBe(true);
 
     mount.__resetAcuV2MountForTests();
   });

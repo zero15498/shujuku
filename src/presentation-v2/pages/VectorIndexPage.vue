@@ -15,13 +15,6 @@
             }}</AcuBadge>
           </template>
 
-          <AcuMessage
-            v-if="vector.message.value"
-            :kind="vector.message.value.kind"
-          >
-            {{ vector.message.value.text }}
-          </AcuMessage>
-
           <AcuStatsList :items="vector.statusStatsItems.value" />
 
           <p class="acu-v2-vector-index-page__hint">
@@ -183,10 +176,6 @@
                 {{ error }}
               </p>
             </AcuMessage>
-            <AcuMessage v-else-if="vectorApiConfig.savedAt.value" kind="success"
-              >已保存</AcuMessage
-            >
-
             <div class="acu-v2-vector-api-form__actions">
               <AcuButton variant="primary" native-type="submit">保存</AcuButton>
             </div>

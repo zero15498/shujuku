@@ -28,7 +28,8 @@ import {
   getCurrentTemplatePresetName_ACU,
 } from '../../shared/template-preset-utils';
 import { settings_ACU } from '../../service/runtime/state-manager';
-import { topLevelWindow_ACU } from '../../shared/env';
+import { useToastStore } from '../stores/toast-store';
+import { openVisualizerSurface_ACU } from '../surfaces/visualizer/open-visualizer-surface';
 
 export type TablePresetDrawerView = 'closed' | 'manage';
 
@@ -51,6 +52,7 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 }
 
 export function useTablePresetManagement() {
+  const toast = useToastStore();
   const drawerView = ref<TablePresetDrawerView>('closed');
   const busy = ref(false);
   const message = ref<{ kind: MessageKind; text: string } | null>(null);
@@ -82,7 +84,7 @@ export function useTablePresetManagement() {
     try {
       return await action();
     } catch (error: any) {
-      message.value = { kind: 'error', text: error?.message || '操作失败。' };
+      toast.error(error?.message || '操作失败。');
       return null;
     } finally {
       busy.value = false;
@@ -93,10 +95,9 @@ export function useTablePresetManagement() {
   /** 打开可视化表格编辑器；编辑当前生效的模板。 */
   async function openVisualizer(): Promise<void> {
     await run(async () => {
-      const topLevelApi = (topLevelWindow_ACU as any)?.AutoCardUpdaterAPI;
-      if (!topLevelApi?.openVisualizer) throw new Error('可视化编辑器入口尚未注册。');
-      await topLevelApi.openVisualizer();
-      message.value = { kind: 'success', text: '已打开可视化表格编辑器。' };
+      const opened = await openVisualizerSurface_ACU({ source: 'v2-shell' });
+      if (!opened) throw new Error('可视化编辑器加载失败。');
+      toast.success('已打开可视化表格编辑器。');
     });
   }
 
@@ -104,7 +105,7 @@ export function useTablePresetManagement() {
   async function editPreset(name: string): Promise<void> {
     const normalized = normalizeTemplatePresetSelectionValue_ACU(name);
     if (!normalized) {
-      message.value = { kind: 'warning', text: '默认预设不能直接编辑，请从默认新建后修改。' };
+      toast.warning('默认预设不能直接编辑，请从默认新建后修改。');
       return;
     }
     await run(async () => {
@@ -115,10 +116,9 @@ export function useTablePresetManagement() {
         persistChatScope: true,
       });
       if (!result) throw new Error('切换到目标预设失败。');
-      const topLevelApi = (topLevelWindow_ACU as any)?.AutoCardUpdaterAPI;
-      if (!topLevelApi?.openVisualizer) throw new Error('可视化编辑器入口尚未注册。');
-      await topLevelApi.openVisualizer();
-      message.value = { kind: 'success', text: `已切换到「${normalized}」并打开可视化编辑器。` };
+      const opened = await openVisualizerSurface_ACU({ source: 'v2-shell' });
+      if (!opened) throw new Error('可视化编辑器加载失败。');
+      toast.success(`已切换到「${normalized}」并打开可视化编辑器。`);
     });
   }
 
@@ -132,13 +132,13 @@ export function useTablePresetManagement() {
         persistChatScope: false,
       });
       if (!result) throw new Error('设为全局默认失败。');
-      message.value = { kind: 'success', text: `「${normalized || '默认预设'}」已设为全局默认。` };
+      toast.success(`「${normalized || '默认预设'}」已设为全局默认。`);
     });
   }
 
   async function deletePreset(name: string): Promise<void> {
     if (!name) {
-      message.value = { kind: 'warning', text: '默认预设不能删除。' };
+      toast.warning('默认预设不能删除。');
       return;
     }
     if (!window.confirm(`确定要删除全局模板预设「${name}」吗？此操作不可撤销。`)) return;
@@ -165,20 +165,21 @@ export function useTablePresetManagement() {
         });
         if (!chatResult) throw new Error('预设已删除，但当前聊天回退失败。');
       }
-      message.value = { kind: 'success', text: `已删除全局模板预设「${name}」。` };
+      toast.success(`已删除全局模板预设「${name}」。`);
     });
   }
 
   function exportPreset(name: string): void {
     const resolved = resolveTemplateForExport_ACU('global', name);
     if (!resolved) {
-      message.value = { kind: 'error', text: '无法解析目标模板。' };
+      toast.error('无法解析目标模板。');
       return;
     }
     const sanitized = sanitizeChatSheetsObject_ACU(resolved.jsonData, { ensureMate: true });
     const safeName = sanitizeFilenameComponent_ACU(resolved.fromPresetName) || 'template';
     downloadJson(sanitized, `TavernDB_template_${safeName}.json`);
-    message.value = { kind: 'success', text: `「${resolved.fromPresetName || '默认预设'}」已导出。` };
+    message.value = null;
+    toast.success(`「${resolved.fromPresetName || '默认预设'}」已导出。`);
   }
 
   async function createBlankPreset(): Promise<void> {
@@ -192,19 +193,19 @@ export function useTablePresetManagement() {
       const snapshot = getDefaultTemplateSnapshot_ACU();
       if (!snapshot?.templateStr) throw new Error('无法解析默认模板。');
       if (!upsertTemplatePreset_ACU(finalName, snapshot.templateStr)) throw new Error('无法写入全局模板预设。');
-      message.value = { kind: 'success', text: `已新建全局模板预设「${finalName}」。` };
+      toast.success(`已新建全局模板预设「${finalName}」。`);
     });
   }
 
   /** "重命名当前生效的全局预设"——保留原有能力，从抽屉里发起。 */
   async function renamePreset(name: string): Promise<void> {
     if (!name) {
-      message.value = { kind: 'warning', text: '默认预设不能重命名。' };
+      toast.warning('默认预设不能重命名。');
       return;
     }
     const preset = getTemplatePreset_ACU(name);
     if (!preset?.templateStr) {
-      message.value = { kind: 'warning', text: '找不到目标预设。' };
+      toast.warning('找不到目标预设。');
       return;
     }
     const raw = window.prompt(`将全局模板预设「${name}」重命名为：`, name);
@@ -223,7 +224,7 @@ export function useTablePresetManagement() {
         });
         if (!result) throw new Error('重命名后切换全局模板预设失败。');
       }
-      message.value = { kind: 'success', text: `预设已重命名为「${newName}」。` };
+      toast.success(`预设已重命名为「${newName}」。`);
     });
   }
 

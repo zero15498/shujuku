@@ -20,6 +20,7 @@ import { settings_ACU } from '../../service/runtime/state-manager';
 import { safeJsonParse_ACU } from '../../shared/json-helpers';
 import { getCurrentTemplatePresetName_ACU, normalizeTemplatePresetSelectionValue_ACU, sanitizeFilenameComponent_ACU } from '../../shared/template-preset-utils';
 import { deriveTemplatePresetNameForImport_ACU } from '../../shared/template-preset-utils';
+import { useToastStore } from '../stores/toast-store';
 
 export type TemplateScope = 'global' | 'chat';
 
@@ -65,6 +66,7 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 }
 
 export function useTableTemplatePresets() {
+  const toast = useToastStore();
   const busy = ref(false);
   const message = ref<{ kind: MessageKind; text: string } | null>(null);
   const globalPresetNames = ref<string[]>([]);
@@ -128,7 +130,9 @@ export function useTableTemplatePresets() {
     try {
       return await action();
     } catch (error: any) {
-      message.value = { kind: 'error', text: error?.message || '操作失败。' };
+      const text = error?.message || '操作失败。';
+      message.value = { kind: 'error', text };
+      toast.error(text);
       return null;
     } finally {
       busy.value = false;
@@ -146,7 +150,7 @@ export function useTableTemplatePresets() {
         persistChatScope: false,
       });
       if (!result) throw new Error('全局模板预设切换失败。');
-      message.value = { kind: 'success', text: `全局模板预设已切换为「${normalized || '默认预设'}」。` };
+      message.value = null;
     });
   }
 
@@ -160,7 +164,7 @@ export function useTableTemplatePresets() {
         persistChatScope: true,
       });
       if (!result) throw new Error('当前聊天模板预设切换失败。');
-      message.value = { kind: 'success', text: `当前聊天模板预设已切换为「${normalized || '默认预设'}」。` };
+      message.value = null;
     });
   }
 
@@ -183,7 +187,8 @@ export function useTableTemplatePresets() {
         persistChatScope: false,
       });
       if (!result) throw new Error('另存后切换全局模板预设失败。');
-      message.value = { kind: 'success', text: `已另存为全局模板预设「${finalName}」。` };
+      message.value = null;
+      toast.success(`已另存为全局模板预设「${finalName}」。`);
     });
   }
 
@@ -214,7 +219,7 @@ export function useTableTemplatePresets() {
         });
         if (!result) throw new Error('重命名后切换全局模板预设失败。');
       }
-      message.value = { kind: 'success', text: `全局模板预设已重命名为「${newName}」。` };
+      message.value = null;
     });
   }
 
@@ -227,7 +232,7 @@ export function useTableTemplatePresets() {
     if (!window.confirm(`确定要删除全局模板预设「${name}」吗？此操作不可撤销。`)) return;
     await run(() => {
       if (!deleteTemplatePreset_ACU(name)) throw new Error('删除失败或全局模板预设不存在。');
-      message.value = { kind: 'success', text: `已删除全局模板预设「${name}」。` };
+      message.value = null;
     });
   }
 
@@ -249,7 +254,8 @@ export function useTableTemplatePresets() {
         persistChatScope: true,
       });
       if (!result) throw new Error('模板已保存，但切换到当前聊天失败。');
-      message.value = { kind: 'success', text: `模板已保存到预设库，并切换为当前聊天预设「${finalName}」。新聊天仍跟随全局默认；点星标可设为全局默认。` };
+      message.value = null;
+      toast.success(`模板已保存并切换为「${finalName}」。`, { muteable: false });
     });
   }
 
@@ -257,7 +263,9 @@ export function useTableTemplatePresets() {
     const selectedPresetName = scope === 'global' ? selectedGlobalPreset.value : selectedChatPreset.value;
     const resolved = resolveTemplateForExport_ACU(scope, selectedPresetName);
     if (!resolved) {
-      message.value = { kind: 'error', text: '无法解析当前模板。' };
+      const text = '无法解析当前模板。';
+      message.value = { kind: 'error', text };
+      toast.error(text);
       return;
     }
     const sanitized = sanitizeChatSheetsObject_ACU(resolved.jsonData, { ensureMate: true });
@@ -266,7 +274,8 @@ export function useTableTemplatePresets() {
       ? `TavernDB_template_${safeName}.json`
       : `TavernDB_template_chat_${safeName}.json`;
     downloadJson(sanitized, filename);
-    message.value = { kind: 'success', text: scope === 'global' ? '全局模板已导出。' : '当前聊天模板已导出。' };
+    message.value = null;
+    toast.success(scope === 'global' ? '全局模板已导出。' : '当前聊天模板已导出。');
   }
 
   refresh();

@@ -6,8 +6,7 @@ import {
   validateLoopStartParams_ACU,
 } from '../../service/loop/loop-controller';
 import { loopState_ACU } from '../../service/runtime/state-manager';
-
-type MessageKind = 'info' | 'success' | 'warning' | 'error';
+import { useToastStore } from '../stores/toast-store';
 
 function setSendTextareaValue(text: string): boolean {
   const input = document.querySelector<HTMLTextAreaElement>('#send_textarea');
@@ -25,9 +24,9 @@ function clickSendButton(): boolean {
 }
 
 export function useContinuationLoop() {
+  const toast = useToastStore();
   const running = ref(loopState_ACU.isLooping);
   const timerText = ref('');
-  const message = ref<{ kind: MessageKind; text: string } | null>(null);
 
   function refreshStatus(): void {
     running.value = loopState_ACU.isLooping;
@@ -43,7 +42,7 @@ export function useContinuationLoop() {
     const remaining = Math.max(0, loopState_ACU.totalDuration - elapsed);
     if (remaining <= 0) {
       stop();
-      message.value = { kind: 'info', text: '总时长已结束，智能续写已停止。' };
+      toast.info('总时长已结束，智能续写已停止。', { muteable: false });
       return;
     }
     const minutes = Math.floor(remaining / 60000);
@@ -61,19 +60,19 @@ export function useContinuationLoop() {
     const prompt = getNextLoopPrompt_ACU();
     if (prompt === null) {
       stop();
-      message.value = { kind: 'error', text: '没有可用的循环提示词，智能续写已停止。' };
+      toast.error('没有可用的循环提示词，智能续写已停止。', { muteable: false });
       return;
     }
     if (!setSendTextareaValue(prompt)) {
       stop();
-      message.value = { kind: 'error', text: '找不到酒馆输入框，请确认当前页面可以正常发送消息。' };
+      toast.error('找不到酒馆输入框，请确认当前页面可以正常发送消息。', { muteable: false });
       return;
     }
     window.setTimeout(() => {
       if (!loopState_ACU.isLooping) return;
       if (!clickSendButton()) {
         stop();
-        message.value = { kind: 'error', text: '找不到发送按钮，智能续写已停止。' };
+        toast.error('找不到发送按钮，智能续写已停止。', { muteable: false });
       }
     }, 100);
   }
@@ -81,13 +80,13 @@ export function useContinuationLoop() {
   function start(): void {
     const validationError = validateLoopStartParams_ACU();
     if (validationError) {
-      message.value = { kind: 'error', text: validationError };
+      toast.error(validationError);
       stopLoopState_ACU();
       refreshStatus();
       return;
     }
     initLoopState_ACU();
-    message.value = { kind: 'success', text: '智能续写已启动。' };
+    toast.success('智能续写已启动。', { muteable: false });
     refreshStatus();
     startTick();
     triggerNextPrompt();
@@ -106,7 +105,6 @@ export function useContinuationLoop() {
   return {
     running,
     timerText,
-    message,
     statusText: computed(() => (running.value ? '运行中' : '未运行')),
     start,
     stop,

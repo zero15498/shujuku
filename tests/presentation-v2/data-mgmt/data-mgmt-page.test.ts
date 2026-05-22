@@ -413,7 +413,7 @@ describe('DataMgmtPage', () => {
 
     expect(settings.retainRecentLayers).toBe(30);
     expect(saveSettings).toHaveBeenCalled();
-    expect(document.body.textContent || '').toContain('自动清理策略已保存：保留最近 30 层本地数据。');
+    expect(document.body.textContent || '').not.toContain('自动清理策略已保存：保留最近 30 层本地数据。');
 
     mount.__resetAcuV2MountForTests();
   });

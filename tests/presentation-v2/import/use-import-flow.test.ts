@@ -71,18 +71,21 @@ async function setup({
     logDebug_ACU: vi.fn(),
   }));
 
-  const [{ setActivePinia, createPinia }, { useImportFlowStore }, { useImportFlow }] = await Promise.all([
+  const [{ setActivePinia, createPinia }, { useImportFlowStore }, { useImportFlow }, { useToastStore }] = await Promise.all([
     import('pinia'),
     import('../../../src/presentation-v2/stores/import-flow-store'),
     import('../../../src/presentation-v2/composables/useImportFlow'),
+    import('../../../src/presentation-v2/stores/toast-store'),
   ]);
   setActivePinia(createPinia());
   const store = useImportFlowStore();
   store.refreshFromSettings();
   const flow = useImportFlow();
+  const toast = useToastStore();
   return {
     flow,
     store,
+    toast,
     importTempRemove,
     importTempSet,
     importTempGet,
@@ -121,7 +124,7 @@ beforeEach(() => {
 
 describe('useImportFlow', () => {
   it('splitFile 按字符数拆分并写入 IndexedDB', async () => {
-    const { flow, store, importTempSet, importTempRemove } = await setup();
+    const { flow, store, toast, importTempSet, importTempRemove } = await setup();
     const content = 'x'.repeat(550); // 550 chars / 200 -> 3 chunks (200, 200, 150)
     const file: any = new FakeFile('a.txt', content);
     store.setSplitSize(200);
@@ -136,40 +139,41 @@ describe('useImportFlow', () => {
     expect(chunks).toHaveLength(3);
     expect(chunks[0].content).toHaveLength(200);
     expect(chunks[2].content).toHaveLength(150);
-    expect(flow.message.value?.kind).toBe('success');
+    expect(toast.items.at(-1)).toMatchObject({ kind: 'success' });
   });
 
   it('clearStaging 清空所有暂存键并发出消息', async () => {
-    const { flow, importTempRemove } = await setup();
+    const { flow, toast, importTempRemove } = await setup();
     await flow.clearStaging();
 
     expect(importTempRemove).toHaveBeenCalledTimes(5);
-    expect(flow.message.value?.kind === 'success' || flow.message.value?.kind === 'info').toBe(true);
+    expect(['success', 'info']).toContain(toast.items.at(-1)?.kind);
   });
 
   it('clearImportedEntries 把 character sentinel 解析为角色卡主世界书', async () => {
-    const { flow, store, clearImportedEntriesCore } = await setup({ charPrimary: 'CharBook', clearedCount: 7 });
+    const { flow, store, toast, clearImportedEntriesCore } = await setup({ charPrimary: 'CharBook', clearedCount: 7 });
     store.setWorldbookTarget('character');
 
     await flow.clearImportedEntries();
 
     expect(clearImportedEntriesCore).toHaveBeenCalledWith('CharBook');
-    expect(flow.message.value?.kind).toBe('success');
-    expect(flow.message.value?.text).toMatch(/7 个/);
+    expect(toast.items.at(-1)).toMatchObject({ kind: 'success' });
+    expect(toast.items.at(-1)?.text).toMatch(/7 个/);
   });
 
   it('deleteImportedEntries 在没有目标时报错', async () => {
-    const { flow, store } = await setup();
+    const { flow, store, toast } = await setup();
     store.setWorldbookTarget('');
 
     await flow.deleteImportedEntries();
 
-    expect(flow.message.value?.kind).toBe('error');
+    expect(toast.items.at(-1)).toMatchObject({ kind: 'error' });
   });
 
   it('injectChunks 处理暂存分块并完成最终注入', async () => {
     const {
       flow,
+      toast,
       importTempGet,
       initImportDatabase,
       saveChunkProgress,
@@ -189,6 +193,7 @@ describe('useImportFlow', () => {
     expect(executeCardUpdateCore).toHaveBeenCalledTimes(2);
     expect(saveChunkProgress).toHaveBeenCalledTimes(2);
     expect(finalizeImportAndCleanup).toHaveBeenCalledWith('world-A', ['sheetA'], '-Selected', 2);
-    expect(flow.message.value?.kind).toBe('success');
+    expect(toast.items).toHaveLength(1);
+    expect(toast.items[0]).toMatchObject({ kind: 'success' });
   });
 });
