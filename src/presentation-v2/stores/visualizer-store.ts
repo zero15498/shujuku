@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { TABLE_ORDER_FIELD_ACU } from '../../shared/constants';
 
-export type VisualizerMode = 'data' | 'config' | 'assistant' | 'global';
+export type VisualizerMode = 'data' | 'config' | 'assistant' | 'global' | 'table-management';
 export type VisualizerOpenSource = 'external-api' | 'v2-shell';
 export type VisualizerSaveTarget = 'chat' | 'global';
 
@@ -10,6 +10,13 @@ export interface VisualizerSheetItem {
   name: string;
   rowCount: number;
   columnCount: number;
+}
+
+export interface VisualizerLockDraft {
+  rows: number[];
+  cols: number[];
+  cells: string[];
+  specialIndexLocked: boolean;
 }
 
 export type VisualizerAssistantTurnState =
@@ -66,6 +73,7 @@ interface VisualizerState {
   sheetOrder: string[];
   deletedSheetKeys: string[];
   pendingLockChanges: any[];
+  tableLockDrafts: Record<string, VisualizerLockDraft>;
   isLoading: boolean;
   loadError: string;
   isSaving: boolean;
@@ -146,6 +154,7 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
     sheetOrder: [],
     deletedSheetKeys: [],
     pendingLockChanges: [],
+    tableLockDrafts: {},
     isLoading: false,
     loadError: '',
     isSaving: false,
@@ -235,10 +244,11 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
       this.sheetOrder = nextOrder;
       this.deletedSheetKeys = [];
       this.pendingLockChanges = [];
+      this.tableLockDrafts = {};
       this.currentSheetKey = nextOrder.includes(this.currentSheetKey || '')
         ? this.currentSheetKey
         : nextOrder[0] || null;
-      if (this.mode === 'global' || !this.currentSheetKey) {
+      if ((this.mode === 'global' || this.mode === 'table-management') || !this.currentSheetKey) {
         this.mode = this.currentSheetKey ? 'data' : 'global';
       }
       this.dirty = false;
@@ -247,6 +257,9 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
       this.isLoading = false;
       this.lastLoadedAt = Date.now();
       this.clearAssistantDraftState();
+    },
+    loadLockDrafts(drafts: Record<string, VisualizerLockDraft>): void {
+      this.tableLockDrafts = cloneData(drafts || {});
     },
     clearAssistantDraftState(): void {
       this.assistantIsRunning = false;
@@ -262,10 +275,13 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
     selectSheet(key: string): void {
       if (!this.tempData?.[key]) return;
       this.currentSheetKey = key;
-      if (this.mode === 'global') this.mode = 'data';
+      if (this.mode === 'global' || this.mode === 'table-management') this.mode = 'data';
     },
     selectGlobalConfig(): void {
       this.mode = 'global';
+    },
+    selectTableManagement(): void {
+      this.mode = 'table-management';
     },
     addSheet(key: string, sheet: Record<string, any>): void {
       if (!this.tempData) this.tempData = { mate: { type: 'chatSheets', version: 1 } };
@@ -285,7 +301,7 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
       this.sheetOrder = this.sheetOrder.filter(item => item !== key);
       applyOrderNumbers(this.tempData, this.sheetOrder);
       if (this.currentSheetKey === key) this.currentSheetKey = this.sheetOrder[0] || null;
-      if (!this.currentSheetKey) this.mode = 'global';
+      if (!this.currentSheetKey && this.mode !== 'table-management') this.mode = 'global';
       this.setDirty(true);
     },
     moveSheet(key: string, direction: 'up' | 'down'): void {
@@ -336,8 +352,93 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
       this.lastSavedAt = Date.now();
       this.setDirty(false);
     },
+    getLockDraft(sheetKey: string | null | undefined): VisualizerLockDraft {
+      const key = String(sheetKey || '').trim();
+      if (!key) return { rows: [], cols: [], cells: [], specialIndexLocked: true };
+      if (!this.tableLockDrafts[key]) {
+        this.tableLockDrafts[key] = { rows: [], cols: [], cells: [], specialIndexLocked: true };
+      }
+      return this.tableLockDrafts[key];
+    },
+    isRowLocked(sheetKey: string | null | undefined, rowIndex: number): boolean {
+      return this.getLockDraft(sheetKey).rows.includes(Math.trunc(Number(rowIndex)));
+    },
+    isColumnLocked(sheetKey: string | null | undefined, columnIndex: number): boolean {
+      return this.getLockDraft(sheetKey).cols.includes(Math.trunc(Number(columnIndex)));
+    },
+    isCellLocked(sheetKey: string | null | undefined, rowIndex: number, columnIndex: number): boolean {
+      return this.getLockDraft(sheetKey).cells.includes(`${Math.trunc(Number(rowIndex))}:${Math.trunc(Number(columnIndex))}`);
+    },
+    isSpecialIndexLocked(sheetKey: string | null | undefined): boolean {
+      return this.getLockDraft(sheetKey).specialIndexLocked !== false;
+    },
+    toggleRowLock(sheetKey: string | null | undefined, rowIndex: number): void {
+      const lock = this.getLockDraft(sheetKey);
+      const value = Math.trunc(Number(rowIndex));
+      if (!Number.isFinite(value)) return;
+      lock.rows = lock.rows.includes(value)
+        ? lock.rows.filter(item => item !== value)
+        : [...lock.rows, value];
+      this.setDirty(true);
+    },
+    toggleColumnLock(sheetKey: string | null | undefined, columnIndex: number): void {
+      const lock = this.getLockDraft(sheetKey);
+      const value = Math.trunc(Number(columnIndex));
+      if (!Number.isFinite(value)) return;
+      lock.cols = lock.cols.includes(value)
+        ? lock.cols.filter(item => item !== value)
+        : [...lock.cols, value];
+      this.setDirty(true);
+    },
+    toggleCellLock(sheetKey: string | null | undefined, rowIndex: number, columnIndex: number): void {
+      const lock = this.getLockDraft(sheetKey);
+      const key = `${Math.trunc(Number(rowIndex))}:${Math.trunc(Number(columnIndex))}`;
+      lock.cells = lock.cells.includes(key)
+        ? lock.cells.filter(item => item !== key)
+        : [...lock.cells, key];
+      this.setDirty(true);
+    },
+    applyLockChangesToDraft(changes: any[]): void {
+      if (!Array.isArray(changes)) return;
+      changes.forEach(change => {
+        const sheetKey = String(change?.sheetKey || '').trim();
+        if (!sheetKey) return;
+        const lock = this.getLockDraft(sheetKey);
+        const rows = new Set(lock.rows);
+        const cols = new Set(lock.cols);
+        const cells = new Set(lock.cells);
+        (Array.isArray(change.rows) ? change.rows : []).forEach((item: any) => {
+          const value = Math.trunc(Number(item?.rowIndex));
+          if (!Number.isFinite(value)) return;
+          if (item?.locked) rows.add(value);
+          else rows.delete(value);
+        });
+        (Array.isArray(change.columns) ? change.columns : []).forEach((item: any) => {
+          const value = Math.trunc(Number(item?.colIndex));
+          if (!Number.isFinite(value)) return;
+          if (item?.locked) cols.add(value);
+          else cols.delete(value);
+        });
+        (Array.isArray(change.cells) ? change.cells : []).forEach((item: any) => {
+          const row = Math.trunc(Number(item?.rowIndex));
+          const col = Math.trunc(Number(item?.colIndex));
+          if (!Number.isFinite(row) || !Number.isFinite(col)) return;
+          const key = `${row}:${col}`;
+          if (item?.locked) cells.add(key);
+          else cells.delete(key);
+        });
+        lock.rows = Array.from(rows).sort((a, b) => a - b);
+        lock.cols = Array.from(cols).sort((a, b) => a - b);
+        lock.cells = Array.from(cells).sort();
+        if (typeof change.specialIndexLocked === 'boolean') {
+          lock.specialIndexLocked = change.specialIndexLocked;
+        }
+      });
+      if (changes.length) this.setDirty(true);
+    },
     queueLockChanges(changes: any[]): void {
       if (!Array.isArray(changes) || changes.length === 0) return;
+      this.applyLockChangesToDraft(changes);
       this.pendingLockChanges = [
         ...this.pendingLockChanges,
         ...cloneData(changes),
@@ -365,6 +466,7 @@ export const useVisualizerStore = defineStore('acu-v2-visualizer', {
       this.sheetOrder = [];
       this.deletedSheetKeys = [];
       this.pendingLockChanges = [];
+      this.tableLockDrafts = {};
       this.isLoading = false;
       this.loadError = '';
       this.isSaving = false;

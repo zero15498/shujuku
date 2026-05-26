@@ -52,11 +52,20 @@ describe('theme-store', () => {
   });
 
   it('localStorage 中已有合法 id 时按持久化值初始化', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: { activeId: 'creamy-minimal' } }));
+    const m = await freshImport();
+    m.pinia.setActivePinia(m.pinia.createPinia());
+    const store = m.themeStore.useThemeStore();
+    expect(store.activeId).toBe('creamy-minimal');
+  });
+
+  it('旧草莓奶龙 id 会迁移到奶油主题', async () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ theme: { activeId: 'strawberry-dragon' } }));
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
-    expect(store.activeId).toBe('strawberry-dragon');
+    expect(store.activeId).toBe('creamy-minimal');
+    expect(store.activeTheme.name).toBe('奶油风');
   });
 
   it('非法 id 落回默认主题', async () => {
@@ -94,7 +103,7 @@ describe('theme-store', () => {
     expect(store.themes.map(t => t.id)).toEqual([
       'default-light',
       'default-dark',
-      'strawberry-dragon',
+      'creamy-minimal',
     ]);
   });
 
@@ -125,7 +134,7 @@ describe('theme-store', () => {
     expect(store.themes.map(t => t.id)).toEqual([
       'default-light',
       'default-dark',
-      'strawberry-dragon',
+      'creamy-minimal',
       'custom:theme',
     ]);
 
@@ -196,7 +205,7 @@ describe('theme-store', () => {
       kind: 'acu-v2-theme',
       version: 1,
       theme: {
-        name: '浅色管理台',
+        name: '浅色',
         colorScheme: 'light',
       },
     });
@@ -251,13 +260,13 @@ describe('theme-store', () => {
     }))).toThrow('主题文件缺少 v2 主题所需的颜色模式或 token。');
   });
 
-  it('深色管理台使用灰蓝底色与冷薄荷 accent', async () => {
+  it('深色使用灰蓝底色与冷薄荷 accent', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
     const defaultDark = store.themes.find(t => t.id === 'default-dark');
     expect(defaultDark).toMatchObject({
-      name: '深色管理台',
+      name: '深色',
       colorScheme: 'dark',
       tokens: {
         bg0: '#1F2428',
@@ -282,31 +291,35 @@ describe('theme-store', () => {
     });
   });
 
-  it('包含收敛后的草莓奶龙主题', async () => {
+  it('包含奶油风主题', async () => {
     const m = await freshImport();
     m.pinia.setActivePinia(m.pinia.createPinia());
     const store = m.themeStore.useThemeStore();
-    const strawberryDragon = store.themes.find(t => t.id === 'strawberry-dragon');
-    expect(strawberryDragon).toMatchObject({
-      name: '草莓奶龙',
+    const creamyMinimal = store.themes.find(t => t.id === 'creamy-minimal');
+    expect(creamyMinimal).toMatchObject({
+      name: '奶油风',
       colorScheme: 'light',
       tokens: {
-        bg0: '#FAEEF1',
-        bg1: '#FFFCFC',
-        bg2: '#F9E7EB',
-        sidebarBg: '#FAECEF',
-        border: 'rgba(120, 104, 94, 0.08)',
-        text1: '#6F5F56',
-        accent: '#6F5F56',
-        onAccent: '#FFF7F8',
-        hoverOverlay: 'rgba(207, 157, 168, 0.22)',
+        bg0: '#F7F0E6',
+        bg1: '#FCF8F1',
+        bg2: '#EFE4D7',
+        sidebarBg: '#F6ECDD',
+        border: 'rgba(116, 91, 62, 0.12)',
+        text1: '#514638',
+        accent: '#85A76A',
+        onAccent: '#FCF8F1',
+        hoverOverlay: 'rgba(116, 91, 62, 0.08)',
+        success: '#7F9B69',
+        warning: '#AA8050',
+        danger: '#A76561',
+        radiusLg: '18px',
       },
     });
 
-    store.setTheme('strawberry-dragon');
-    expect(store.activeId).toBe('strawberry-dragon');
+    store.setTheme('creamy-minimal');
+    expect(store.activeId).toBe('creamy-minimal');
     expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!)).toEqual({
-      theme: { activeId: 'strawberry-dragon' },
+      theme: { activeId: 'creamy-minimal' },
     });
   });
 });
@@ -340,13 +353,13 @@ describe('theme-injector', () => {
     expect(style2).toBe(style1); // 同一个节点，textContent 被替换
     expect(style2!.textContent).toContain('#f8f5ee'); // light 的 bg-0
 
-    store.setTheme('strawberry-dragon');
+    store.setTheme('creamy-minimal');
     m.injector.applyTheme(store.activeTheme);
     const style3 = document.getElementById(STYLE_NODE_ID) as HTMLStyleElement | null;
     expect(style3).toBe(style1);
-    expect(style3!.textContent).toContain('#FAEEF1'); // 草莓奶龙的 bg-0
-    expect(style3!.textContent).toContain('#6F5F56'); // 草莓奶龙的 accent
-    expect(style3!.textContent).toContain('rgba(207, 157, 168, 0.22)'); // 草莓奶龙的 hover overlay
+    expect(style3!.textContent).toContain('#F7F0E6'); // 奶油风的 bg-0
+    expect(style3!.textContent).toContain('#85A76A'); // 奶油风的 accent
+    expect(style3!.textContent).toContain('rgba(116, 91, 62, 0.08)'); // 奶油风的 hover overlay
   });
 
   it('applyTheme 设置根容器 colorScheme', async () => {

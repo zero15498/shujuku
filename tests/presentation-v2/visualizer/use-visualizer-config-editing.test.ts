@@ -16,6 +16,14 @@ const saveSettingsMock = vi.hoisted(() => ({
 }));
 
 const helperMock = vi.hoisted(() => ({
+  applySummaryIndexSequenceToTable_ACU: vi.fn((table: any, colIndex: number) => {
+    if (!Array.isArray(table?.content)) return;
+    for (let rowIndex = 1; rowIndex < table.content.length; rowIndex += 1) {
+      if (Array.isArray(table.content[rowIndex])) {
+        table.content[rowIndex][colIndex + 1] = `AM${String(rowIndex).padStart(4, '0')}`;
+      }
+    }
+  }),
   applySpecialIndexSequenceToSummaryTables_ACU: vi.fn(),
   getSummaryIndexColumnIndex_ACU: vi.fn(() => 0),
   isSpecialIndexLockEnabled_ACU: vi.fn(() => true),
@@ -115,6 +123,38 @@ describe('useVisualizerConfigEditing', () => {
     expect(runtimeMock.settings_ACU.tableApiPresetOverridesByName['背包表']).toBe('beta');
     expect(saveSettingsMock.saveSettings_ACU).toHaveBeenCalledTimes(1);
     expect(store.dirty).toBe(false);
+  });
+
+  it('编码索引自动编号开关写入锁草稿，开启时立即重排当前表', async () => {
+    const { useVisualizerStore } = await import('../../../src/presentation-v2/stores/visualizer-store');
+    const store = useVisualizerStore();
+    store.loadSnapshot({
+      mate: { type: 'chatSheets', version: 1 },
+      sheet_summary: {
+        uid: 'sheet_summary',
+        name: '总结表',
+        orderNo: 0,
+        content: [[null, '事件', '编码索引'], [null, '初遇', '手写编号']],
+        sourceData: {},
+        updateConfig: {},
+        exportConfig: {},
+      },
+    }, ['sheet_summary']);
+    store.loadLockDrafts({
+      sheet_summary: { rows: [], cols: [], cells: [], specialIndexLocked: false },
+    });
+    helperMock.getSummaryIndexColumnIndex_ACU.mockReturnValue(1);
+    const { useVisualizerConfigEditing } = await import('../../../src/presentation-v2/composables/visualizer/useVisualizerConfigEditing');
+    const config = useVisualizerConfigEditing();
+
+    expect(config.specialIndex.value.locked).toBe(false);
+
+    config.setSpecialIndexLock(true);
+
+    expect(store.tableLockDrafts.sheet_summary.specialIndexLocked).toBe(true);
+    expect(store.currentSheet.content[1][2]).toBe('AM0001');
+    expect(helperMock.applySummaryIndexSequenceToTable_ACU).toHaveBeenCalledWith(store.currentSheet, 1);
+    expect(store.dirty).toBe(true);
   });
 
   it('世界书关键词条目类型沿用旧 service 识别的 keyword 枚举', async () => {

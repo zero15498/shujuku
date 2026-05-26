@@ -5,7 +5,11 @@ import {
   currentJsonTableData_ACU,
   _set_currentJsonTableData_ACU,
 } from '../../../service/runtime/state-manager';
-import { mergeAllIndependentTables_ACU } from '../../../service/runtime/helpers-remaining';
+import {
+  getTableLocksForSheet_ACU,
+  isSpecialIndexLockEnabled_ACU,
+  mergeAllIndependentTables_ACU,
+} from '../../../service/runtime/helpers-remaining';
 import {
   getSortedSheetKeys_ACU,
   reorderDataBySheetKeys_ACU,
@@ -14,7 +18,7 @@ import { getActiveTemplatePresetMeta_ACU } from '../../../service/template/templ
 import { loadAllChatMessages_ACU } from '../../../service/worldbook/pipeline';
 import { buildDefaultExportConfig_ACU } from '../../../service/worldbook/injection-engine';
 import { useToastStore } from '../../stores/toast-store';
-import { useVisualizerStore } from '../../stores/visualizer-store';
+import { useVisualizerStore, type VisualizerLockDraft } from '../../stores/visualizer-store';
 
 function hasSheetData(data: any): boolean {
   return !!data && typeof data === 'object' && Object.keys(data).some(key => key.startsWith('sheet_'));
@@ -66,6 +70,20 @@ function createDefaultSheet(key: string, name: string): Record<string, any> {
   };
 }
 
+function buildLockDrafts(orderedKeys: string[]): Record<string, VisualizerLockDraft> {
+  const drafts: Record<string, VisualizerLockDraft> = {};
+  orderedKeys.forEach(key => {
+    const locks = getTableLocksForSheet_ACU(key);
+    drafts[key] = {
+      rows: Array.from(locks.rows || []).map(Number).filter(Number.isFinite),
+      cols: Array.from(locks.cols || []).map(Number).filter(Number.isFinite),
+      cells: Array.from(locks.cells || []).map(String),
+      specialIndexLocked: isSpecialIndexLockEnabled_ACU(key),
+    };
+  });
+  return drafts;
+}
+
 export function useVisualizerData() {
   const visualizer = useVisualizerStore();
   const toastStore = useToastStore();
@@ -97,11 +115,14 @@ export function useVisualizerData() {
       }
 
       if (!hasSheetData(data)) {
-        throw new Error('当前聊天还没有可编辑的表格数据。请先初始化数据库或完成一次填表。');
+        visualizer.loadSnapshot({ mate: { type: 'chatSheets', version: 1 } }, []);
+        visualizer.loadLockDrafts({});
+        return true;
       }
 
       const orderedKeys = buildOrderedKeys(data);
       visualizer.loadSnapshot(data, orderedKeys);
+      visualizer.loadLockDrafts(buildLockDrafts(orderedKeys));
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '数据库编辑器载入失败。';

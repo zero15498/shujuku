@@ -903,16 +903,16 @@ export function useDashboardPage(): DashboardPageState {
         value: settings_ACU.toastMuteEnabled === true,
       },
       {
-        key: "streamingEnabled",
-        label: dashboardCopy.toggles.streaming.label,
-        description: dashboardCopy.toggles.streaming.description,
-        value: settings_ACU.streamingEnabled === true,
-      },
-      {
         key: "zeroTkOccupyModeDefault",
         label: dashboardCopy.toggles.zeroTk.label,
         description: dashboardCopy.toggles.zeroTk.description,
         value: settings_ACU.zeroTkOccupyModeDefault === true,
+      },
+      {
+        key: "streamingEnabled",
+        label: dashboardCopy.toggles.streaming.label,
+        description: dashboardCopy.toggles.streaming.description,
+        value: settings_ACU.streamingEnabled === true,
       },
     ];
   });

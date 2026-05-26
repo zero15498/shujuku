@@ -1,5 +1,5 @@
 /**
- * builtin-themes — 内置主题色值（搬运自旧 theme/builtins/*.ts，D14）
+ * builtin-themes — 内置主题色值（D14）
  *
  * 仅保留 v2 稳定主题契约；丢弃旧的兼容变量、子模块变量、customCSS、
  * windowChromeVariables 等。
@@ -8,7 +8,7 @@ import type { AcuV2Theme } from "./theme-types";
 
 export const THEME_DEFAULT_LIGHT: AcuV2Theme = {
   id: "default-light",
-  name: "浅色管理台",
+  name: "浅色",
   colorScheme: "light",
   tokens: {
     bg0: "#f8f5ee",
@@ -39,7 +39,7 @@ export const THEME_DEFAULT_LIGHT: AcuV2Theme = {
 
 export const THEME_DEFAULT_DARK: AcuV2Theme = {
   id: "default-dark",
-  name: "深色管理台",
+  name: "深色",
   colorScheme: "dark",
   tokens: {
     bg0: "#1F2428",
@@ -68,41 +68,41 @@ export const THEME_DEFAULT_DARK: AcuV2Theme = {
   },
 };
 
-export const THEME_STRAWBERRY_DRAGON: AcuV2Theme = {
-  id: "strawberry-dragon",
-  name: "草莓奶龙",
+export const THEME_CREAMY_MINIMAL: AcuV2Theme = {
+  id: "creamy-minimal",
+  name: "奶油风",
   colorScheme: "light",
   tokens: {
-    bg0: "#FAEEF1",
-    bg1: "#FFFCFC",
-    bg2: "#F9E7EB",
-    sidebarBg: "#FAECEF",
-    hoverOverlay: "rgba(207, 157, 168, 0.22)",
-    border: "rgba(120, 104, 94, 0.08)",
-    border2: "rgba(120, 104, 94, 0.14)",
-    text1: "#6F5F56",
-    text2: "#7C6B61",
-    text3: "#948277",
-    accent: "#6F5F56",
-    accent2: "#7C6B61",
-    onAccent: "#FFF7F8",
-    accentGlow: "rgba(111, 95, 86, 0.16)",
-    success: "#8FB9A8",
-    warning: "#E3B587",
-    danger: "#D98A94",
+    bg0: "#F7F0E6",
+    bg1: "#FCF8F1",
+    bg2: "#EFE4D7",
+    sidebarBg: "#F6ECDD",
+    hoverOverlay: "rgba(116, 91, 62, 0.08)",
+    border: "rgba(116, 91, 62, 0.12)",
+    border2: "rgba(116, 91, 62, 0.18)",
+    text1: "#514638",
+    text2: "#735F4A",
+    text3: "#9A8268",
+    accent: "#85A76A",
+    accent2: "#738F5B",
+    onAccent: "#FCF8F1",
+    accentGlow: "rgba(133, 167, 106, 0.24)",
+    success: "#7F9B69",
+    warning: "#AA8050",
+    danger: "#A76561",
     fontUi: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     fontMono: 'Consolas, Menlo, Monaco, "Courier New", monospace',
-    radiusLg: "6px",
-    radiusMd: "6px",
-    radiusSm: "6px",
-    shadow: "0 4px 18px rgba(127, 104, 96, 0.12)",
+    radiusLg: "18px",
+    radiusMd: "16px",
+    radiusSm: "12px",
+    shadow: "0 8px 24px rgba(92, 70, 44, 0.10)",
   },
 };
 
 export const ACU_V2_BUILTIN_THEMES: readonly AcuV2Theme[] = [
   THEME_DEFAULT_LIGHT,
   THEME_DEFAULT_DARK,
-  THEME_STRAWBERRY_DRAGON,
+  THEME_CREAMY_MINIMAL,
 ];
 
 export const ACU_V2_DEFAULT_THEME_ID = THEME_DEFAULT_DARK.id;

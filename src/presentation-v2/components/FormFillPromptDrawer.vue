@@ -6,10 +6,6 @@
     :before-close="confirmIfDirty"
     @close="emit('close')"
   >
-    <AcuInfoBanner tone="tip">
-      主插槽 A 是填表任务说明，主插槽 B 是当前表格数据注入段。普通段可以自由增删，主插槽段不可删除；保存后才会写入实际填表设置。
-    </AcuInfoBanner>
-
     <AcuMessage v-if="message" :kind="message.kind">
       {{ message.text }}
     </AcuMessage>
@@ -43,7 +39,6 @@
 import AcuButton from './_lib/AcuButton.vue';
 import AcuDrawer from './_lib/AcuDrawer.vue';
 import AcuFileButton from './_lib/AcuFileButton.vue';
-import AcuInfoBanner from './_lib/AcuInfoBanner.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
 import AcuPromptSegments from './_lib/AcuPromptSegments.vue';
 import type { PromptSegment } from './_lib/AcuPromptSegments.vue';

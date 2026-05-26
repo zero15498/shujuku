@@ -101,4 +101,36 @@ describe('visualizer-store', () => {
     expect(store.deletedSheetKeys).toEqual(['sheet_c']);
     expect(store.dirty).toBe(true);
   });
+
+  it('锁状态作为 visualizer 草稿维护，AI lockChanges 会合并到同一份草稿', () => {
+    const store = useVisualizerStore();
+    store.loadSnapshot({
+      sheet_a: { name: '总结表', orderNo: 0, content: [[null, '事件', '编码索引'], [null, '旧值', 'AM0001']] },
+    }, ['sheet_a']);
+    store.loadLockDrafts({
+      sheet_a: {
+        rows: [],
+        cols: [1],
+        cells: [],
+        specialIndexLocked: true,
+      },
+    });
+
+    store.toggleRowLock('sheet_a', 0);
+    store.toggleCellLock('sheet_a', 0, 0);
+    store.applyLockChangesToDraft([
+      {
+        sheetKey: 'sheet_a',
+        columns: [{ colIndex: 1, locked: false }],
+        cells: [{ rowIndex: 0, colIndex: 0, locked: false }],
+        specialIndexLocked: false,
+      },
+    ]);
+
+    expect(store.isRowLocked('sheet_a', 0)).toBe(true);
+    expect(store.isColumnLocked('sheet_a', 1)).toBe(false);
+    expect(store.isCellLocked('sheet_a', 0, 0)).toBe(false);
+    expect(store.isSpecialIndexLocked('sheet_a')).toBe(false);
+    expect(store.dirty).toBe(true);
+  });
 });

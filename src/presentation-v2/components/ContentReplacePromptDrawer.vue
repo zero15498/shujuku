@@ -6,10 +6,6 @@
     :before-close="confirmIfDirty"
     @close="$emit('close')"
   >
-    <AcuInfoBanner tone="tip">
-      这组提示词决定正文替换怎样检查 AI 回复并返回 JSON 替换建议。必须保留 $CONTENT；保存后才会写入实际配置，改错时可以载入默认提示词再保存。
-    </AcuInfoBanner>
-
     <AcuMessage v-if="message" :kind="message.kind">
       {{ message.text }}
     </AcuMessage>
@@ -50,7 +46,6 @@
 <script setup lang="ts">
 import AcuButton from './_lib/AcuButton.vue';
 import AcuDrawer from './_lib/AcuDrawer.vue';
-import AcuInfoBanner from './_lib/AcuInfoBanner.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
 import AcuPromptSegments, { type PromptSegment } from './_lib/AcuPromptSegments.vue';
 import type { ContentReplaceMessage } from '../stores/content-replace-store';

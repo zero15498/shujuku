@@ -28,6 +28,9 @@ import { readSection, writeSection } from './persistence';
 
 const SECTION_KEY = 'theme';
 const CUSTOM_THEME_ID_PREFIX = 'custom:';
+const LEGACY_BUILTIN_THEME_ID_ALIASES: Record<string, AcuV2BuiltinThemeId> = {
+  'strawberry-dragon': 'creamy-minimal',
+};
 const MAX_CUSTOM_THEMES = 24;
 const MAX_THEME_NAME_LENGTH = 40;
 const MAX_TOKEN_VALUE_LENGTH = 240;
@@ -68,6 +71,17 @@ function isSafeCustomThemeId(id: unknown): id is AcuV2CustomThemeId {
 
 function themeExists(id: unknown, customThemes: readonly AcuV2Theme[]): id is AcuV2ThemeId {
   return isBuiltinThemeId(id) || customThemes.some(t => t.id === id);
+}
+
+function normalizePersistedActiveThemeId(
+  id: unknown,
+  customThemes: readonly AcuV2Theme[],
+): AcuV2ThemeId {
+  if (themeExists(id, customThemes)) return id;
+  if (typeof id === 'string' && LEGACY_BUILTIN_THEME_ID_ALIASES[id]) {
+    return LEGACY_BUILTIN_THEME_ID_ALIASES[id];
+  }
+  return ACU_V2_DEFAULT_THEME_ID;
 }
 
 function sanitizeThemeName(value: unknown): string {
@@ -179,9 +193,7 @@ function sanitizePersistedCustomThemes(value: unknown): AcuV2Theme[] {
 function readInitialThemeState(): InitialThemeState {
   const persisted = readSection<PersistedTheme>(SECTION_KEY);
   const customThemes = sanitizePersistedCustomThemes(persisted?.customThemes);
-  const activeId = themeExists(persisted?.activeId, customThemes)
-    ? persisted!.activeId as AcuV2ThemeId
-    : ACU_V2_DEFAULT_THEME_ID;
+  const activeId = normalizePersistedActiveThemeId(persisted?.activeId, customThemes);
   return { activeId, customThemes };
 }
 

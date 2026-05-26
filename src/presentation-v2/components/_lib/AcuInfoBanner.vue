@@ -1,6 +1,6 @@
 <template>
   <div :class="['acu-info-banner', `acu-info-banner--${tone}`]" role="note">
-    <i :class="['acu-info-banner__icon', iconClass]" aria-hidden="true"></i>
+    <i v-if="iconClass" :class="['acu-info-banner__icon', iconClass]" aria-hidden="true"></i>
     <div class="acu-info-banner__content">
       <slot>{{ text }}</slot>
     </div>
@@ -24,9 +24,7 @@ const props = withDefaults(defineProps<{
 
 const iconClass = computed(() => {
   if (props.icon) return props.icon;
-  if (props.tone === 'tip') return 'fa-solid fa-lightbulb';
-  if (props.tone === 'warning') return 'fa-solid fa-triangle-exclamation';
-  return 'fa-solid fa-circle-info';
+  return '';
 });
 </script>
 
@@ -35,13 +33,13 @@ const iconClass = computed(() => {
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 8px 0 8px 10px;
-  border-radius: 0;
+  padding: 9px 10px;
+  border-radius: var(--acu-radius-sm);
   font-size: var(--acu-font-size-body-lg, 13px);
   line-height: 1.55;
-  background: transparent;
+  background: color-mix(in srgb, var(--acu-text-3) 12%, transparent);
   color: var(--acu-text-2);
-  border-left: 2px solid color-mix(in srgb, var(--acu-text-3) 28%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-text-3) 18%, transparent);
   min-width: 0;
 }
 
@@ -54,30 +52,30 @@ const iconClass = computed(() => {
 
 .acu-info-banner__content {
   min-width: 0;
+  width: 100%;
   word-wrap: break-word;
   overflow-wrap: anywhere;
 }
 
 .acu-info-banner--info {
-  background: transparent;
+  background: color-mix(in srgb, var(--acu-text-3) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-text-3) 18%, transparent);
 }
 .acu-info-banner--info .acu-info-banner__icon {
   color: var(--acu-text-3);
 }
 
 .acu-info-banner--tip {
-  background: transparent;
-  border-left-color: color-mix(in srgb, var(--acu-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--acu-accent) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-accent) 18%, transparent);
 }
 .acu-info-banner--tip .acu-info-banner__icon {
-  color: var(--acu-text-2);
+  color: var(--acu-accent);
 }
 
 .acu-info-banner--warning {
-  padding-right: 12px;
-  border-radius: var(--acu-radius-sm);
-  border-left-color: var(--acu-warning);
-  background: color-mix(in srgb, var(--acu-warning) 8%, transparent);
+  background: color-mix(in srgb, var(--acu-warning) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-warning) 20%, transparent);
 }
 .acu-info-banner--warning .acu-info-banner__icon {
   color: var(--acu-warning);

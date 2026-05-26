@@ -5,10 +5,6 @@
     width="560px"
     @close="$emit('close')"
   >
-    <AcuInfoBanner tone="tip">
-      正文替换预设只保存提示词组，不保存 API、启用状态和替换模式。默认预设是内置提示词，不会出现在列表里；需要调整默认逻辑时先从默认新建，再编辑保存。
-    </AcuInfoBanner>
-
     <AcuMessage v-if="message" :kind="message.kind">
       {{ message.text }}
     </AcuMessage>
@@ -45,7 +41,6 @@
 import AcuButton from './_lib/AcuButton.vue';
 import AcuDrawer from './_lib/AcuDrawer.vue';
 import AcuIconButton from './_lib/AcuIconButton.vue';
-import AcuInfoBanner from './_lib/AcuInfoBanner.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
 import AcuText from './_lib/AcuText.vue';
 import type { ContentReplaceMessage, ContentReplacePreset } from '../stores/content-replace-store';

@@ -4,7 +4,7 @@
  * 由 src/index.ts / src/entry-extension.ts / src/entry-extension-plus-assistantembedded.ts
  * 在旧 UI 启动之后调用。
  *
- * 阶段 0 职责：注册"打开新 UI（开发）"菜单按钮；点击时惰性挂载 Vue 应用。
+ * 注册"打开新 UI"菜单按钮；点击时惰性挂载 Vue 应用。
  */
 import { registerAcuV2MenuButton } from './menu-button';
 import { installAutoCardUpdaterV2Api_ACU } from '../surfaces/visualizer/open-visualizer-surface';

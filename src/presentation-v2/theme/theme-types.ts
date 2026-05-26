@@ -9,7 +9,7 @@
 export type AcuV2BuiltinThemeId =
   | 'default-light'
   | 'default-dark'
-  | 'strawberry-dragon';
+  | 'creamy-minimal';
 
 export type AcuV2CustomThemeId = `custom:${string}`;
 

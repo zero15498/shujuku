@@ -2,7 +2,7 @@
   <div class="acu-viz-assistant" data-acu-visualizer-assistant>
     <AcuPanel
       title="AI 改表助手"
-      description="助手会以当前表作为锚点理解你的需求，但它可以修改整套模板，包括新增表、删除表、表排序和全局注入配置。生成后先检查变更详情；如果结果不对，不要应用，改写需求后重新生成。"
+      description="用自然语言让助手生成改表草稿。它可能改多张表或全局配置；应用前先检查变更，不满意就改写需求重来。"
     >
       <template #actions>
         <AcuBadge v-if="assistant.isRunning.value" variant="warning">运行中</AcuBadge>
@@ -10,12 +10,8 @@
         <AcuBadge v-else variant="neutral">待输入</AcuBadge>
       </template>
 
-      <AcuInfoBanner tone="warning">
-        当前锚点表：{{ assistant.anchorSheetLabel.value }}。跨表、删表、DDL 和全局配置变更会在下方列为高风险项，确认前不会应用到编辑器草稿。
-      </AcuInfoBanner>
-
       <div class="acu-viz-assistant__controls">
-        <AcuFormRow label="API 预设" hint="留在“当前配置”时使用当前表的覆盖预设或填表整体 API 配置。">
+        <AcuFormRow label="API 预设">
           <AcuSelect
             :model-value="assistant.tableApiPreset.value"
             :options="assistant.apiPresetOptions.value"
@@ -23,7 +19,7 @@
             @update:model-value="value => assistant.tableApiPreset.value = value"
           />
         </AcuFormRow>
-        <AcuFormRow label="最大轮次" hint="多轮会让助手自行修复或继续完善草稿；结果仍要人工确认。">
+        <AcuFormRow label="最大轮次">
           <AcuInput
             type="number"
             :model-value="assistant.maxRounds.value"
@@ -36,7 +32,7 @@
         </AcuFormRow>
       </div>
 
-      <AcuFormRow label="改表需求" hint="说明你想让表格变成什么样；可以要求新增字段、改提示词、调整世界书注入或补数据。">
+      <AcuFormRow label="改表需求">
         <AcuTextarea
           :model-value="assistant.userRequest.value"
           :rows="4"
@@ -94,7 +90,7 @@
       <AcuPanel
         class="acu-viz-assistant__folded-panel"
         title="会话过程"
-        description="这里按时间记录你的请求、助手每一轮草稿、最终草稿和错误信息。中间轮次只是过程记录，只有最终草稿能应用；如果助手停止在空操作或重试上限，请修改需求后再试。"
+        description="用于查看 AI 每轮做了什么。正常只看最终草稿；结果奇怪或报错时再展开排查。"
       >
         <div v-if="assistant.isRunning.value" class="acu-viz-assistant__running">
           <i class="fa-solid fa-spinner fa-spin"></i>
@@ -179,7 +175,7 @@
       <AcuPanel
         class="acu-viz-assistant__folded-panel"
         title="草稿检查"
-        description="应用前先看每个分组。当前表分组通常是低风险；其他表、新增、删除、排序、锁和全局配置会影响整套模板，保存后会写回当前聊天或全局模板。"
+        description="应用前检查每组变更。涉及删表、跨表、排序、锁、全局配置等高风险项时，需要逐项确认。"
       >
         <div class="acu-viz-assistant__summary">
           <AcuBadge variant="neutral">{{ assistant.sessionSummary.value || '会话完成' }}</AcuBadge>
@@ -443,12 +439,18 @@ watch(() => assistant.latestResult.value, value => {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 767px) {
   .acu-viz-assistant__action-row {
     align-items: stretch;
     flex-direction: column;
   }
 
+  .acu-viz-assistant__action-row :deep(.acu-btn) {
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
   .acu-viz-assistant__turn-head {
     align-items: flex-start;
     flex-direction: column;

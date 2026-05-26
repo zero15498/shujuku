@@ -22,8 +22,8 @@ import {
   _set_currentJsonTableData_ACU,
 } from '../../../service/runtime/state-manager';
 import {
-  applySpecialIndexSequenceToSummaryTables_ACU,
-  getTableLocksForSheet_ACU,
+  applySummaryIndexSequenceToTable_ACU,
+  getSummaryIndexColumnIndex_ACU,
   saveTableLocksForSheet_ACU,
   setSpecialIndexLockEnabled_ACU,
 } from '../../../service/runtime/helpers-remaining';
@@ -55,7 +55,7 @@ import {
 import { refreshMergedDataAndNotify_ACU } from '../../../service/worldbook/pipeline';
 import { enqueueSummaryVectorIndexFlush_ACU } from '../../../service/vector/summary-vector-index-flush-queue';
 import { useToastStore } from '../../stores/toast-store';
-import { useVisualizerStore, type VisualizerSaveTarget } from '../../stores/visualizer-store';
+import { useVisualizerStore, type VisualizerLockDraft, type VisualizerSaveTarget } from '../../stores/visualizer-store';
 
 export interface VisualizerSaveInteractions {
   requestGlobalPresetName?: (defaultName: string) => string | null | Promise<string | null>;
@@ -71,7 +71,26 @@ function cloneData<T>(value: T): T {
   return JSON.parse(JSON.stringify(value));
 }
 
-function buildOrderedData(tempData: Record<string, any> | null, sheetOrder: string[]): Record<string, any> {
+function applySpecialIndexSequenceFromDrafts(
+  data: Record<string, any>,
+  lockDrafts: Record<string, VisualizerLockDraft>,
+): void {
+  Object.keys(data || {}).forEach(sheetKey => {
+    if (!sheetKey.startsWith('sheet_')) return;
+    const table = data[sheetKey];
+    if (!table || !isSummaryOrOutlineTable_ACU(String(table.name || ''))) return;
+    if (lockDrafts[sheetKey]?.specialIndexLocked === false) return;
+    const colIndex = getSummaryIndexColumnIndex_ACU(table);
+    if (colIndex < 0) return;
+    applySummaryIndexSequenceToTable_ACU(table, colIndex);
+  });
+}
+
+function buildOrderedData(
+  tempData: Record<string, any> | null,
+  sheetOrder: string[],
+  lockDrafts: Record<string, VisualizerLockDraft>,
+): Record<string, any> {
   const source = tempData || { mate: { type: 'chatSheets', version: 1 } };
   const orderedData: Record<string, any> = {};
   Object.keys(source).forEach(key => {
@@ -81,36 +100,19 @@ function buildOrderedData(tempData: Record<string, any> | null, sheetOrder: stri
     if (source[key]) orderedData[key] = cloneData(source[key]);
   });
   applySheetOrderNumbers_ACU(orderedData, sheetOrder);
-  applySpecialIndexSequenceToSummaryTables_ACU(orderedData);
+  applySpecialIndexSequenceFromDrafts(orderedData, lockDrafts);
   return orderedData;
 }
 
-function asList(value: unknown): any[] {
-  return Array.isArray(value) ? value : [];
-}
-
-function applyPendingLockChanges(changes: any[]): void {
-  asList(changes).forEach(change => {
-    const sheetKey = String(change?.sheetKey || '').trim();
+function saveLockDrafts(drafts: Record<string, VisualizerLockDraft>): void {
+  Object.entries(drafts || {}).forEach(([sheetKey, draft]) => {
     if (!sheetKey) return;
-    const lockState = getTableLocksForSheet_ACU(sheetKey);
-    asList(change.rows).forEach(item => {
-      if (item?.locked) lockState.rows.add(item.rowIndex);
-      else lockState.rows.delete(item.rowIndex);
+    saveTableLocksForSheet_ACU(sheetKey, {
+      rows: new Set(draft.rows || []),
+      cols: new Set(draft.cols || []),
+      cells: new Set(draft.cells || []),
     });
-    asList(change.columns).forEach(item => {
-      if (item?.locked) lockState.cols.add(item.colIndex);
-      else lockState.cols.delete(item.colIndex);
-    });
-    asList(change.cells).forEach(item => {
-      const key = `${item.rowIndex}:${item.colIndex}`;
-      if (item?.locked) lockState.cells.add(key);
-      else lockState.cells.delete(key);
-    });
-    saveTableLocksForSheet_ACU(sheetKey, lockState);
-    if (typeof change.specialIndexLocked === 'boolean') {
-      setSpecialIndexLockEnabled_ACU(sheetKey, change.specialIndexLocked);
-    }
+    setSpecialIndexLockEnabled_ACU(sheetKey, draft.specialIndexLocked !== false);
   });
 }
 
@@ -340,7 +342,7 @@ export function useVisualizerSave(interactions: VisualizerSaveInteractions = {})
     if (visualizer.isSaving) return false;
     visualizer.setSaving(true);
     try {
-      const orderedData = buildOrderedData(visualizer.tempData, visualizer.sheetOrder);
+      const orderedData = buildOrderedData(visualizer.tempData, visualizer.sheetOrder, visualizer.tableLockDrafts);
 
       let globalTemplateResult: GlobalTemplateSaveResult | null = null;
       if (target === 'global') {
@@ -355,7 +357,7 @@ export function useVisualizerSave(interactions: VisualizerSaveInteractions = {})
         [...visualizer.sheetOrder],
         [...visualizer.deletedSheetKeys],
       );
-      applyPendingLockChanges(visualizer.pendingLockChanges);
+      saveLockDrafts(visualizer.tableLockDrafts);
       visualizer.markSaved(target);
 
       if (target === 'global' && globalTemplateResult?.status === 'saved') {

@@ -307,8 +307,8 @@ describe("DashboardPage", () => {
     expect(visibleToggleKeys).toEqual([
       "autoUpdateEnabled",
       "toastMuteEnabled",
-      "streamingEnabled",
       "zeroTkOccupyModeDefault",
+      "streamingEnabled",
     ]);
 
     // 默认在基础设置视图下，高级字段不可见

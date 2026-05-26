@@ -57,23 +57,22 @@ describe('AcuInfoBanner', () => {
     expect(el.textContent).not.toContain('fallback');
   });
 
-  it('tone=info 默认使用 fa-circle-info 图标', () => {
+  it('tone=info 默认不渲染图标', () => {
     const el = mountComponent(AcuInfoBanner, { text: 'x' });
     expect(el.querySelector('.acu-info-banner--info')).not.toBeNull();
-    const icon = el.querySelector('.acu-info-banner__icon');
-    expect(icon?.classList.contains('fa-circle-info')).toBe(true);
+    expect(el.querySelector('.acu-info-banner__icon')).toBeNull();
   });
 
-  it('tone=tip 使用 lightbulb 图标', () => {
+  it('tone=tip 默认不渲染图标', () => {
     const el = mountComponent(AcuInfoBanner, { text: 'x', tone: 'tip' });
     expect(el.querySelector('.acu-info-banner--tip')).not.toBeNull();
-    expect(el.querySelector('.acu-info-banner__icon')?.classList.contains('fa-lightbulb')).toBe(true);
+    expect(el.querySelector('.acu-info-banner__icon')).toBeNull();
   });
 
-  it('tone=warning 使用 triangle 图标', () => {
+  it('tone=warning 默认不渲染图标', () => {
     const el = mountComponent(AcuInfoBanner, { text: 'x', tone: 'warning' });
     expect(el.querySelector('.acu-info-banner--warning')).not.toBeNull();
-    expect(el.querySelector('.acu-info-banner__icon')?.classList.contains('fa-triangle-exclamation')).toBe(true);
+    expect(el.querySelector('.acu-info-banner__icon')).toBeNull();
   });
 
   it('支持自定义 icon 覆盖默认图标', () => {

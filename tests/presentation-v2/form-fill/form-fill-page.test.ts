@@ -218,8 +218,8 @@ describe('FormFillPage', () => {
     expect(statusLine).not.toBeNull();
     expect((statusLine!.textContent || '').replace(/\s+/g, '')).toContain('当前聊天:chat-form-fill·AI回复累计层数:3');
     expect(text).toContain('自动更新设置');
-    expect(text).toContain('每 N 层更新一次');
-    expect(text).toContain('保留最后一层不更新');
+    expect(text).toContain('自动填表间隔');
+    expect(text).toContain('最新层不填表');
     expect(text).not.toContain('并发策略');
     expect(text).not.toContain('历史数据保留');
     expect(text).not.toContain('沿用当前自定义参数');
@@ -353,7 +353,7 @@ describe('FormFillPage', () => {
     expect(updatePanel.textContent || '').toContain('高级参数');
 
     const intervalRow = Array.from(updatePanel.querySelectorAll<HTMLElement>('.acu-form-row'))
-      .find(row => (row.textContent || '').includes('每 N 层更新一次'))!;
+      .find(row => (row.textContent || '').includes('自动填表间隔'))!;
     const intervalTrigger = intervalRow.querySelector<HTMLButtonElement>('.acu-select__trigger')!;
     intervalTrigger.click();
     await Promise.resolve();
@@ -392,7 +392,7 @@ describe('FormFillPage', () => {
     expect(settings.updateBatchSize).toBe(5);
 
     const skipRow = Array.from(updatePanel.querySelectorAll<HTMLElement>('.acu-form-row'))
-      .find(row => (row.textContent || '').includes('保留最后一层不更新'))!;
+      .find(row => (row.textContent || '').includes('最新层不填表'))!;
     skipRow.querySelector<HTMLButtonElement>('.acu-toggle')!.click();
     await Promise.resolve();
     expect(settings.skipUpdateFloors).toBe(1);
@@ -416,7 +416,7 @@ describe('FormFillPage', () => {
     const updatePanel = Array.from(document.querySelectorAll<HTMLElement>('.acu-panel'))
       .find(panel => panel.querySelector('.acu-panel__title')?.textContent?.includes('自动更新设置'))!;
     const intervalRow = Array.from(updatePanel.querySelectorAll<HTMLElement>('.acu-form-row'))
-      .find(row => (row.textContent || '').includes('每 N 层更新一次'))!;
+      .find(row => (row.textContent || '').includes('自动填表间隔'))!;
     expect(intervalRow.querySelector('.acu-select__trigger')?.textContent || '').toContain('每 3 层：均衡');
 
     const advancedHeader = Array.from(updatePanel.querySelectorAll<HTMLButtonElement>('.acu-disclosure-group__header'))
@@ -453,7 +453,7 @@ describe('FormFillPage', () => {
     await Promise.resolve();
 
     expect(settings.skipUpdateFloors).toBe(2);
-    expect(updatePanel.textContent || '').toContain('保留最后一层不更新：自定义');
+    expect(updatePanel.textContent || '').toContain('最新层不填表：自定义');
     expect(saveSettings).toHaveBeenCalled();
 
     mount.__resetAcuV2MountForTests();

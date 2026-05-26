@@ -151,7 +151,7 @@ let themeMenuCloseTimer: ReturnType<typeof setTimeout> | undefined;
 let mobileNavCloseTimer: ReturnType<typeof setTimeout> | undefined;
 
 const shellTitle = computed(() =>
-  visualizer.isActive ? "数据库编辑器" : router.activePage?.title || "SP·数据库 III",
+  visualizer.isActive ? "数据库编辑器" : router.activePage?.title || "SP·数据库 IV",
 );
 
 function toggleThemeMenu(): void {
@@ -721,6 +721,26 @@ function clearMobileNavCloseTimer(): void {
   gap: 4px;
   flex: 0 0 auto;
   opacity: 0.72;
+}
+
+.acu-v2-app__theme-tools :deep(.acu-icon-btn) {
+  background: transparent;
+  color: inherit;
+}
+
+.acu-v2-app__theme-tools :deep(.acu-icon-btn:hover:not(:disabled)) {
+  background: var(--acu-hover-overlay);
+  color: var(--acu-text-1);
+}
+
+.acu-v2-app__theme-option.is-active .acu-v2-app__theme-tools :deep(.acu-icon-btn:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--acu-on-accent) 18%, transparent);
+  color: var(--acu-on-accent);
+}
+
+.acu-v2-app__theme-tools :deep(.acu-icon-btn--danger:hover:not(:disabled)) {
+  background: color-mix(in srgb, var(--acu-danger) 12%, transparent);
+  color: var(--acu-danger);
 }
 
 .acu-v2-app__theme-option:hover .acu-v2-app__theme-tools,

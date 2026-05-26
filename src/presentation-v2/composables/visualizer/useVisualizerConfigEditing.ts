@@ -1,12 +1,10 @@
 import { computed } from 'vue';
 import { validateDDLTextAgainstHeaders_ACU, parseDDLColumnNames, updateDDLColumnComment } from '../../../shared/ddl-utils';
-import { isSummaryOrOutlineTable_ACU, logWarn_ACU } from '../../../shared/utils';
+import { isSummaryOrOutlineTable_ACU } from '../../../shared/utils';
 import { settings_ACU } from '../../../service/runtime/state-manager';
 import {
-  applySpecialIndexSequenceToSummaryTables_ACU,
+  applySummaryIndexSequenceToTable_ACU,
   getSummaryIndexColumnIndex_ACU,
-  isSpecialIndexLockEnabled_ACU,
-  setSpecialIndexLockEnabled_ACU,
 } from '../../../service/runtime/helpers-remaining';
 import { saveSettings_ACU } from '../../../service/settings/settings-service';
 import { isSqliteMode } from '../../../service/table/storage-mode';
@@ -96,7 +94,7 @@ export function useVisualizerConfigEditing() {
       enabled,
       index,
       header: index >= 0 ? stringValue(headers.value[index]) : '',
-      locked: enabled && key ? isSpecialIndexLockEnabled_ACU(key) : false,
+      locked: enabled && key ? visualizer.isSpecialIndexLocked(key) : false,
     };
   });
 
@@ -232,6 +230,18 @@ export function useVisualizerConfigEditing() {
     return validateDDLTextAgainstHeaders_ACU(stringValue(sheet?.sourceData?.ddl), headers.value);
   }
 
+  function setSpecialIndexLock(enabled: boolean): void {
+    const key = visualizer.currentSheetKey;
+    const info = specialIndex.value;
+    if (!key || !info.enabled) return;
+    const lock = visualizer.getLockDraft(key);
+    lock.specialIndexLocked = enabled === true;
+    if (lock.specialIndexLocked && currentSheet.value && info.index >= 0) {
+      applySummaryIndexSequenceToTable_ACU(currentSheet.value, info.index);
+    }
+    markDirty();
+  }
+
   function setTableApiPreset(value: string): void {
     const sheetName = stringValue(currentSheet.value?.name).trim();
     if (!sheetName) return;
@@ -340,21 +350,6 @@ export function useVisualizerConfigEditing() {
     markDirty();
   }
 
-  function setSpecialIndexLock(enabled: boolean): void {
-    const key = visualizer.currentSheetKey;
-    if (!key) return;
-    try {
-      setSpecialIndexLockEnabled_ACU(key, enabled);
-      if (enabled && visualizer.tempData) {
-        applySpecialIndexSequenceToSummaryTables_ACU(visualizer.tempData);
-        markDirty();
-      }
-    } catch (error) {
-      logWarn_ACU('[ACU-V2 Visualizer] special index lock update failed:', error);
-      toastStore.error('编码索引列锁定保存失败，请查看控制台日志。', { muteable: false });
-    }
-  }
-
   return {
     isSQLite,
     currentSheet,
@@ -376,6 +371,7 @@ export function useVisualizerConfigEditing() {
     updateUpdateConfig,
     updateSourceData,
     validateDDL,
+    setSpecialIndexLock,
     setTableApiPreset,
     updateExportConfig,
     getPlacement,
@@ -384,6 +380,5 @@ export function useVisualizerConfigEditing() {
     setExtraIndexColumnMode,
     getGlobalPlacement,
     updateGlobalPlacement,
-    setSpecialIndexLock,
   };
 }

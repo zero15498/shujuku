@@ -18,8 +18,8 @@
         </AcuFormRow>
 
         <AcuFormRow
-          label="每 N 层更新一次"
-          hint="每累计 N 层可更新的 AI 回复后填表一次。"
+          label="自动填表间隔"
+          hint="累计到所选数量的可更新 AI 回复后，自动填表一次。"
         >
           <AcuSelect
             :options="updateEveryOptions"
@@ -143,12 +143,12 @@ const isCustomCadence = computed(() => selectedUpdateEvery.value === "custom");
 const isCustomSkip = computed(() => numberValue("skipUpdateFloors") > 1);
 const skipLatestLayer = computed(() => numberValue("skipUpdateFloors") >= 1);
 const skipLatestLayerLabel = computed(() =>
-  isCustomSkip.value ? "保留最后一层不更新：自定义" : "保留最后一层不更新",
+  isCustomSkip.value ? "最新层不填表：自定义" : "最新层不填表",
 );
 const skipLatestLayerHint = computed(() => {
   const skip = numberValue("skipUpdateFloors");
   if (skip > 1) {
-    return `当前高级参数设置为跳过最新 ${skip} 层；关闭会改为不跳过，开启会改为只保留最后一层不更新。`;
+    return `当前高级参数设置为跳过最新 ${skip} 层；关闭会改为不跳过，开启会改为只让最新层不填表。`;
   }
   return "开启后，最新一条 AI 回复先不写入表格，等下一层出现后再处理；建议在经常需要重roll最新楼层时开启。";
 });

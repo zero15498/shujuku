@@ -2,16 +2,16 @@
   <div class="acu-viz-config" data-acu-visualizer-config>
     <AcuPanel
       title="基本信息与列定义"
-      description="表名和列名决定 AI 读写这张表时看到的结构。修改列名会同步当前草稿；SQLite 模式下，如果 DDL 已写中文注释，列名变化会同步到对应注释里。"
+      description="这里改表名和列名。AI 会按这些名称理解字段；如果填表结果找错字段，先检查这里。"
     >
       <div class="acu-viz-config__grid">
-        <AcuFormRow label="表格名称" hint="同名表会共用表级 API 预设覆盖；改名时已存在的覆盖会迁移到新名称。">
+        <AcuFormRow label="表格名称">
           <AcuInput
             :model-value="config.currentSheet.value?.name || ''"
             @update:model-value="config.renameSheet"
           />
         </AcuFormRow>
-        <AcuFormRow label="表级 API 预设" hint="只保存到插件设置，不写进模板；留空时使用填表整体 API 配置。">
+        <AcuFormRow label="表级 API 预设">
           <AcuSelect
             :model-value="config.currentTableApiPreset.value"
             :options="config.apiPresetOptions.value"
@@ -42,19 +42,21 @@
         <p v-if="config.headers.value.length === 0" class="acu-viz-config__empty">
           当前表没有可编辑列。新增列后，已有数据行会自动补一个空值。
         </p>
-        <AcuButton size="sm" @click="$emit('request-add-column')">
-          <i class="fa-solid fa-plus"></i>
-          添加列
-        </AcuButton>
+        <div class="acu-viz-config__column-operation">
+          <AcuButton size="sm" variant="primary" @click="$emit('request-add-column')">
+            <i class="fa-solid fa-plus"></i>
+            新增列
+          </AcuButton>
+        </div>
       </div>
     </AcuPanel>
 
     <AcuPanel
       title="自动化更新参数"
-      description="这些参数只覆盖当前表。填 -1 表示沿用全局配置；更新频率填 0 表示禁用这张表的自动更新。设置异常时可以改回 -1。"
+      description="这里调当前表自动更新的范围和频率。不确定时用 -1；想停用当前表自动更新时，把更新频率设为 0。"
     >
       <div class="acu-viz-config__grid acu-viz-config__grid--three">
-        <AcuFormRow label="上下文层数" hint="-1 沿用全局；1 以上生效；0 会按沿用处理。">
+        <AcuFormRow label="上下文层数">
           <AcuInput
             type="number"
             :model-value="updateConfig.contextDepth"
@@ -63,7 +65,7 @@
             @update:model-value="value => config.updateUpdateConfig('contextDepth', value)"
           />
         </AcuFormRow>
-        <AcuFormRow label="更新频率" hint="-1 沿用全局；0 禁用当前表自动更新。">
+        <AcuFormRow label="更新频率">
           <AcuInput
             type="number"
             :model-value="updateConfig.updateFrequency"
@@ -72,7 +74,7 @@
             @update:model-value="value => config.updateUpdateConfig('updateFrequency', value)"
           />
         </AcuFormRow>
-        <AcuFormRow label="批处理大小" hint="-1 沿用全局；1 以上按该表配置分批。">
+        <AcuFormRow label="批处理大小">
           <AcuInput
             type="number"
             :model-value="updateConfig.batchSize"
@@ -81,7 +83,7 @@
             @update:model-value="value => config.updateUpdateConfig('batchSize', value)"
           />
         </AcuFormRow>
-        <AcuFormRow label="分组编号" hint="-1 默认同组；不同编号会拆成并发组。">
+        <AcuFormRow label="分组编号">
           <AcuInput
             type="number"
             :model-value="updateConfig.groupId"
@@ -90,7 +92,7 @@
             @update:model-value="value => config.updateUpdateConfig('groupId', value)"
           />
         </AcuFormRow>
-        <AcuFormRow label="跳过楼层" hint="-1 沿用全局；0 以上按当前表配置跳过。">
+        <AcuFormRow label="跳过楼层">
           <AcuInput
             type="number"
             :model-value="updateConfig.skipFloors"
@@ -99,7 +101,7 @@
             @update:model-value="value => config.updateUpdateConfig('skipFloors', value)"
           />
         </AcuFormRow>
-        <AcuFormRow label="发送最新行数" hint="-1 全部发送；0 沿用全局；纪要表运行时固定使用 10 条。">
+        <AcuFormRow label="发送最新行数">
           <AcuInput
             type="number"
             :model-value="updateConfig.sendLatestRows"
@@ -113,13 +115,14 @@
 
     <AcuPanel
       title="AI 触发提示词"
-      description="这些文本会作为当前表的说明和增删改触发指令交给 AI。提示词不需要写保存步骤；保存仍由数据库编辑器统一完成。"
+      description="这里写给 AI 的表格说明和增删改触发词。AI 不按预期新增、更新或删除时，先检查这些文本是否清楚。"
     >
       <div class="acu-viz-config__prompts">
-        <AcuFormRow label="表格说明" hint="说明这张表是什么、字段含义是什么，以及 AI 误写时用户该检查哪里。">
+        <AcuFormRow label="表格说明">
           <AcuTextarea
             :model-value="sourceData.note"
             :rows="3"
+            auto-resize
             @update:model-value="value => config.updateSourceData('note', value)"
           />
         </AcuFormRow>
@@ -127,6 +130,7 @@
           <AcuTextarea
             :model-value="sourceData.initNode"
             :rows="2"
+            auto-resize
             @update:model-value="value => config.updateSourceData('initNode', value)"
           />
         </AcuFormRow>
@@ -134,6 +138,7 @@
           <AcuTextarea
             :model-value="sourceData.insertNode"
             :rows="2"
+            auto-resize
             @update:model-value="value => config.updateSourceData('insertNode', value)"
           />
         </AcuFormRow>
@@ -141,6 +146,7 @@
           <AcuTextarea
             :model-value="sourceData.updateNode"
             :rows="2"
+            auto-resize
             @update:model-value="value => config.updateSourceData('updateNode', value)"
           />
         </AcuFormRow>
@@ -148,6 +154,7 @@
           <AcuTextarea
             :model-value="sourceData.deleteNode"
             :rows="2"
+            auto-resize
             @update:model-value="value => config.updateSourceData('deleteNode', value)"
           />
         </AcuFormRow>
@@ -157,13 +164,14 @@
     <AcuPanel
       v-if="config.isSQLite.value"
       title="DDL 定义"
-      description="SQLite 模式会用这里的 CREATE TABLE 语句描述真实表结构。第一列必须是 row_id INTEGER PRIMARY KEY；如果列名和表头不一致，AI 生成 SQL 时容易写错列。"
+      description="SQLite 表在这里维护建表语句。表头和 CREATE TABLE 不一致时，SQL 可能报错或写错列。"
     >
-      <AcuFormRow label="CREATE TABLE 语句" hint="中文表头建议写在英文物理列名后的行注释里，例如 item_name TEXT, -- 物品名。">
+      <AcuFormRow label="CREATE TABLE 语句">
         <AcuTextarea
           class="acu-viz-config__ddl"
           :model-value="sourceData.ddl"
           :rows="7"
+          auto-resize
           @update:model-value="value => config.updateSourceData('ddl', value)"
         />
       </AcuFormRow>
@@ -180,7 +188,7 @@
 
     <AcuPanel
       title="世界书注入配置"
-      description="这里控制当前表是否写入世界书，以及是否额外生成独立条目。关闭注入后，这张表不会进入世界书；如果世界书内容不符合预期，先检查这里的开关、条目名称和注入位置。"
+      description="控制这张表是否进入世界书、写成哪些条目、放在哪个位置。世界书内容缺失、重复或位置不对时检查这里。"
     >
       <div class="acu-viz-config__toggles">
         <AcuCheckbox
@@ -193,111 +201,116 @@
           label="启用独立导出"
           @update:model-value="value => config.updateExportConfig('enabled', value)"
         />
-        <AcuCheckbox
-          :model-value="exportConfig.splitByRow === true"
-          label="按行拆分独立条目"
-          @update:model-value="value => config.updateExportConfig('splitByRow', value)"
-        />
-        <AcuCheckbox
-          :model-value="exportConfig.preventRecursion !== false"
-          label="防止递归触发"
-          @update:model-value="value => config.updateExportConfig('preventRecursion', value)"
-        />
       </div>
 
-      <div class="acu-viz-config__grid">
-        <AcuFormRow label="条目名称" hint="留空时可能使用表名；建议写清楚，方便在酒馆世界书里定位。">
-          <AcuInput
-            :model-value="exportConfig.entryName || ''"
-            @update:model-value="value => config.updateExportConfig('entryName', value)"
+      <template v-if="exportConfig.enabled === true">
+        <div class="acu-viz-config__toggles">
+          <AcuCheckbox
+            :model-value="exportConfig.splitByRow === true"
+            label="按行拆分独立条目"
+            @update:model-value="value => config.updateExportConfig('splitByRow', value)"
           />
-        </AcuFormRow>
-        <AcuFormRow label="条目类型" hint="常量条目会稳定注入；关键词触发条目依赖关键词匹配。">
-          <AcuSelect
-            :model-value="exportConfig.entryType || 'constant'"
-            :options="config.entryTypeOptions"
-            @update:model-value="value => config.updateExportConfig('entryType', value)"
+          <AcuCheckbox
+            :model-value="exportConfig.preventRecursion !== false"
+            label="防止递归触发"
+            @update:model-value="value => config.updateExportConfig('preventRecursion', value)"
           />
-        </AcuFormRow>
-        <AcuFormRow label="关键词" hint="多个关键词可以用逗号或换行分隔，具体匹配由酒馆世界书处理。">
-          <AcuInput
-            :model-value="exportConfig.keywords || ''"
-            @update:model-value="value => config.updateExportConfig('keywords', value)"
-          />
-        </AcuFormRow>
-      </div>
+        </div>
 
-      <AcuFormRow label="自定义注入模板" hint="可用 $1 代表当前表导出的内容；留空时使用系统默认格式。">
-        <AcuTextarea
-          :model-value="exportConfig.injectionTemplate || ''"
-          :rows="3"
-          @update:model-value="value => config.updateExportConfig('injectionTemplate', value)"
-        />
-      </AcuFormRow>
-
-      <PlacementEditor
-        title="主条目位置"
-        :placement="config.getPlacement('entryPlacement')"
-        :options="config.placementOptions"
-        @update="(field, value) => config.updatePlacement('entryPlacement', field, value)"
-      />
-
-      <div class="acu-viz-config__subsection">
-        <AcuCheckbox
-          :model-value="exportConfig.extraIndexEnabled === true"
-          label="额外增加索引条目"
-          @update:model-value="value => config.updateExportConfig('extraIndexEnabled', value)"
-        />
-        <template v-if="exportConfig.extraIndexEnabled">
-          <div class="acu-viz-config__grid">
-            <AcuFormRow label="索引条目名称" hint="用于独立索引条目的世界书条目名称。">
-              <AcuInput
-                :model-value="exportConfig.extraIndexEntryName || ''"
-                @update:model-value="value => config.updateExportConfig('extraIndexEntryName', value)"
-              />
-            </AcuFormRow>
-          </div>
-          <AcuFormRow label="索引条目模板" hint="可用 $1 代表索引条目内容；留空时使用默认格式。">
-            <AcuTextarea
-              :model-value="exportConfig.extraIndexInjectionTemplate || ''"
-              :rows="3"
-              @update:model-value="value => config.updateExportConfig('extraIndexInjectionTemplate', value)"
+        <div class="acu-viz-config__grid">
+          <AcuFormRow label="条目名称">
+            <AcuInput
+              :model-value="exportConfig.entryName || ''"
+              @update:model-value="value => config.updateExportConfig('entryName', value)"
             />
           </AcuFormRow>
-          <div class="acu-viz-config__column-modes">
-            <article
-              v-for="header in config.headers.value"
-              :key="header"
-              class="acu-viz-config__column-mode"
-            >
-              <AcuCheckbox
-                :model-value="extraIndexColumns.includes(header)"
-                :label="header"
-                @update:model-value="value => config.setExtraIndexColumn(header, value)"
-              />
-              <AcuSelect
-                size="sm"
-                :disabled="!extraIndexColumns.includes(header)"
-                :model-value="extraIndexColumnModes[header] === 'index_only' ? 'index_only' : 'both'"
-                :options="config.extraIndexModeOptions"
-                @update:model-value="value => config.setExtraIndexColumnMode(header, value === 'index_only' ? 'index_only' : 'both')"
-              />
-            </article>
-          </div>
-          <PlacementEditor
-            title="索引条目位置"
-            :placement="config.getPlacement('extraIndexPlacement')"
-            :options="config.placementOptions"
-            @update="(field, value) => config.updatePlacement('extraIndexPlacement', field, value)"
+          <AcuFormRow label="条目类型">
+            <AcuSelect
+              :model-value="exportConfig.entryType || 'constant'"
+              :options="config.entryTypeOptions"
+              @update:model-value="value => config.updateExportConfig('entryType', value)"
+            />
+          </AcuFormRow>
+          <AcuFormRow label="关键词">
+            <AcuInput
+              :model-value="exportConfig.keywords || ''"
+              @update:model-value="value => config.updateExportConfig('keywords', value)"
+            />
+          </AcuFormRow>
+        </div>
+
+        <AcuFormRow label="自定义注入模板">
+          <AcuTextarea
+            :model-value="exportConfig.injectionTemplate || ''"
+            :rows="3"
+            @update:model-value="value => config.updateExportConfig('injectionTemplate', value)"
           />
-        </template>
-      </div>
+        </AcuFormRow>
+
+        <PlacementEditor
+          title="主条目位置"
+          :placement="config.getPlacement('entryPlacement')"
+          :options="config.placementOptions"
+          @update="(field, value) => config.updatePlacement('entryPlacement', field, value)"
+        />
+
+        <div class="acu-viz-config__subsection">
+          <AcuCheckbox
+            :model-value="exportConfig.extraIndexEnabled === true"
+            label="额外增加索引条目"
+            @update:model-value="value => config.updateExportConfig('extraIndexEnabled', value)"
+          />
+          <template v-if="exportConfig.extraIndexEnabled">
+            <div class="acu-viz-config__grid">
+              <AcuFormRow label="索引条目名称">
+                <AcuInput
+                  :model-value="exportConfig.extraIndexEntryName || ''"
+                  @update:model-value="value => config.updateExportConfig('extraIndexEntryName', value)"
+                />
+              </AcuFormRow>
+            </div>
+            <AcuFormRow label="索引条目模板">
+              <AcuTextarea
+                :model-value="exportConfig.extraIndexInjectionTemplate || ''"
+                :rows="3"
+                @update:model-value="value => config.updateExportConfig('extraIndexInjectionTemplate', value)"
+              />
+            </AcuFormRow>
+            <div class="acu-viz-config__column-modes">
+              <article
+                v-for="header in config.headers.value"
+                :key="header"
+                class="acu-viz-config__column-mode"
+              >
+                <AcuCheckbox
+                  :model-value="extraIndexColumns.includes(header)"
+                  :label="header"
+                  @update:model-value="value => config.setExtraIndexColumn(header, value)"
+                />
+                <AcuSelect
+                  size="sm"
+                  :disabled="!extraIndexColumns.includes(header)"
+                  :model-value="extraIndexColumnModes[header] === 'index_only' ? 'index_only' : 'both'"
+                  :options="config.extraIndexModeOptions"
+                  @update:model-value="value => config.setExtraIndexColumnMode(header, value === 'index_only' ? 'index_only' : 'both')"
+                />
+              </article>
+            </div>
+            <PlacementEditor
+              title="索引条目位置"
+              :placement="config.getPlacement('extraIndexPlacement')"
+              :options="config.placementOptions"
+              @update="(field, value) => config.updatePlacement('extraIndexPlacement', field, value)"
+            />
+          </template>
+        </div>
+      </template>
     </AcuPanel>
 
     <AcuPanel
       v-if="config.fixedConfigEnabled.value"
       title="固定条目注入配置"
-      description="总结表、总体大纲和重要人物表会生成固定用途的世界书条目。这里只控制这些固定条目的位置；如果角色设定前后出现重复或顺序不对，优先检查这里。"
+      description="控制总结表、总体大纲、重要人物表等固定条目的位置。固定条目重复或顺序不对时检查这里。"
     >
       <PlacementEditor
         title="固定主条目位置"
@@ -316,13 +329,13 @@
 
     <AcuPanel
       v-if="config.specialIndex.value.enabled"
-      title="编码索引列锁定"
-      description="总结表和总体大纲通常需要稳定的 AM0001、AM0002 编码。启用后，系统会在保存草稿前维护这列，避免 AI 更新时改乱索引。"
+      title="编码索引自动编号"
+      description="用于维护总结表、总体大纲里的 AM0001 这类编码。开启后会自动重排；关闭后需要你自己保持唯一和顺序。"
     >
       <div class="acu-viz-config__toggles">
         <AcuCheckbox
           :model-value="config.specialIndex.value.locked"
-          label="启用编码索引列特殊锁定"
+          label="保存和 AI 更新时自动重排编码"
           @update:model-value="config.setSpecialIndexLock"
         />
         <AcuBadge :variant="config.specialIndex.value.index >= 0 ? 'neutral' : 'warning'">
@@ -391,7 +404,7 @@ const extraIndexColumnModes = computed<Record<string, string>>(() =>
 
 const specialIndexLabel = computed(() => {
   const info = config.specialIndex.value;
-  if (info.index < 0) return '未识别编码索引列，将使用运行时默认策略';
+  if (info.index < 0) return '未识别编码索引列，将按默认方式处理';
   return `当前识别列：#${info.index + 1} ${info.header || '未命名列'}`;
 });
 
@@ -430,6 +443,12 @@ function validateDDL(): void {
 
 .acu-viz-config__columns {
   margin-top: 12px;
+}
+
+.acu-viz-config__column-operation {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
 }
 
 .acu-viz-config__column-row {
@@ -494,6 +513,16 @@ function validateDDL(): void {
   .acu-viz-config__grid,
   .acu-viz-config__grid--three {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .acu-viz-config__column-operation {
+    justify-content: stretch;
+  }
+
+  .acu-viz-config__column-operation :deep(.acu-btn) {
+    width: 100%;
   }
 }
 

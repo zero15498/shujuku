@@ -184,21 +184,4 @@ function cleanupDescriptionTransition(el: Element): void {
   padding-bottom: 12px;
   overflow: hidden;
 }
-.acu-panel__description-banner {
-  padding: 9px 10px;
-  border-radius: var(--acu-radius-sm);
-  border-left: 0;
-  background: color-mix(in srgb, var(--acu-text-3) 12%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acu-text-3) 18%, transparent);
-  color: var(--acu-text-2);
-  font-size: var(--acu-font-size-body-lg, 13px);
-  line-height: 1.55;
-}
-.acu-panel__description-banner :deep(.acu-info-banner__icon) {
-  display: none;
-}
-.acu-panel__description-banner :deep(.acu-info-banner__content) {
-  width: 100%;
-  max-width: none;
-}
 </style>

@@ -32,9 +32,9 @@ const BUILD_MODE = process.env.BUILD_MODE || 'userscript';
 // UserScript 头（仅油猴脚本使用）
 // ═══════════════════════════════════════════════════════════════
 const USER_SCRIPT_BANNER = `// ==UserScript==
-// @name         SP·数据库 III
+// @name         SP·数据库 IV
 // @namespace    http://tampermonkey.net/
-// @version      2.0.0
+// @version      4.0
 // @description  SillyTavern 数据库自动更新与交火模式索引管理脚本。
 // @author       Cline (AI Assisted)
 // @match        */*

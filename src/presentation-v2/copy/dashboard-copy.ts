@@ -228,7 +228,7 @@ export const dashboardCopy = {
     },
     zeroTk: {
       label: "0TK 占用模式",
-      description: "默认开启，开启后纪要概览不占用上下文。",
+      description: "默认开启。开启后纪要概览不占用上下文。",
     },
     plot: {
       label: "剧情推进",

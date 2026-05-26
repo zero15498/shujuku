@@ -122,7 +122,7 @@
             @submit.prevent="saveVectorApiConfig"
           >
             <fieldset class="acu-v2-vector-api-form__section">
-              <legend>向量化（Embedding）</legend>
+              <legend>Embedding</legend>
               <AcuFormRow label="URL">
                 <AcuInput
                   v-model="vectorApiConfig.form.embeddingEndpoint"
@@ -147,7 +147,7 @@
             </fieldset>
 
             <fieldset class="acu-v2-vector-api-form__section">
-              <legend>重排（Rerank，可选）</legend>
+              <legend>Rerank</legend>
               <AcuFormRow label="URL">
                 <AcuInput
                   v-model="vectorApiConfig.form.rerankEndpoint"
@@ -499,7 +499,7 @@ useUiCloseGuard(confirmPromptClose);
 .acu-v2-vector-api-form__section {
   min-width: 0;
   margin: 0;
-  padding: 0 0 14px;
+  padding: 0 0 18px;
   border: 0;
   border-bottom: 1px solid
     color-mix(in srgb, var(--acu-text-3) 16%, transparent);
@@ -507,7 +507,7 @@ useUiCloseGuard(confirmPromptClose);
   background: transparent;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .acu-v2-vector-api-form__section:last-of-type {
@@ -515,11 +515,18 @@ useUiCloseGuard(confirmPromptClose);
   border-bottom: 0;
 }
 
+.acu-v2-vector-api-form__section + .acu-v2-vector-api-form__section {
+  padding-top: 2px;
+}
+
 .acu-v2-vector-api-form__section legend {
+  width: 100%;
+  margin: 0 0 2px;
   padding: 0;
-  color: var(--acu-text-2);
+  color: var(--acu-text-1);
   font-size: var(--acu-font-size-body, 12px);
-  font-weight: 600;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .acu-v2-vector-api-form__actions {

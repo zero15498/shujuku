@@ -6,10 +6,6 @@
     :before-close="confirmIfDirty"
     @close="$emit('close')"
   >
-    <AcuInfoBanner tone="tip">
-      这组提示词只用于交火模式发送前生成检索关键词。可使用 $RECENT_CONTEXT 和 $USER_INPUT；保存后才会写入实际配置，改错时可以载入默认提示词再保存。
-    </AcuInfoBanner>
-
     <AcuMessage v-if="message" :kind="message.kind">
       {{ message.text }}
     </AcuMessage>
@@ -39,7 +35,6 @@
 <script setup lang="ts">
 import AcuButton from './_lib/AcuButton.vue';
 import AcuDrawer from './_lib/AcuDrawer.vue';
-import AcuInfoBanner from './_lib/AcuInfoBanner.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
 import AcuPromptSegments, { type PromptSegment } from './_lib/AcuPromptSegments.vue';
 import type { AcuSelectOption } from './_lib/AcuSelect.vue';

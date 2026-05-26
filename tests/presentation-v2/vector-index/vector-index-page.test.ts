@@ -196,8 +196,10 @@ describe('VectorIndexPage', () => {
     expect(text).not.toContain('Embedding 服务');
     expect(text).not.toContain('Rerank 服务（可选）');
     expect(text).toContain('Embedding / Rerank');
-    expect(text).toContain('向量化（Embedding）');
-    expect(text).toContain('重排（Rerank，可选）');
+    expect(text).toContain('Embedding');
+    expect(text).toContain('Rerank');
+    expect(text).not.toContain('向量化（Embedding）');
+    expect(text).not.toContain('重排（Rerank，可选）');
     expect(text).toContain('URL');
     expect(text).toContain('模型名');
     expect(text).not.toContain(`服务${'地址'}`);
