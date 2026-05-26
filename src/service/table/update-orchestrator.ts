@@ -311,11 +311,8 @@ export async function executeCardUpdateCore_ACU(
     try {
         emitProgress({ phase: 'preparing' });
 
-        // [v2 / D21.9] 外部导入模式下永久屏蔽带"外部导入-"标签的世界书占位符；
-        // 旧 settings.importPromptExcludeImportedWorldbookEntries 字段不再影响行为，
-        // 仅保留以避免破坏数据结构（下线旧 UI 时一并清理）。
         const dynamicContent = await prepareAIInput_ACU(messagesToUse, updateMode, targetSheetKeys, {
-            excludeImportTaggedWorldbookEntries: isImportMode,
+            excludeImportTaggedWorldbookEntries: isImportMode && settings_ACU.importPromptExcludeImportedWorldbookEntries !== false,
         });
         if (!dynamicContent) {
             return { success: false, modifiedKeys: [], error: '无法准备AI输入，数据库未加载。' };

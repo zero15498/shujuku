@@ -27,6 +27,7 @@ import {
   executeCardUpdateCore_ACU,
   type CardUpdateProgressEvent,
 } from '../../service/table/update-orchestrator';
+import { settings_ACU } from '../../service/runtime/state-manager';
 import { useToastStore } from '../stores/toast-store';
 
 export type ImportMessageKind = 'info' | 'success' | 'warning' | 'error';
@@ -79,6 +80,16 @@ async function resolveTargetLorebook(target: string): Promise<string | null> {
     }
   }
   return target ? target : null;
+}
+
+async function withImportPromptFilterForced<T>(task: () => Promise<T>): Promise<T> {
+  const previousValue = settings_ACU.importPromptExcludeImportedWorldbookEntries;
+  settings_ACU.importPromptExcludeImportedWorldbookEntries = true;
+  try {
+    return await task();
+  } finally {
+    settings_ACU.importPromptExcludeImportedWorldbookEntries = previousValue;
+  }
 }
 
 export function useImportFlow(): UseImportFlow {
@@ -283,7 +294,7 @@ export function useImportFlow(): UseImportFlow {
 
         for (let attempt = 1; attempt <= maxOuterRetries && !success; attempt++) {
           notifyProgress(`正在处理分块 ${i + 1}/${allChunks.length}（尝试 ${attempt}/${maxOuterRetries}）...`);
-          const result = await executeCardUpdateCore_ACU(
+          const result = await withImportPromptFilterForced(() => executeCardUpdateCore_ACU(
             [mockMessage],
             -1,
             true,
@@ -296,7 +307,7 @@ export function useImportFlow(): UseImportFlow {
             event => {
               notifyProgress(progressLabel(event));
             },
-          );
+          ));
           success = result.success;
           lastError = result.error || (result.aborted ? '任务已终止。' : '');
           if (!success && attempt < maxOuterRetries) {

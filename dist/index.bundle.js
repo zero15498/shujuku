@@ -32675,11 +32675,8 @@ $CONTENT
         const maxRetries = settings_ACU.tableMaxRetries || 3;
         try {
             emitProgress({ phase: 'preparing' });
-            // [v2 / D21.9] 外部导入模式下永久屏蔽带"外部导入-"标签的世界书占位符；
-            // 旧 settings.importPromptExcludeImportedWorldbookEntries 字段不再影响行为，
-            // 仅保留以避免破坏数据结构（下线旧 UI 时一并清理）。
             const dynamicContent = await prepareAIInput_ACU(messagesToUse, updateMode, targetSheetKeys, {
-                excludeImportTaggedWorldbookEntries: isImportMode,
+                excludeImportTaggedWorldbookEntries: isImportMode && settings_ACU.importPromptExcludeImportedWorldbookEntries !== false,
             });
             if (!dynamicContent) {
                 return { success: false, modifiedKeys: [], error: '无法准备AI输入，数据库未加载。' };
@@ -76626,17 +76623,9 @@ Expected function or array of functions, received type ${typeof value}.`
             __expose();
             const props = __props;
             const emit = __emit;
-            const activeIndex = computed(() => {
-                const index = props.options.findIndex((option) => option.value === props.modelValue);
-                return Math.max(0, index);
-            });
-            const switchStyle = computed(() => ({
-                "--storage-mode-count": String(Math.max(1, props.options.length)),
-                "--storage-mode-index": String(activeIndex.value),
-            }));
             const switchOptions = computed(() => props.options.map((option) => ({
-                ...option,
-                switchLabel: dashboardCopy.storage.switchLabel(option.value),
+                value: option.value,
+                label: dashboardCopy.storage.switchLabel(option.value),
             })));
             const decoratedOptions = computed(() => props.options.map((option) => ({
                 ...option,
@@ -76650,37 +76639,29 @@ Expected function or array of functions, received type ${typeof value}.`
                     return;
                 emit("update:modelValue", value);
             }
-            function move(delta) {
-                if (!props.options.length)
-                    return;
-                const nextIndex = (activeIndex.value + delta + props.options.length) % props.options.length;
-                emit("update:modelValue", props.options[nextIndex].value);
-            }
-            const __returned__ = { props, emit, activeIndex, switchStyle, switchOptions, decoratedOptions, select, move, get dashboardCopy() { return dashboardCopy; } };
+            const __returned__ = { props, emit, switchOptions, decoratedOptions, select, AcuSegmentedControl, get dashboardCopy() { return dashboardCopy; } };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-dashboard-storage-mode[data-v-efa3dbff] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n.acu-dashboard-storage-mode__head[data-v-efa3dbff] {\n  min-width: 0;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n.acu-dashboard-storage-mode__label[data-v-efa3dbff] {\n  min-width: 0;\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body-lg, 13px);\n  font-weight: 500;\n}\n.acu-dashboard-storage-mode__desc-main[data-v-efa3dbff] {\n  margin: 0;\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-caption, 11px);\n  line-height: 1.5;\n}\n.acu-dashboard-storage-mode__switch[data-v-efa3dbff] {\n  position: relative;\n  flex: 0 0 auto;\n  width: 92px;\n  display: grid;\n  grid-template-columns: repeat(var(--storage-mode-count), minmax(0, 1fr));\n  padding: 2px;\n  border-radius: var(--acu-radius-sm);\n  background: var(--acu-bg-2);\n  overflow: hidden;\n}\n.acu-dashboard-storage-mode__switch-thumb[data-v-efa3dbff] {\n  position: absolute;\n  inset: 2px auto 2px 2px;\n  width: calc((100% - 4px) / var(--storage-mode-count));\n  border-radius: calc(var(--acu-radius-sm) - 2px);\n  background: var(--acu-accent);\n  transform: translateX(calc(var(--storage-mode-index) * 100%));\n  transition: transform 0.16s ease;\n  pointer-events: none;\n}\n.acu-dashboard-storage-mode__switch-item[data-v-efa3dbff] {\n  position: relative;\n  z-index: 1;\n  min-width: 0;\n  min-height: 20px;\n  margin: 0;\n  padding: 0 4px;\n  border: 0;\n  border-radius: calc(var(--acu-radius-sm) - 2px);\n  background: transparent;\n  color: var(--acu-text-2);\n  font: inherit;\n  font-size: var(--acu-font-size-micro, 10px);\n  cursor: pointer;\n  transition:\n    background 0.15s ease,\n    color 0.15s ease;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.acu-dashboard-storage-mode__switch-item[data-v-efa3dbff]:hover:not(\n    .acu-dashboard-storage-mode__switch-item--active\n  ) {\n  background: var(--acu-hover-overlay);\n  color: var(--acu-text-1);\n}\n.acu-dashboard-storage-mode__switch-item--active[data-v-efa3dbff] {\n  color: var(--acu-on-accent);\n}\n.acu-dashboard-storage-mode__switch-item[data-v-efa3dbff]:focus-visible {\n  outline: none;\n  box-shadow: inset 0 0 0 2px var(--acu-accent-glow);\n}\n.acu-dashboard-storage-mode__cards[data-v-efa3dbff] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  margin-top: 4px;\n}\n.acu-dashboard-storage-mode__card[data-v-efa3dbff] {\n  position: relative;\n  min-width: 0;\n  padding: 5px 0 5px 8px;\n  border: 0;\n  border-radius: var(--acu-radius-sm);\n  background: transparent;\n  display: grid;\n  grid-template-columns: 26px minmax(0, 1fr);\n  gap: 8px;\n  align-items: start;\n  transition: background 0.15s ease;\n}\n.acu-dashboard-storage-mode__card--active[data-v-efa3dbff] {\n  background: color-mix(in srgb, var(--acu-accent) 6%, transparent);\n}\n.acu-dashboard-storage-mode__card--active[data-v-efa3dbff]::before {\n  content: \"\";\n  position: absolute;\n  top: 6px;\n  bottom: 6px;\n  left: 0;\n  width: 2px;\n  border-radius: 999px;\n  background: var(--acu-accent);\n}\n.acu-dashboard-storage-mode__icon[data-v-efa3dbff] {\n  width: 26px;\n  height: 26px;\n  border-radius: var(--acu-radius-sm);\n  background: transparent;\n  color: var(--acu-text-3);\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 15px;\n}\n.acu-dashboard-storage-mode__card--active .acu-dashboard-storage-mode__icon[data-v-efa3dbff] {\n  color: var(--acu-accent);\n  background: transparent;\n}\n.acu-dashboard-storage-mode__body[data-v-efa3dbff] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n.acu-dashboard-storage-mode__card-head[data-v-efa3dbff] {\n  min-width: 0;\n  display: flex;\n  align-items: center;\n  flex-wrap: wrap;\n  gap: 6px;\n}\n.acu-dashboard-storage-mode__name[data-v-efa3dbff] {\n  min-width: 0;\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body, 12px);\n  font-weight: 600;\n  line-height: 1.25;\n}\n.acu-dashboard-storage-mode__badge[data-v-efa3dbff] {\n  display: inline-flex;\n  align-items: center;\n  min-height: 18px;\n  padding: 1px 6px;\n  border-radius: var(--acu-radius-sm);\n  background: color-mix(in srgb, var(--acu-text-3) 16%, transparent);\n  color: var(--acu-text-2);\n  font-size: var(--acu-font-size-micro, 10px);\n  line-height: 1.2;\n  white-space: nowrap;\n}\n.acu-dashboard-storage-mode__card--active .acu-dashboard-storage-mode__badge[data-v-efa3dbff] {\n  background: color-mix(in srgb, var(--acu-accent) 16%, transparent);\n  color: var(--acu-accent);\n}\n.acu-dashboard-storage-mode__desc[data-v-efa3dbff] {\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-caption, 11px);\n  line-height: 1.5;\n}\n@media (max-width: 640px) {\n.acu-dashboard-storage-mode__head[data-v-efa3dbff] {\n    align-items: flex-start;\n}\n.acu-dashboard-storage-mode__switch[data-v-efa3dbff] {\n    width: 88px;\n}\n.acu-dashboard-storage-mode__card[data-v-efa3dbff] {\n    grid-template-columns: minmax(0, 1fr);\n}\n.acu-dashboard-storage-mode__icon[data-v-efa3dbff] {\n    display: none;\n}\n}\n", "src/presentation-v2/components/DashboardStorageModeSection.vue#style-0-efa3dbff");
-    var DashboardStorageModeSection_vue_vue_type_style_index_0_scoped_efa3dbff_lang = null;
+    injectSfcStyle("\n.acu-dashboard-storage-mode[data-v-1bd9ac99] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 6px;\n}\n.acu-dashboard-storage-mode__head[data-v-1bd9ac99] {\n  min-width: 0;\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 12px;\n}\n.acu-dashboard-storage-mode__label[data-v-1bd9ac99] {\n  min-width: 0;\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body-lg, 13px);\n  font-weight: 500;\n}\n.acu-dashboard-storage-mode__desc-main[data-v-1bd9ac99] {\n  margin: 0;\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-caption, 11px);\n  line-height: 1.5;\n}\n.acu-dashboard-storage-mode__switch[data-v-1bd9ac99] {\n  flex: 0 0 auto;\n  width: 92px;\n}\n.acu-dashboard-storage-mode__cards[data-v-1bd9ac99] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n  margin-top: 4px;\n}\n.acu-dashboard-storage-mode__card[data-v-1bd9ac99] {\n  position: relative;\n  min-width: 0;\n  padding: 5px 0 5px 8px;\n  border: 0;\n  border-radius: var(--acu-radius-sm);\n  background: transparent;\n  display: grid;\n  grid-template-columns: 26px minmax(0, 1fr);\n  gap: 8px;\n  align-items: center;\n  transition:\n    background 0.15s ease,\n    box-shadow 0.15s ease;\n}\n.acu-dashboard-storage-mode__card--active[data-v-1bd9ac99] {\n  background: color-mix(in srgb, var(--acu-accent) 8%, transparent);\n  box-shadow:\n    inset 0 0 0 1px\n    color-mix(in srgb, var(--acu-accent) 30%, transparent);\n}\n.acu-dashboard-storage-mode__icon[data-v-1bd9ac99] {\n  width: 26px;\n  height: 26px;\n  border-radius: var(--acu-radius-sm);\n  background: transparent;\n  color: var(--acu-text-3);\n  display: inline-flex;\n  align-items: center;\n  justify-content: center;\n  font-size: 15px;\n}\n.acu-dashboard-storage-mode__card--active .acu-dashboard-storage-mode__icon[data-v-1bd9ac99] {\n  color: var(--acu-accent);\n  background: transparent;\n}\n.acu-dashboard-storage-mode__body[data-v-1bd9ac99] {\n  min-width: 0;\n  display: flex;\n  flex-direction: column;\n  gap: 4px;\n}\n.acu-dashboard-storage-mode__card-head[data-v-1bd9ac99] {\n  min-width: 0;\n  display: flex;\n  align-items: center;\n  flex-wrap: wrap;\n  gap: 6px;\n}\n.acu-dashboard-storage-mode__name[data-v-1bd9ac99] {\n  min-width: 0;\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body, 12px);\n  font-weight: 600;\n  line-height: 1.25;\n}\n.acu-dashboard-storage-mode__badge[data-v-1bd9ac99] {\n  display: inline-flex;\n  align-items: center;\n  min-height: 18px;\n  padding: 1px 6px;\n  border-radius: var(--acu-radius-sm);\n  background: color-mix(in srgb, var(--acu-text-3) 16%, transparent);\n  color: var(--acu-text-2);\n  font-size: var(--acu-font-size-micro, 10px);\n  line-height: 1.2;\n  white-space: nowrap;\n}\n.acu-dashboard-storage-mode__card--active .acu-dashboard-storage-mode__badge[data-v-1bd9ac99] {\n  background: color-mix(in srgb, var(--acu-accent) 16%, transparent);\n  color: var(--acu-accent);\n}\n.acu-dashboard-storage-mode__desc[data-v-1bd9ac99] {\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-caption, 11px);\n  line-height: 1.5;\n}\n@media (max-width: 640px) {\n.acu-dashboard-storage-mode__head[data-v-1bd9ac99] {\n    align-items: center;\n}\n.acu-dashboard-storage-mode__switch[data-v-1bd9ac99] {\n    width: 88px;\n}\n.acu-dashboard-storage-mode__card[data-v-1bd9ac99] {\n    grid-template-columns: minmax(0, 1fr);\n}\n.acu-dashboard-storage-mode__icon[data-v-1bd9ac99] {\n    display: none;\n}\n}\n", "src/presentation-v2/components/DashboardStorageModeSection.vue#style-0-1bd9ac99");
+    var DashboardStorageModeSection_vue_vue_type_style_index_0_scoped_1bd9ac99_lang = null;
 
     const _hoisted_1$y = ["aria-label"];
     const _hoisted_2$s = { class: "acu-dashboard-storage-mode__head" };
     const _hoisted_3$l = { class: "acu-dashboard-storage-mode__label" };
-    const _hoisted_4$i = ["aria-label"];
-    const _hoisted_5$g = ["aria-checked", "onClick"];
-    const _hoisted_6$e = { class: "acu-dashboard-storage-mode__desc-main" };
-    const _hoisted_7$d = { class: "acu-dashboard-storage-mode__cards" };
-    const _hoisted_8$b = {
+    const _hoisted_4$i = { class: "acu-dashboard-storage-mode__desc-main" };
+    const _hoisted_5$g = { class: "acu-dashboard-storage-mode__cards" };
+    const _hoisted_6$e = {
     	class: "acu-dashboard-storage-mode__icon",
     	"aria-hidden": "true"
     };
-    const _hoisted_9$a = { class: "acu-dashboard-storage-mode__body" };
-    const _hoisted_10$a = { class: "acu-dashboard-storage-mode__card-head" };
-    const _hoisted_11$9 = { class: "acu-dashboard-storage-mode__name" };
-    const _hoisted_12$7 = { class: "acu-dashboard-storage-mode__badge" };
-    const _hoisted_13$6 = { class: "acu-dashboard-storage-mode__desc" };
+    const _hoisted_7$d = { class: "acu-dashboard-storage-mode__body" };
+    const _hoisted_8$b = { class: "acu-dashboard-storage-mode__card-head" };
+    const _hoisted_9$a = { class: "acu-dashboard-storage-mode__name" };
+    const _hoisted_10$a = { class: "acu-dashboard-storage-mode__badge" };
+    const _hoisted_11$9 = { class: "acu-dashboard-storage-mode__desc" };
     function _sfc_render$y(_ctx, _cache, $props, $setup, $data, $options) {
     	return openBlock(), createElementBlock("section", {
     		class: "acu-dashboard-storage-mode",
@@ -76692,50 +76673,26 @@ Expected function or array of functions, received type ${typeof value}.`
     			toDisplayString($setup.dashboardCopy.storage.sectionLabel),
     			1
     			/* TEXT */
-    		), createBaseVNode("div", {
+    		), createVNode($setup["AcuSegmentedControl"], {
     			class: "acu-dashboard-storage-mode__switch",
-    			role: "radiogroup",
     			"aria-label": $setup.dashboardCopy.storage.sectionLabel,
-    			style: normalizeStyle($setup.switchStyle)
-    		}, [_cache[4] || (_cache[4] = createBaseVNode(
-    			"span",
-    			{
-    				class: "acu-dashboard-storage-mode__switch-thumb",
-    				"aria-hidden": "true"
-    			},
-    			null,
-    			-1
-    			/* CACHED */
-    		)), (openBlock(true), createElementBlock(
-    			Fragment,
-    			null,
-    			renderList($setup.switchOptions, (option) => {
-    				return openBlock(), createElementBlock("button", {
-    					key: option.value,
-    					type: "button",
-    					class: normalizeClass(["acu-dashboard-storage-mode__switch-item", { "acu-dashboard-storage-mode__switch-item--active": option.value === $props.modelValue }]),
-    					role: "radio",
-    					"aria-checked": option.value === $props.modelValue,
-    					onClick: ($event) => $setup.select(option.value),
-    					onKeydown: [
-    						_cache[0] || (_cache[0] = withKeys(withModifiers(($event) => $setup.move(-1), ["prevent"]), ["left"])),
-    						_cache[1] || (_cache[1] = withKeys(withModifiers(($event) => $setup.move(-1), ["prevent"]), ["up"])),
-    						_cache[2] || (_cache[2] = withKeys(withModifiers(($event) => $setup.move(1), ["prevent"]), ["right"])),
-    						_cache[3] || (_cache[3] = withKeys(withModifiers(($event) => $setup.move(1), ["prevent"]), ["down"]))
-    					]
-    				}, toDisplayString(option.switchLabel), 43, _hoisted_5$g);
-    			}),
-    			128
-    			/* KEYED_FRAGMENT */
-    		))], 12, _hoisted_4$i)]),
+    			options: $setup.switchOptions,
+    			"model-value": $props.modelValue,
+    			size: "sm",
+    			"onUpdate:modelValue": $setup.select
+    		}, null, 8, [
+    			"aria-label",
+    			"options",
+    			"model-value"
+    		])]),
     		createBaseVNode(
     			"p",
-    			_hoisted_6$e,
+    			_hoisted_4$i,
     			toDisplayString($setup.dashboardCopy.storage.description),
     			1
     			/* TEXT */
     		),
-    		createBaseVNode("div", _hoisted_7$d, [(openBlock(true), createElementBlock(
+    		createBaseVNode("div", _hoisted_5$g, [(openBlock(true), createElementBlock(
     			Fragment,
     			null,
     			renderList($setup.decoratedOptions, (option) => {
@@ -76745,27 +76702,27 @@ Expected function or array of functions, received type ${typeof value}.`
     						key: option.value,
     						class: normalizeClass(["acu-dashboard-storage-mode__card", { "acu-dashboard-storage-mode__card--active": option.value === $props.modelValue }])
     					},
-    					[createBaseVNode("span", _hoisted_8$b, [createBaseVNode(
+    					[createBaseVNode("span", _hoisted_6$e, [createBaseVNode(
     						"i",
     						{ class: normalizeClass(option.iconClass) },
     						null,
     						2
     						/* CLASS */
-    					)]), createBaseVNode("span", _hoisted_9$a, [createBaseVNode("span", _hoisted_10$a, [createBaseVNode(
+    					)]), createBaseVNode("span", _hoisted_7$d, [createBaseVNode("span", _hoisted_8$b, [createBaseVNode(
     						"span",
-    						_hoisted_11$9,
+    						_hoisted_9$a,
     						toDisplayString(option.label),
     						1
     						/* TEXT */
     					), createBaseVNode(
     						"span",
-    						_hoisted_12$7,
+    						_hoisted_10$a,
     						toDisplayString(option.badge),
     						1
     						/* TEXT */
     					)]), createBaseVNode(
     						"span",
-    						_hoisted_13$6,
+    						_hoisted_11$9,
     						toDisplayString(option.description),
     						1
     						/* TEXT */
@@ -76779,7 +76736,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		))])
     	], 8, _hoisted_1$y);
     }
-    var DashboardStorageModeSection = /* @__PURE__ */ _export_sfc(_sfc_main$y, [["render", _sfc_render$y], ["__scopeId", "data-v-efa3dbff"]]);
+    var DashboardStorageModeSection = /* @__PURE__ */ _export_sfc(_sfc_main$y, [["render", _sfc_render$y], ["__scopeId", "data-v-1bd9ac99"]]);
 
     var _sfc_main$x = /*@__PURE__*/ defineComponent({
         __name: 'DashboardToggleRow',
@@ -80589,6 +80546,16 @@ Expected function or array of functions, received type ${typeof value}.`
         }
         return target ? target : null;
     }
+    async function withImportPromptFilterForced(task) {
+        const previousValue = settings_ACU.importPromptExcludeImportedWorldbookEntries;
+        settings_ACU.importPromptExcludeImportedWorldbookEntries = true;
+        try {
+            return await task();
+        }
+        finally {
+            settings_ACU.importPromptExcludeImportedWorldbookEntries = previousValue;
+        }
+    }
     function useImportFlow() {
         const store = useImportFlowStore();
         const toast = useToastStore();
@@ -80783,9 +80750,9 @@ Expected function or array of functions, received type ${typeof value}.`
                     const maxOuterRetries = 3;
                     for (let attempt = 1; attempt <= maxOuterRetries && !success; attempt++) {
                         notifyProgress(`正在处理分块 ${i + 1}/${allChunks.length}（尝试 ${attempt}/${maxOuterRetries}）...`);
-                        const result = await executeCardUpdateCore_ACU([mockMessage], -1, true, updateMode, true, selectedSheetKeys, null, new AbortController(), { currentBatch: i + 1, totalBatches: allChunks.length }, event => {
+                        const result = await withImportPromptFilterForced(() => executeCardUpdateCore_ACU([mockMessage], -1, true, updateMode, true, selectedSheetKeys, null, new AbortController(), { currentBatch: i + 1, totalBatches: allChunks.length }, event => {
                             notifyProgress(progressLabel(event));
-                        });
+                        }));
                         success = result.success;
                         lastError = result.error || (result.aborted ? '任务已终止。' : '');
                         if (!success && attempt < maxOuterRetries) {
@@ -84909,8 +84876,8 @@ Expected function or array of functions, received type ${typeof value}.`
         }
     });
 
-    injectSfcStyle("\n.acu-v2-advanced-tools-page[data-v-9acc6b65] {\r\n  min-height: 100%;\r\n  min-width: 0;\r\n  padding: 20px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 18px;\n}\n.acu-v2-advanced-tools-page__sql-panel[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-panel[data-v-9acc6b65] {\r\n  min-width: 0;\n}\n.acu-v2-advanced-tools-page__quick-actions[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-actions[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 8px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__sql-textarea[data-v-9acc6b65] {\r\n  font-family: var(--acu-font-mono);\r\n  min-height: 210px;\r\n  white-space: pre;\n}\n.acu-v2-advanced-tools-page__sql-actions[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 8px;\r\n  align-items: center;\r\n  justify-content: flex-end;\r\n  padding-top: 12px;\r\n  margin-top: 4px;\n}\n.acu-v2-advanced-tools-page__sql-status[data-v-9acc6b65] {\r\n  margin-left: auto;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.5;\n}\n.acu-v2-advanced-tools-page__sql-status--success[data-v-9acc6b65] {\r\n  color: var(--acu-success);\n}\n.acu-v2-advanced-tools-page__sql-status--warning[data-v-9acc6b65] {\r\n  color: var(--acu-warning);\n}\n.acu-v2-advanced-tools-page__sql-status--error[data-v-9acc6b65] {\r\n  color: var(--acu-danger);\n}\n.acu-v2-advanced-tools-page__sql-result-section[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__sql-history-section[data-v-9acc6b65] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\n}\n.acu-v2-advanced-tools-page__sql-history-section[data-v-9acc6b65] {\r\n  padding-top: 12px;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\n}\n.acu-v2-advanced-tools-page__section-title[data-v-9acc6b65] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  font-weight: 600;\r\n  line-height: 1.35;\n}\n.acu-v2-advanced-tools-page__empty[data-v-9acc6b65] {\r\n  min-height: 96px;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  text-align: center;\r\n  border: 0;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__empty--compact[data-v-9acc6b65] {\r\n  min-height: 72px;\n}\n.acu-v2-advanced-tools-page__empty--log[data-v-9acc6b65] {\r\n  min-height: 180px;\r\n  border: 0;\n}\n.acu-v2-advanced-tools-page__sql-table-wrap[data-v-9acc6b65] {\r\n  max-height: 330px;\r\n  overflow: auto;\r\n  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__sql-result-table[data-v-9acc6b65] {\r\n  width: 100%;\r\n  border-collapse: collapse;\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-v2-advanced-tools-page__sql-result-table th[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__sql-result-table td[data-v-9acc6b65] {\r\n  max-width: 300px;\r\n  padding: 7px 10px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  text-align: left;\r\n  white-space: nowrap;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\n}\n.acu-v2-advanced-tools-page__sql-result-table th[data-v-9acc6b65] {\r\n  position: sticky;\r\n  top: 0;\r\n  z-index: 1;\r\n  background: var(--acu-bg-1);\r\n  color: var(--acu-text-1);\r\n  font-weight: 600;\n}\n.acu-v2-advanced-tools-page__sql-result-table tbody tr[data-v-9acc6b65]:nth-child(even) {\r\n  background: color-mix(in srgb, var(--acu-text-3) 5%, transparent);\n}\n.acu-v2-advanced-tools-page__cell-null[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__empty-cell[data-v-9acc6b65] {\r\n  color: var(--acu-text-3);\r\n  font-style: italic;\n}\n.acu-v2-advanced-tools-page__sql-result-meta[data-v-9acc6b65] {\r\n  margin: 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  text-align: right;\n}\n.acu-v2-advanced-tools-page__sql-error[data-v-9acc6b65] {\r\n  margin: 0;\r\n  min-height: 96px;\r\n  padding: 12px;\r\n  border: 0;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: color-mix(in srgb, var(--acu-danger) 8%, transparent);\r\n  color: var(--acu-danger);\r\n  white-space: pre-wrap;\r\n  word-break: break-word;\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__filter-grid[data-v-9acc6b65] {\r\n  display: grid;\r\n  grid-template-columns: repeat(2, minmax(0, 1fr));\r\n  gap: 12px;\r\n  align-items: stretch;\n}\n.acu-v2-advanced-tools-page__keyword-row[data-v-9acc6b65] {\r\n  grid-column: 1 / -1;\n}\n.acu-v2-advanced-tools-page__log-control-row[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 10px 14px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__toggles[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 14px;\r\n  align-items: center;\r\n  margin-left: auto;\n}\n.acu-v2-advanced-tools-page__hint[data-v-9acc6b65] {\r\n  flex: 1 1 100%;\r\n  margin: 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__sql-history-list[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-list[data-v-9acc6b65] {\r\n  overflow: auto;\r\n  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__sql-history-list[data-v-9acc6b65] {\r\n  max-height: 230px;\n}\n.acu-v2-advanced-tools-page__log-list[data-v-9acc6b65] {\r\n  min-height: 360px;\r\n  max-height: 58vh;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-row[data-v-9acc6b65] {\r\n  min-width: 0;\r\n  display: grid;\r\n  gap: 8px;\r\n  align-items: baseline;\r\n  padding: 7px 10px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 6px;\r\n  padding-block: 9px;\r\n  border: 0;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  background: transparent;\r\n  color: inherit;\r\n  cursor: pointer;\r\n  font: inherit;\r\n  text-align: left;\r\n  transition: background 0.15s ease, box-shadow 0.15s ease;\n}\n.acu-v2-advanced-tools-page__log-row[data-v-9acc6b65] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 6px;\r\n  padding-block: 9px;\n}\n.acu-v2-advanced-tools-page__log-meta[data-v-9acc6b65] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 6px 8px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__sql-history-meta[data-v-9acc6b65] {\r\n  flex-wrap: nowrap;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65]:last-child,\r\n.acu-v2-advanced-tools-page__log-row[data-v-9acc6b65]:last-child {\r\n  border-bottom: 0;\n}\n.acu-v2-advanced-tools-page__sql-history-item--failure[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-row--error[data-v-9acc6b65] {\r\n  background: color-mix(in srgb, var(--acu-danger) 7%, transparent);\n}\n.acu-v2-advanced-tools-page__log-row--warn[data-v-9acc6b65] {\r\n  background: color-mix(in srgb, var(--acu-warning) 6%, transparent);\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65]:hover {\r\n  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65]:focus-visible {\r\n  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;\r\n  box-shadow: inset 0 0 0 2px var(--acu-accent-glow);\r\n  outline: none;\n}\n.acu-v2-advanced-tools-page__log-time[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-tag[data-v-9acc6b65],\r\n.acu-v2-advanced-tools-page__log-message[data-v-9acc6b65] {\r\n  min-width: 0;\r\n  font-family: var(--acu-font-mono);\n}\n.acu-v2-advanced-tools-page__log-time[data-v-9acc6b65] {\r\n  color: var(--acu-text-3);\r\n  white-space: nowrap;\n}\n.acu-v2-advanced-tools-page__log-tag[data-v-9acc6b65] {\r\n  flex: 1 1 180px;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\r\n  color: var(--acu-text-2);\n}\n.acu-v2-advanced-tools-page__log-message[data-v-9acc6b65] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  white-space: pre-wrap;\r\n  word-break: break-word;\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__log-body[data-v-9acc6b65] {\r\n  display: block;\r\n  width: 100%;\n}\n@media (max-width: 1080px) {\n.acu-v2-advanced-tools-page[data-v-9acc6b65] {\r\n    padding: 14px;\n}\n.acu-v2-advanced-tools-page__sql-actions[data-v-9acc6b65] {\r\n    justify-content: stretch;\n}\n.acu-v2-advanced-tools-page__sql-status[data-v-9acc6b65] {\r\n    width: 100%;\r\n    margin-left: 0;\r\n    text-align: right;\n}\n.acu-v2-advanced-tools-page__filter-grid[data-v-9acc6b65] {\r\n    grid-template-columns: 1fr;\n}\n.acu-v2-advanced-tools-page__log-control-row[data-v-9acc6b65] {\r\n    align-items: stretch;\r\n    flex-direction: column;\n}\n.acu-v2-advanced-tools-page__toggles[data-v-9acc6b65] {\r\n    margin-left: 0;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-9acc6b65],\r\n  .acu-v2-advanced-tools-page__log-row[data-v-9acc6b65] {\r\n    padding-inline: 9px;\n}\n}\r\n", "src/presentation-v2/pages/AdvancedToolsPage.vue#style-0-9acc6b65");
-    var AdvancedToolsPage_vue_vue_type_style_index_0_scoped_9acc6b65_lang = null;
+    injectSfcStyle("\n.acu-v2-advanced-tools-page[data-v-616c5d30] {\r\n  min-height: 100%;\r\n  min-width: 0;\r\n  padding: 20px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 18px;\n}\n.acu-v2-advanced-tools-page__sql-panel[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-panel[data-v-616c5d30] {\r\n  min-width: 0;\n}\n.acu-v2-advanced-tools-page__quick-actions[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-actions[data-v-616c5d30] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 8px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__sql-textarea[data-v-616c5d30] {\r\n  font-family: var(--acu-font-mono);\r\n  min-height: 210px;\r\n  white-space: pre;\n}\n.acu-v2-advanced-tools-page__sql-actions[data-v-616c5d30] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 8px;\r\n  align-items: center;\r\n  justify-content: flex-end;\r\n  padding-top: 12px;\r\n  margin-top: 4px;\n}\n.acu-v2-advanced-tools-page__sql-status[data-v-616c5d30] {\r\n  margin-left: auto;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.5;\n}\n.acu-v2-advanced-tools-page__sql-status--success[data-v-616c5d30] {\r\n  color: var(--acu-success);\n}\n.acu-v2-advanced-tools-page__sql-status--warning[data-v-616c5d30] {\r\n  color: var(--acu-warning);\n}\n.acu-v2-advanced-tools-page__sql-status--error[data-v-616c5d30] {\r\n  color: var(--acu-danger);\n}\n.acu-v2-advanced-tools-page__sql-result-section[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__sql-history-section[data-v-616c5d30] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\n}\n.acu-v2-advanced-tools-page__sql-history-section[data-v-616c5d30] {\r\n  padding-top: 12px;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\n}\n.acu-v2-advanced-tools-page__section-title[data-v-616c5d30] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  font-weight: 600;\r\n  line-height: 1.35;\n}\n.acu-v2-advanced-tools-page__empty[data-v-616c5d30] {\r\n  min-height: 96px;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  text-align: center;\r\n  border: 0;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-bottom: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__empty--compact[data-v-616c5d30] {\r\n  min-height: 72px;\n}\n.acu-v2-advanced-tools-page__empty--log[data-v-616c5d30] {\r\n  min-height: 180px;\r\n  border: 0;\n}\n.acu-v2-advanced-tools-page__sql-table-wrap[data-v-616c5d30] {\r\n  max-height: 330px;\r\n  overflow: auto;\r\n  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__sql-result-table[data-v-616c5d30] {\r\n  width: 100%;\r\n  border-collapse: collapse;\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-v2-advanced-tools-page__sql-result-table th[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__sql-result-table td[data-v-616c5d30] {\r\n  max-width: 300px;\r\n  padding: 7px 10px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  text-align: left;\r\n  white-space: nowrap;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\n}\n.acu-v2-advanced-tools-page__sql-result-table th[data-v-616c5d30] {\r\n  position: sticky;\r\n  top: 0;\r\n  z-index: 1;\r\n  background: var(--acu-bg-1);\r\n  color: var(--acu-text-1);\r\n  font-weight: 600;\n}\n.acu-v2-advanced-tools-page__sql-result-table tbody tr[data-v-616c5d30]:nth-child(even) {\r\n  background: color-mix(in srgb, var(--acu-text-3) 5%, transparent);\n}\n.acu-v2-advanced-tools-page__cell-null[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__empty-cell[data-v-616c5d30] {\r\n  color: var(--acu-text-3);\r\n  font-style: italic;\n}\n.acu-v2-advanced-tools-page__sql-result-meta[data-v-616c5d30] {\r\n  margin: 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  text-align: right;\n}\n.acu-v2-advanced-tools-page__sql-error[data-v-616c5d30] {\r\n  margin: 0;\r\n  min-height: 96px;\r\n  padding: 12px;\r\n  border: 0;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: color-mix(in srgb, var(--acu-danger) 8%, transparent);\r\n  color: var(--acu-danger);\r\n  white-space: pre-wrap;\r\n  word-break: break-word;\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__filter-grid[data-v-616c5d30] {\r\n  display: grid;\r\n  grid-template-columns: repeat(2, minmax(0, 1fr));\r\n  gap: 12px;\r\n  align-items: stretch;\n}\n.acu-v2-advanced-tools-page__keyword-row[data-v-616c5d30] {\r\n  grid-column: 1 / -1;\n}\n.acu-v2-advanced-tools-page__log-control-row[data-v-616c5d30] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 10px 14px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__toggles[data-v-616c5d30] {\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 14px;\r\n  align-items: center;\r\n  margin-left: auto;\n}\n.acu-v2-advanced-tools-page__hint[data-v-616c5d30] {\r\n  flex: 1 1 100%;\r\n  margin: 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__sql-history-list[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-list[data-v-616c5d30] {\r\n  overflow: auto;\r\n  border: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__sql-history-list[data-v-616c5d30] {\r\n  max-height: 230px;\n}\n.acu-v2-advanced-tools-page__log-list[data-v-616c5d30] {\r\n  min-height: 360px;\r\n  max-height: 58vh;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-row[data-v-616c5d30] {\r\n  min-width: 0;\r\n  display: grid;\r\n  gap: 8px;\r\n  align-items: baseline;\r\n  padding: 7px 10px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: 1.55;\n}\n.acu-v2-advanced-tools-page__sql-history-item.acu-btn[data-v-616c5d30] {\n  display: flex;\n  flex-direction: column;\n  align-items: stretch;\n  gap: 6px;\r\n  padding-block: 9px;\r\n  border: 0;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  background: transparent;\r\n  color: inherit;\r\n  cursor: pointer;\r\n  font: inherit;\r\n  text-align: left;\r\n  transition: background 0.15s ease, box-shadow 0.15s ease;\n}\n.acu-v2-advanced-tools-page__log-row[data-v-616c5d30] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: stretch;\r\n  gap: 6px;\r\n  padding-block: 9px;\n}\n.acu-v2-advanced-tools-page__log-meta[data-v-616c5d30] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-wrap: wrap;\r\n  gap: 6px 8px;\r\n  align-items: center;\n}\n.acu-v2-advanced-tools-page__sql-history-meta[data-v-616c5d30] {\r\n  flex-wrap: nowrap;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-616c5d30]:last-child,\r\n.acu-v2-advanced-tools-page__log-row[data-v-616c5d30]:last-child {\r\n  border-bottom: 0;\n}\n.acu-v2-advanced-tools-page__sql-history-item--failure[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-row--error[data-v-616c5d30] {\r\n  background: color-mix(in srgb, var(--acu-danger) 7%, transparent);\n}\n.acu-v2-advanced-tools-page__log-row--warn[data-v-616c5d30] {\r\n  background: color-mix(in srgb, var(--acu-warning) 6%, transparent);\n}\n.acu-v2-advanced-tools-page__sql-history-item.acu-btn[data-v-616c5d30]:hover {\n  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;\n}\n.acu-v2-advanced-tools-page__sql-history-item.acu-btn[data-v-616c5d30]:focus-visible {\n  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;\n  box-shadow: inset 0 0 0 2px var(--acu-accent-glow);\n  outline: none;\n}\n.acu-v2-advanced-tools-page__log-time[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-tag[data-v-616c5d30],\r\n.acu-v2-advanced-tools-page__log-message[data-v-616c5d30] {\r\n  min-width: 0;\r\n  font-family: var(--acu-font-mono);\n}\n.acu-v2-advanced-tools-page__log-time[data-v-616c5d30] {\r\n  color: var(--acu-text-3);\r\n  white-space: nowrap;\n}\n.acu-v2-advanced-tools-page__log-tag[data-v-616c5d30] {\r\n  flex: 1 1 180px;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\r\n  color: var(--acu-text-2);\n}\n.acu-v2-advanced-tools-page__log-message[data-v-616c5d30] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  white-space: pre-wrap;\r\n  word-break: break-word;\r\n  background: transparent;\n}\n.acu-v2-advanced-tools-page__log-body[data-v-616c5d30] {\r\n  display: block;\r\n  width: 100%;\n}\n@media (max-width: 1080px) {\n.acu-v2-advanced-tools-page[data-v-616c5d30] {\r\n    padding: 14px;\n}\n.acu-v2-advanced-tools-page__sql-actions[data-v-616c5d30] {\r\n    justify-content: stretch;\n}\n.acu-v2-advanced-tools-page__sql-status[data-v-616c5d30] {\r\n    width: 100%;\r\n    margin-left: 0;\r\n    text-align: right;\n}\n.acu-v2-advanced-tools-page__filter-grid[data-v-616c5d30] {\r\n    grid-template-columns: 1fr;\n}\n.acu-v2-advanced-tools-page__log-control-row[data-v-616c5d30] {\r\n    align-items: stretch;\r\n    flex-direction: column;\n}\n.acu-v2-advanced-tools-page__toggles[data-v-616c5d30] {\r\n    margin-left: 0;\n}\n.acu-v2-advanced-tools-page__sql-history-item[data-v-616c5d30],\r\n  .acu-v2-advanced-tools-page__log-row[data-v-616c5d30] {\r\n    padding-inline: 9px;\n}\n}\r\n", "src/presentation-v2/pages/AdvancedToolsPage.vue#style-0-616c5d30");
+    var AdvancedToolsPage_vue_vue_type_style_index_0_scoped_616c5d30_lang = null;
 
     const _hoisted_1$b = { class: "acu-v2-advanced-tools-page" };
     const _hoisted_2$a = {
@@ -84947,29 +84914,28 @@ Expected function or array of functions, received type ${typeof value}.`
     	key: 1,
     	class: "acu-v2-advanced-tools-page__sql-history-list"
     };
-    const _hoisted_15$3 = ["onClick"];
-    const _hoisted_16$3 = { class: "acu-v2-advanced-tools-page__log-meta acu-v2-advanced-tools-page__sql-history-meta" };
-    const _hoisted_17$2 = { class: "acu-v2-advanced-tools-page__log-time" };
-    const _hoisted_18$2 = { class: "acu-v2-advanced-tools-page__log-message acu-v2-advanced-tools-page__log-body" };
-    const _hoisted_19$2 = { class: "acu-v2-advanced-tools-page__filter-grid" };
-    const _hoisted_20$1 = { class: "acu-v2-advanced-tools-page__log-control-row" };
-    const _hoisted_21$1 = { class: "acu-v2-advanced-tools-page__log-actions" };
-    const _hoisted_22$1 = { class: "acu-v2-advanced-tools-page__toggles" };
-    const _hoisted_23$1 = { class: "acu-v2-advanced-tools-page__hint" };
-    const _hoisted_24$1 = {
+    const _hoisted_15$3 = { class: "acu-v2-advanced-tools-page__log-meta acu-v2-advanced-tools-page__sql-history-meta" };
+    const _hoisted_16$3 = { class: "acu-v2-advanced-tools-page__log-time" };
+    const _hoisted_17$2 = { class: "acu-v2-advanced-tools-page__log-message acu-v2-advanced-tools-page__log-body" };
+    const _hoisted_18$2 = { class: "acu-v2-advanced-tools-page__filter-grid" };
+    const _hoisted_19$2 = { class: "acu-v2-advanced-tools-page__log-control-row" };
+    const _hoisted_20$1 = { class: "acu-v2-advanced-tools-page__log-actions" };
+    const _hoisted_21$1 = { class: "acu-v2-advanced-tools-page__toggles" };
+    const _hoisted_22$1 = { class: "acu-v2-advanced-tools-page__hint" };
+    const _hoisted_23$1 = {
     	ref: "logListRef",
     	class: "acu-v2-advanced-tools-page__log-list",
     	role: "log",
     	"aria-live": "polite"
     };
-    const _hoisted_25$1 = {
+    const _hoisted_24$1 = {
     	key: 0,
     	class: "acu-v2-advanced-tools-page__empty acu-v2-advanced-tools-page__empty--log"
     };
-    const _hoisted_26$1 = { class: "acu-v2-advanced-tools-page__log-meta" };
-    const _hoisted_27$1 = { class: "acu-v2-advanced-tools-page__log-time" };
-    const _hoisted_28$1 = { class: "acu-v2-advanced-tools-page__log-tag" };
-    const _hoisted_29$1 = { class: "acu-v2-advanced-tools-page__log-message acu-v2-advanced-tools-page__log-body" };
+    const _hoisted_25$1 = { class: "acu-v2-advanced-tools-page__log-meta" };
+    const _hoisted_26$1 = { class: "acu-v2-advanced-tools-page__log-time" };
+    const _hoisted_27$1 = { class: "acu-v2-advanced-tools-page__log-tag" };
+    const _hoisted_28$1 = { class: "acu-v2-advanced-tools-page__log-message acu-v2-advanced-tools-page__log-body" };
     function _sfc_render$b(_ctx, _cache, $props, $setup, $data, $options) {
     	return openBlock(), createElementBlock("section", _hoisted_1$b, [createVNode($setup["AcuMobilePanelNav"], { items: $setup.panelNavItems }), createVNode($setup["AcuPanelGrid"], {
     		class: "acu-v2-advanced-tools-page__tools-grid",
@@ -85176,32 +85142,34 @@ Expected function or array of functions, received type ${typeof value}.`
     					Fragment,
     					null,
     					renderList($setup.sqlFlow.history.value, (item, index) => {
-    						return openBlock(), createElementBlock("button", {
+    						return openBlock(), createBlock($setup["AcuButton"], {
     							key: `${item.timestamp}-${index}`,
-    							type: "button",
     							class: normalizeClass(["acu-v2-advanced-tools-page__sql-history-item", item.success ? "acu-v2-advanced-tools-page__sql-history-item--success" : "acu-v2-advanced-tools-page__sql-history-item--failure"]),
     							title: "填入编辑器",
     							onClick: ($event) => $setup.sqlFlow.useHistoryItem(item)
-    						}, [createBaseVNode("div", _hoisted_16$3, [createBaseVNode(
-    							"span",
-    							_hoisted_17$2,
-    							toDisplayString($setup.formatTime(item.timestamp)),
-    							1
-    							/* TEXT */
-    						), createVNode($setup["AcuBadge"], { variant: item.success ? "success" : "danger" }, {
-    							default: withCtx(() => [createTextVNode(
-    								toDisplayString(item.success ? "成功" : "失败"),
+    						}, {
+    							default: withCtx(() => [createBaseVNode("div", _hoisted_15$3, [createBaseVNode(
+    								"span",
+    								_hoisted_16$3,
+    								toDisplayString($setup.formatTime(item.timestamp)),
+    								1
+    								/* TEXT */
+    							), createVNode($setup["AcuBadge"], { variant: item.success ? "success" : "danger" }, {
+    								default: withCtx(() => [createTextVNode(
+    									toDisplayString(item.success ? "成功" : "失败"),
+    									1
+    									/* TEXT */
+    								)]),
+    								_: 2
+    							}, 1032, ["variant"])]), createBaseVNode(
+    								"code",
+    								_hoisted_17$2,
+    								toDisplayString(item.sql),
     								1
     								/* TEXT */
     							)]),
     							_: 2
-    						}, 1032, ["variant"])]), createBaseVNode(
-    							"code",
-    							_hoisted_18$2,
-    							toDisplayString(item.sql),
-    							1
-    							/* TEXT */
-    						)], 10, _hoisted_15$3);
+    						}, 1032, ["class", "onClick"]);
     					}),
     					128
     					/* KEYED_FRAGMENT */
@@ -85230,7 +85198,7 @@ Expected function or array of functions, received type ${typeof value}.`
     				_: 1
     			}, 8, ["variant"])]),
     			default: withCtx(() => [
-    				createBaseVNode("div", _hoisted_19$2, [
+    				createBaseVNode("div", _hoisted_18$2, [
     					createVNode($setup["AcuFormRow"], null, {
     						default: withCtx(() => [createVNode($setup["AcuSelect"], {
     							options: $setup.logFlow.levelOptions,
@@ -85257,8 +85225,8 @@ Expected function or array of functions, received type ${typeof value}.`
     						_: 1
     					})
     				]),
-    				createBaseVNode("div", _hoisted_20$1, [
-    					createBaseVNode("div", _hoisted_21$1, [
+    				createBaseVNode("div", _hoisted_19$2, [
+    					createBaseVNode("div", _hoisted_20$1, [
     						createVNode($setup["AcuButton"], {
     							variant: $setup.logFlow.paused.value ? "primary" : "default",
     							onClick: _cache[3] || (_cache[3] = ($event) => $setup.logFlow.setPaused(!$setup.logFlow.paused.value))
@@ -85312,7 +85280,7 @@ Expected function or array of functions, received type ${typeof value}.`
     							_: 1
     						}, 8, ["disabled", "onClick"])
     					]),
-    					createBaseVNode("div", _hoisted_22$1, [createVNode($setup["AcuToggle"], {
+    					createBaseVNode("div", _hoisted_21$1, [createVNode($setup["AcuToggle"], {
     						"model-value": $setup.logFlow.autoScroll.value,
     						label: "自动滚动",
     						"onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => $setup.logFlow.autoScroll.value = $event)
@@ -85323,7 +85291,7 @@ Expected function or array of functions, received type ${typeof value}.`
     					}, null, 8, ["model-value", "onUpdate:modelValue"])]),
     					createBaseVNode(
     						"p",
-    						_hoisted_23$1,
+    						_hoisted_22$1,
     						" 最多保留最近 2000 条；当前显示 " + toDisplayString($setup.logFlow.filteredCount.value) + " / " + toDisplayString($setup.logFlow.totalCount.value) + " 条。" + toDisplayString($setup.logFlow.pendingCount.value ? `${$setup.logFlow.pendingCount.value} 条暂停期间新增日志等待显示。` : "没有暂停期间积压的日志。"),
     						1
     						/* TEXT */
@@ -85331,8 +85299,8 @@ Expected function or array of functions, received type ${typeof value}.`
     				]),
     				createBaseVNode(
     					"div",
-    					_hoisted_24$1,
-    					[!$setup.logFlow.visibleLogs.value.length ? (openBlock(), createElementBlock("div", _hoisted_25$1, " 暂无匹配日志 ")) : createCommentVNode("v-if", true), (openBlock(true), createElementBlock(
+    					_hoisted_23$1,
+    					[!$setup.logFlow.visibleLogs.value.length ? (openBlock(), createElementBlock("div", _hoisted_24$1, " 暂无匹配日志 ")) : createCommentVNode("v-if", true), (openBlock(true), createElementBlock(
     						Fragment,
     						null,
     						renderList($setup.logFlow.visibleLogs.value, (entry) => {
@@ -85342,10 +85310,10 @@ Expected function or array of functions, received type ${typeof value}.`
     									key: entry.id,
     									class: normalizeClass(["acu-v2-advanced-tools-page__log-row", `acu-v2-advanced-tools-page__log-row--${entry.level}`])
     								},
-    								[createBaseVNode("div", _hoisted_26$1, [
+    								[createBaseVNode("div", _hoisted_25$1, [
     									createBaseVNode(
     										"span",
-    										_hoisted_27$1,
+    										_hoisted_26$1,
     										toDisplayString($setup.formatTime(entry.timestamp)),
     										1
     										/* TEXT */
@@ -85360,14 +85328,14 @@ Expected function or array of functions, received type ${typeof value}.`
     									}, 1032, ["variant"]),
     									createBaseVNode(
     										"span",
-    										_hoisted_28$1,
+    										_hoisted_27$1,
     										toDisplayString(entry.tag),
     										1
     										/* TEXT */
     									)
     								]), createBaseVNode(
     									"code",
-    									_hoisted_29$1,
+    									_hoisted_28$1,
     									toDisplayString(entry.message),
     									1
     									/* TEXT */
@@ -85388,7 +85356,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		_: 1
     	})]);
     }
-    var AdvancedToolsPage = /* @__PURE__ */ _export_sfc(_sfc_main$b, [["render", _sfc_render$b], ["__scopeId", "data-v-9acc6b65"]]);
+    var AdvancedToolsPage = /* @__PURE__ */ _export_sfc(_sfc_main$b, [["render", _sfc_render$b], ["__scopeId", "data-v-616c5d30"]]);
 
     const developerCopy = {
         panels: {

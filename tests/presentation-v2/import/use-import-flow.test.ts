@@ -37,6 +37,7 @@ async function setup({
     importSplitSize: 100,
     importSelectedTables: ['sheetA'],
     hasImportTableSelection: true,
+    importPromptExcludeImportedWorldbookEntries: true,
   };
 
   vi.doMock('../../../src/service/runtime/state-manager', () => ({
@@ -96,6 +97,7 @@ async function setup({
     finalizeImportAndCleanup,
     executeCardUpdateCore,
     getCharPrimary,
+    settings,
   };
 }
 
@@ -195,5 +197,31 @@ describe('useImportFlow', () => {
     expect(finalizeImportAndCleanup).toHaveBeenCalledWith('world-A', ['sheetA'], '-Selected', 2);
     expect(toast.items).toHaveLength(1);
     expect(toast.items[0]).toMatchObject({ kind: 'success' });
+  });
+
+  it('injectChunks 在 v2 导入执行期间强制屏蔽外部导入条目并恢复旧设置', async () => {
+    const {
+      flow,
+      importTempGet,
+      executeCardUpdateCore,
+      settings,
+    } = await setup();
+    settings.importPromptExcludeImportedWorldbookEntries = false;
+    const observedValues: any[] = [];
+    importTempGet.mockImplementation(async (key: string) => {
+      if (key.endsWith('importedTxtEntries')) {
+        return JSON.stringify([{ content: '第一段' }]);
+      }
+      return null;
+    });
+    executeCardUpdateCore.mockImplementation(async () => {
+      observedValues.push(settings.importPromptExcludeImportedWorldbookEntries);
+      return { success: true, modifiedKeys: ['sheetA'] };
+    });
+
+    await flow.injectChunks();
+
+    expect(observedValues).toEqual([true]);
+    expect(settings.importPromptExcludeImportedWorldbookEntries).toBe(false);
   });
 });

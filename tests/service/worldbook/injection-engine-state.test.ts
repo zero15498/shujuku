@@ -10,9 +10,10 @@ const {
   mockGenerationGate, mockSetCurrentChatFileIdentifier, mockSetAllChatMessages,
   mockSetLastTotalAiMessages,
   mockGetCurrentWorldbookConfig,
-  mockGetLorebookEntries, mockDeleteLorebookEntries, mockGwGetCurrentCharPrimaryLorebook,
+  mockGetLorebookEntries, mockDeleteLorebookEntries, mockGwGetCurrentCharPrimaryLorebook, mockListLorebooks,
   mockGetChatArray, mockSaveChatToHost,
   mockApplyTemplateScopeForCurrentChat, mockLoadSettings, mockSaveSettings,
+  mockApplyCurrentChatApiPresetSelection,
   mockGetSortedSheetKeys,
   mockLoadAllChatMessages,
   mockCleanChatName, mockGetChatFirstLayerMessage, mockLogDebug, mockLogError, mockLogWarn,
@@ -43,11 +44,13 @@ const {
   mockGetLorebookEntries: vi.fn(async () => []),
   mockDeleteLorebookEntries: vi.fn(async () => {}),
   mockGwGetCurrentCharPrimaryLorebook: vi.fn(async () => 'primary-lorebook'),
+  mockListLorebooks: vi.fn(async () => ['primary-lorebook', '角色世界书', '自定义世界书']),
   mockGetChatArray: vi.fn(() => []),
   mockSaveChatToHost: vi.fn(async () => {}),
   mockApplyTemplateScopeForCurrentChat: vi.fn(),
   mockLoadSettings: vi.fn(),
   mockSaveSettings: vi.fn(),
+  mockApplyCurrentChatApiPresetSelection: vi.fn(),
   mockGetSortedSheetKeys: vi.fn(() => []),
   mockLoadAllChatMessages: vi.fn(async () => {}),
   mockCleanChatName: vi.fn((name: string) => name),
@@ -82,6 +85,7 @@ vi.mock('../../../src/data/gateways/worldbook-gateway', () => ({
   getLorebookEntries_ACU: mockGetLorebookEntries,
   deleteLorebookEntries_ACU: mockDeleteLorebookEntries,
   getCurrentCharPrimaryLorebook_ACU: mockGwGetCurrentCharPrimaryLorebook,
+  listLorebooks_ACU: mockListLorebooks,
 }));
 
 vi.mock('../../../src/data/gateways/chat-gateway', () => ({
@@ -93,6 +97,10 @@ vi.mock('../../../src/service/settings/settings-service', () => ({
   applyTemplateScopeForCurrentChat_ACU: mockApplyTemplateScopeForCurrentChat,
   loadSettings_ACU: mockLoadSettings,
   saveSettings_ACU: mockSaveSettings,
+}));
+
+vi.mock('../../../src/service/ai/api-call', () => ({
+  applyCurrentChatApiPresetSelection_ACU: mockApplyCurrentChatApiPresetSelection,
 }));
 
 vi.mock('../../../src/service/template/chat-scope', () => ({
@@ -131,6 +139,7 @@ beforeEach(() => {
   mockSettings.dataIsolationEnabled = false;
   mockSettings.dataIsolationCode = '';
   mockSettings.knownCustomEntryNames = [];
+  mockListLorebooks.mockResolvedValue(['primary-lorebook', '角色世界书', '自定义世界书']);
   mockCurrentChatFileIdentifier.value = 'test-chat';
   mockCurrentJsonTableData.value = null;
   mockGenerationGate.lastUserMessageId = null;
@@ -191,6 +200,7 @@ describe('resetScriptStateForNewChat_ACU', () => {
     await resetScriptStateForNewChat_ACU('new-chat.jsonl');
     expect(mockSetCurrentChatFileIdentifier).toHaveBeenCalledWith('clean-chat');
     expect(mockLoadSettings).toHaveBeenCalled();
+    expect(mockApplyCurrentChatApiPresetSelection).toHaveBeenCalled();
     expect(mockSetAllChatMessages).toHaveBeenCalledWith([]);
     expect(mockSetLastTotalAiMessages).toHaveBeenCalledWith(0);
     expect(mockLoadAllChatMessages).toHaveBeenCalled();

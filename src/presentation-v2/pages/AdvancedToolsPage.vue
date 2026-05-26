@@ -103,10 +103,9 @@
             暂无执行历史
           </div>
           <div v-else class="acu-v2-advanced-tools-page__sql-history-list">
-            <button
+            <AcuButton
               v-for="(item, index) in sqlFlow.history.value"
               :key="`${item.timestamp}-${index}`"
-              type="button"
               class="acu-v2-advanced-tools-page__sql-history-item"
               :class="item.success ? 'acu-v2-advanced-tools-page__sql-history-item--success' : 'acu-v2-advanced-tools-page__sql-history-item--failure'"
               title="填入编辑器"
@@ -119,7 +118,7 @@
                 </AcuBadge>
               </div>
               <code class="acu-v2-advanced-tools-page__log-message acu-v2-advanced-tools-page__log-body">{{ item.sql }}</code>
-            </button>
+            </AcuButton>
           </div>
         </section>
       </AcuPanel>
@@ -523,7 +522,7 @@ watch(() => logFlow.visibleLogs.value.length, scrollLogListToTop, { flush: 'post
   line-height: 1.55;
 }
 
-.acu-v2-advanced-tools-page__sql-history-item {
+.acu-v2-advanced-tools-page__sql-history-item.acu-btn {
   display: flex;
   flex-direction: column;
   align-items: stretch;
@@ -573,11 +572,11 @@ watch(() => logFlow.visibleLogs.value.length, scrollLogListToTop, { flush: 'post
   background: color-mix(in srgb, var(--acu-warning) 6%, transparent);
 }
 
-.acu-v2-advanced-tools-page__sql-history-item:hover {
+.acu-v2-advanced-tools-page__sql-history-item.acu-btn:hover {
   background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;
 }
 
-.acu-v2-advanced-tools-page__sql-history-item:focus-visible {
+.acu-v2-advanced-tools-page__sql-history-item.acu-btn:focus-visible {
   background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), transparent;
   box-shadow: inset 0 0 0 2px var(--acu-accent-glow);
   outline: none;

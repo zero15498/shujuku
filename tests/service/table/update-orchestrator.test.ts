@@ -573,6 +573,23 @@ describe('executeCardUpdateCore_ACU', () => {
     expect(progressEvents.map(e => e.phase)).toContain('chunk_done');
   });
 
+  it('import 模式尊重旧 UI 的导入条目屏蔽开关', async () => {
+    mockSettings.importPromptExcludeImportedWorldbookEntries = false;
+    mockPrepareAIInput.mockResolvedValue(null);
+
+    await executeCardUpdateCore_ACU(
+      [], 0, true, 'auto_standard', false,
+      null, null, new AbortController()
+    );
+
+    expect(mockPrepareAIInput).toHaveBeenCalledWith(
+      [],
+      'auto_standard',
+      null,
+      { excludeImportTaggedWorldbookEntries: false },
+    );
+  });
+
   it('无 onProgress 回调时不报错', async () => {
     mockPrepareAIInput.mockResolvedValue({ tableDataText: '模拟数据' });
     mockCallCustomOpenAI.mockResolvedValue('<tableEdit>有效内容</tableEdit>');

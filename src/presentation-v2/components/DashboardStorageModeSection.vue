@@ -7,36 +7,14 @@
       <span class="acu-dashboard-storage-mode__label">{{
         dashboardCopy.storage.sectionLabel
       }}</span>
-      <div
+      <AcuSegmentedControl
         class="acu-dashboard-storage-mode__switch"
-        role="radiogroup"
         :aria-label="dashboardCopy.storage.sectionLabel"
-        :style="switchStyle"
-      >
-        <span
-          class="acu-dashboard-storage-mode__switch-thumb"
-          aria-hidden="true"
-        />
-        <button
-          v-for="option in switchOptions"
-          :key="option.value"
-          type="button"
-          class="acu-dashboard-storage-mode__switch-item"
-          :class="{
-            'acu-dashboard-storage-mode__switch-item--active':
-              option.value === modelValue,
-          }"
-          role="radio"
-          :aria-checked="option.value === modelValue"
-          @click="select(option.value)"
-          @keydown.left.prevent="move(-1)"
-          @keydown.up.prevent="move(-1)"
-          @keydown.right.prevent="move(1)"
-          @keydown.down.prevent="move(1)"
-        >
-          {{ option.switchLabel }}
-        </button>
-      </div>
+        :options="switchOptions"
+        :model-value="modelValue"
+        size="sm"
+        @update:model-value="select"
+      />
     </div>
     <p class="acu-dashboard-storage-mode__desc-main">
       {{ dashboardCopy.storage.description }}
@@ -75,6 +53,9 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import AcuSegmentedControl, {
+  type AcuSegmentedOption,
+} from "./_lib/AcuSegmentedControl.vue";
 import type { DashboardStorageOption } from "../composables/useDashboardPage";
 import { dashboardCopy } from "../copy/dashboard-copy";
 
@@ -87,22 +68,10 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
-const activeIndex = computed(() => {
-  const index = props.options.findIndex(
-    (option) => option.value === props.modelValue,
-  );
-  return Math.max(0, index);
-});
-
-const switchStyle = computed(() => ({
-  "--storage-mode-count": String(Math.max(1, props.options.length)),
-  "--storage-mode-index": String(activeIndex.value),
-}));
-
-const switchOptions = computed(() =>
+const switchOptions = computed<AcuSegmentedOption[]>(() =>
   props.options.map((option) => ({
-    ...option,
-    switchLabel: dashboardCopy.storage.switchLabel(option.value),
+    value: option.value,
+    label: dashboardCopy.storage.switchLabel(option.value),
   })),
 );
 
@@ -120,13 +89,6 @@ const decoratedOptions = computed(() =>
 function select(value: string): void {
   if (value === props.modelValue) return;
   emit("update:modelValue", value);
-}
-
-function move(delta: number): void {
-  if (!props.options.length) return;
-  const nextIndex =
-    (activeIndex.value + delta + props.options.length) % props.options.length;
-  emit("update:modelValue", props.options[nextIndex].value);
 }
 </script>
 
@@ -161,64 +123,8 @@ function move(delta: number): void {
 }
 
 .acu-dashboard-storage-mode__switch {
-  position: relative;
   flex: 0 0 auto;
   width: 92px;
-  display: grid;
-  grid-template-columns: repeat(var(--storage-mode-count), minmax(0, 1fr));
-  padding: 2px;
-  border-radius: var(--acu-radius-sm);
-  background: var(--acu-bg-2);
-  overflow: hidden;
-}
-
-.acu-dashboard-storage-mode__switch-thumb {
-  position: absolute;
-  inset: 2px auto 2px 2px;
-  width: calc((100% - 4px) / var(--storage-mode-count));
-  border-radius: calc(var(--acu-radius-sm) - 2px);
-  background: var(--acu-accent);
-  transform: translateX(calc(var(--storage-mode-index) * 100%));
-  transition: transform 0.16s ease;
-  pointer-events: none;
-}
-
-.acu-dashboard-storage-mode__switch-item {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  min-height: 20px;
-  margin: 0;
-  padding: 0 4px;
-  border: 0;
-  border-radius: calc(var(--acu-radius-sm) - 2px);
-  background: transparent;
-  color: var(--acu-text-2);
-  font: inherit;
-  font-size: var(--acu-font-size-micro, 10px);
-  cursor: pointer;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.acu-dashboard-storage-mode__switch-item:hover:not(
-    .acu-dashboard-storage-mode__switch-item--active
-  ) {
-  background: var(--acu-hover-overlay);
-  color: var(--acu-text-1);
-}
-
-.acu-dashboard-storage-mode__switch-item--active {
-  color: var(--acu-on-accent);
-}
-
-.acu-dashboard-storage-mode__switch-item:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--acu-accent-glow);
 }
 
 .acu-dashboard-storage-mode__cards {
@@ -239,23 +145,17 @@ function move(delta: number): void {
   display: grid;
   grid-template-columns: 26px minmax(0, 1fr);
   gap: 8px;
-  align-items: start;
-  transition: background 0.15s ease;
+  align-items: center;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .acu-dashboard-storage-mode__card--active {
-  background: color-mix(in srgb, var(--acu-accent) 6%, transparent);
-}
-
-.acu-dashboard-storage-mode__card--active::before {
-  content: "";
-  position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 0;
-  width: 2px;
-  border-radius: 999px;
-  background: var(--acu-accent);
+  background: color-mix(in srgb, var(--acu-accent) 8%, transparent);
+  box-shadow:
+    inset 0 0 0 1px
+    color-mix(in srgb, var(--acu-accent) 30%, transparent);
 }
 
 .acu-dashboard-storage-mode__icon {
@@ -324,7 +224,7 @@ function move(delta: number): void {
 
 @media (max-width: 640px) {
   .acu-dashboard-storage-mode__head {
-    align-items: flex-start;
+    align-items: center;
   }
 
   .acu-dashboard-storage-mode__switch {
