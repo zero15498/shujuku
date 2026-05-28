@@ -1,6 +1,6 @@
 # 项目进度
 - Project: SP数据库
-- Updated At: 2026-05-28T11:29:48.509Z
+- Updated At: 2026-05-28T12:21:01.830Z
 - Status: completed
 - Phase: review
 
@@ -17,17 +17,19 @@
 
 <!-- LIMCODE_PROGRESS_ARTIFACTS_START -->
 - 设计：`.limcode/design/填表架构重构ai反馈合并前置分组对后续步骤透明.md`
-- 计划：`.limcode/plans/vector-rerank-instruction-compat.md`
+- 计划：`.limcode/plans/api-preset-extra-params.md`
 <!-- LIMCODE_PROGRESS_ARTIFACTS_END -->
 
 ## 当前 TODO 快照
 
 <!-- LIMCODE_PROGRESS_TODOS_START -->
-- [x] 为向量配置新增 rerankInstruction 默认提示词、类型字段与 normalize 兼容，并区分缺失字段与用户清空  `#p1`
-- [x] 在 runtime 内联 Rerank 与 vector-rerank-gateway 请求体中默认兼容非空 instruction 字段  `#p2`
-- [x] 在新版向量 API 配置表单中新增重排指令默认显示、编辑、清空关闭与保存  `#p3`
-- [x] 补充 gateway 与 UI 配置保存测试，覆盖默认启用、修改保存、清空关闭，必要时补 runtime 请求体测试  `#p4`
-- [x] 执行 typecheck、定向测试与必要构建，并区分既有诊断与本次回归  `#p5`
+- [ ] 扩展 API 配置数据模型与默认值，兼容旧 settings/apiPresets 缺失新增字段的情况  `#t1`
+- [ ] 更新预设草稿转换链路，使新增附加参数可在 UI 编辑、保存、加载和切换预设时保留  `#t2`
+- [ ] 在 API 配置面板新增三个附加参数输入区，并补充 YAML 格式校验与错误提示  `#t3`
+- [ ] 抽取并复用自定义 API 请求体构建逻辑，将 bodyParams 合并到请求体、excludeBodyParams 删除指定字段、requestHeaders 合并到 custom_include_headers  `#t4`
+- [ ] 更新预设匹配、当前配置保存、当前聊天应用预设等链路，避免新增字段被 normalize/clone/compare 过程丢失  `#t5`
+- [ ] 补充单元测试与组件测试，覆盖预设转换、store 归一化、API 请求参数合并、UI 保存加载回归  `#t6`
+- [ ] 执行针对性测试与类型检查，记录回归范围和回滚方式  `#t7`
 <!-- LIMCODE_PROGRESS_TODOS_END -->
 
 ## 项目里程碑
@@ -45,7 +47,6 @@
 ## 最近更新
 
 <!-- LIMCODE_PROGRESS_LOG_START -->
-- 2026-05-23T16:37:24.124Z | artifact_changed | design | 同步设计文档：.limcode/design/填表架构重构ai反馈合并前置分组对后续步骤透明.md
 - 2026-05-23T16:41:21.090Z | artifact_changed | plan | 同步计划文档：.limcode/plans/填表架构重构ai反馈合并前置分组对后续步骤透明.plan.md
 - 2026-05-23T16:51:37.765Z | artifact_changed | plan | 同步计划 TODO 快照：.limcode/plans/填表架构重构ai反馈合并前置分组对后续步骤透明.plan.md
 - 2026-05-27T03:04:51.745Z | artifact_changed | plan | 同步计划 TODO 快照：.limcode/plans/填表架构重构ai反馈合并前置分组对后续步骤透明.plan.md
@@ -65,6 +66,7 @@
 - 2026-05-28T11:18:00.563Z | artifact_changed | plan | 同步计划文档：.limcode/plans/vector-rerank-instruction-compat.md
 - 2026-05-28T11:20:34.297Z | artifact_changed | plan | 同步计划文档：.limcode/plans/vector-rerank-instruction-compat.md
 - 2026-05-28T11:29:48.509Z | artifact_changed | plan | 同步计划 TODO 快照：.limcode/plans/vector-rerank-instruction-compat.md
+- 2026-05-28T12:21:01.830Z | artifact_changed | plan | 同步计划文档：.limcode/plans/api-preset-extra-params.md
 <!-- LIMCODE_PROGRESS_LOG_END -->
 
 <!-- LIMCODE_PROGRESS_METADATA_START -->
@@ -74,7 +76,7 @@
   "projectId": "sp数据库",
   "projectName": "SP数据库",
   "createdAt": "2026-05-23T09:58:50.437Z",
-  "updatedAt": "2026-05-28T11:29:48.509Z",
+  "updatedAt": "2026-05-28T12:21:01.830Z",
   "status": "completed",
   "phase": "review",
   "currentFocus": "验收五项修复全部通过，round 串行快照模型健壮性修复完成",
@@ -83,44 +85,48 @@
   "nextAction": "无待办事项。如需进一步优化可考虑：两条路径的重试/apply/persist 重复代码抽取共享策略函数",
   "activeArtifacts": {
     "design": ".limcode/design/填表架构重构ai反馈合并前置分组对后续步骤透明.md",
-    "plan": ".limcode/plans/vector-rerank-instruction-compat.md"
+    "plan": ".limcode/plans/api-preset-extra-params.md"
   },
   "todos": [
     {
-      "id": "p1",
-      "content": "为向量配置新增 rerankInstruction 默认提示词、类型字段与 normalize 兼容，并区分缺失字段与用户清空",
-      "status": "completed"
+      "id": "t1",
+      "content": "扩展 API 配置数据模型与默认值，兼容旧 settings/apiPresets 缺失新增字段的情况",
+      "status": "pending"
     },
     {
-      "id": "p2",
-      "content": "在 runtime 内联 Rerank 与 vector-rerank-gateway 请求体中默认兼容非空 instruction 字段",
-      "status": "completed"
+      "id": "t2",
+      "content": "更新预设草稿转换链路，使新增附加参数可在 UI 编辑、保存、加载和切换预设时保留",
+      "status": "pending"
     },
     {
-      "id": "p3",
-      "content": "在新版向量 API 配置表单中新增重排指令默认显示、编辑、清空关闭与保存",
-      "status": "completed"
+      "id": "t3",
+      "content": "在 API 配置面板新增三个附加参数输入区，并补充 YAML 格式校验与错误提示",
+      "status": "pending"
     },
     {
-      "id": "p4",
-      "content": "补充 gateway 与 UI 配置保存测试，覆盖默认启用、修改保存、清空关闭，必要时补 runtime 请求体测试",
-      "status": "completed"
+      "id": "t4",
+      "content": "抽取并复用自定义 API 请求体构建逻辑，将 bodyParams 合并到请求体、excludeBodyParams 删除指定字段、requestHeaders 合并到 custom_include_headers",
+      "status": "pending"
     },
     {
-      "id": "p5",
-      "content": "执行 typecheck、定向测试与必要构建，并区分既有诊断与本次回归",
-      "status": "completed"
+      "id": "t5",
+      "content": "更新预设匹配、当前配置保存、当前聊天应用预设等链路，避免新增字段被 normalize/clone/compare 过程丢失",
+      "status": "pending"
+    },
+    {
+      "id": "t6",
+      "content": "补充单元测试与组件测试，覆盖预设转换、store 归一化、API 请求参数合并、UI 保存加载回归",
+      "status": "pending"
+    },
+    {
+      "id": "t7",
+      "content": "执行针对性测试与类型检查，记录回归范围和回滚方式",
+      "status": "pending"
     }
   ],
   "milestones": [],
   "risks": [],
   "log": [
-    {
-      "at": "2026-05-23T16:37:24.124Z",
-      "type": "artifact_changed",
-      "refId": "design",
-      "message": "同步设计文档：.limcode/design/填表架构重构ai反馈合并前置分组对后续步骤透明.md"
-    },
     {
       "at": "2026-05-23T16:41:21.090Z",
       "type": "artifact_changed",
@@ -234,21 +240,27 @@
       "type": "artifact_changed",
       "refId": "plan",
       "message": "同步计划 TODO 快照：.limcode/plans/vector-rerank-instruction-compat.md"
+    },
+    {
+      "at": "2026-05-28T12:21:01.830Z",
+      "type": "artifact_changed",
+      "refId": "plan",
+      "message": "同步计划文档：.limcode/plans/api-preset-extra-params.md"
     }
   ],
   "stats": {
     "milestonesTotal": 0,
     "milestonesCompleted": 0,
-    "todosTotal": 5,
-    "todosCompleted": 5,
+    "todosTotal": 7,
+    "todosCompleted": 0,
     "todosInProgress": 0,
     "todosCancelled": 0,
     "activeRisks": 0
   },
   "render": {
     "rendererVersion": 1,
-    "generatedAt": "2026-05-28T11:29:48.509Z",
-    "bodyHash": "sha256:aa49a104039d47d71c61f5a598c115bc5ad9bc0f7f5cccb389912af5788d351d"
+    "generatedAt": "2026-05-28T12:21:01.830Z",
+    "bodyHash": "sha256:42871de3fde99f5399c7b67efbfbbe98be53770fcc1657d0a6f6007be5b1a180"
   }
 }
 <!-- LIMCODE_PROGRESS_METADATA_END -->
