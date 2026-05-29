@@ -1,44 +1,48 @@
 <template>
-  <div
-    v-if="toast.items.length"
-    class="acu-toast-viewport"
-    role="status"
-    aria-label="通知"
-    :style="{ zIndex: 9410 }"
-  >
-    <TransitionGroup name="acu-toast" tag="ol" class="acu-toast-viewport__list">
-      <li
-        v-for="item in toast.items"
-        :key="item.id"
-        :class="['acu-v2-toast', `acu-v2-toast--${item.kind}`]"
-        :role="item.kind === 'error' ? 'alert' : 'status'"
-      >
-        <span class="acu-v2-toast__icon" aria-hidden="true">
-          <i :class="iconForKind(item.kind)"></i>
-        </span>
-        <p class="acu-v2-toast__text">{{ item.text }}</p>
-        <AcuButton
-          v-if="item.action"
-          class="acu-v2-toast__action"
-          size="sm"
-          @click="runAction(item)"
+  <Teleport v-if="portalTarget" :to="portalTarget">
+    <div
+      v-if="toast.items.length"
+      class="acu-toast-viewport"
+      role="status"
+      aria-label="通知"
+      :style="{ zIndex: 9410 }"
+    >
+      <TransitionGroup name="acu-toast" tag="ol" class="acu-toast-viewport__list">
+        <li
+          v-for="item in toast.items"
+          :key="item.id"
+          :class="['acu-v2-toast', `acu-v2-toast--${item.kind}`]"
+          :role="item.kind === 'error' ? 'alert' : 'status'"
         >
-          {{ item.action.label }}
-        </AcuButton>
-        <AcuIconButton
-          v-if="item.dismissible"
-          class="acu-v2-toast__dismiss"
-          icon="fa-solid fa-xmark"
-          size="sm"
-          title="关闭通知"
-          @click="toast.dismiss(item.id)"
-        />
-      </li>
-    </TransitionGroup>
-  </div>
+          <span class="acu-v2-toast__icon" aria-hidden="true">
+            <i :class="iconForKind(item.kind)"></i>
+          </span>
+          <p class="acu-v2-toast__text">{{ item.text }}</p>
+          <AcuButton
+            v-if="item.action"
+            class="acu-v2-toast__action"
+            size="sm"
+            @click="runAction(item)"
+          >
+            {{ item.action.label }}
+          </AcuButton>
+          <AcuIconButton
+            v-if="item.dismissible"
+            class="acu-v2-toast__dismiss"
+            icon="fa-solid fa-xmark"
+            size="sm"
+            title="关闭通知"
+            @click="toast.dismiss(item.id)"
+          />
+        </li>
+      </TransitionGroup>
+    </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
+import { onMounted, ref } from "vue";
+import { getAcuHostDocument } from "../../bootstrap/host-document";
 import {
   useToastStore,
   type ToastItem,
@@ -48,6 +52,7 @@ import AcuButton from "./AcuButton.vue";
 import AcuIconButton from "./AcuIconButton.vue";
 
 const toast = useToastStore();
+const portalTarget = ref<HTMLElement | null>(null);
 
 function iconForKind(kind: ToastKind): string {
   if (kind === "success") return "fa-solid fa-check";
@@ -64,24 +69,53 @@ async function runAction(item: ToastItem): Promise<void> {
     toast.dismiss(item.id);
   }
 }
+
+onMounted(() => {
+  const doc = getAcuHostDocument();
+  portalTarget.value = doc.getElementById("acu-app-v2") ?? doc.body;
+});
 </script>
 
 <style scoped>
 .acu-toast-viewport {
   position: fixed;
-  right: 18px;
-  bottom: 18px;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  inset: 0;
   z-index: 9410;
-  width: min(360px, calc(100vw - 36px));
+  box-sizing: border-box;
+  width: 100%;
+  width: 100vw;
+  width: 100dvw;
+  min-height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  color: var(--acu-text-1);
+  font-family: var(--acu-font-ui);
+  font-size: var(--acu-font-size-body);
   pointer-events: none;
 }
 
+.acu-toast-viewport,
+.acu-toast-viewport * {
+  box-sizing: border-box;
+}
+
 .acu-toast-viewport__list {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: min(360px, calc(100% - 36px));
+  max-height: calc(100% - 36px);
   display: flex;
   flex-direction: column;
   gap: 8px;
   margin: 0;
   padding: 0;
+  overflow: hidden auto;
   list-style: none;
 }
 
@@ -159,11 +193,12 @@ async function runAction(item: ToastItem): Promise<void> {
 }
 
 @media (max-width: 640px) {
-  .acu-toast-viewport {
+  .acu-toast-viewport__list {
     right: 12px;
     bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     left: 12px;
     width: auto;
+    max-height: calc(100% - 24px - env(safe-area-inset-bottom, 0px));
   }
 
   .acu-v2-toast {

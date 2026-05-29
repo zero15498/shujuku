@@ -9,6 +9,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
+import { nextTick } from 'vue';
 
 const ROOT_ID = 'acu-app-v2';
 const STYLE_DATA_ATTR = 'data-acu-v2-sfc';
@@ -117,6 +118,32 @@ describe('mount — 当前文档场景', () => {
     await Promise.resolve();
 
     expect(menu!.classList.contains('is-closing')).toBe(true);
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('toast layer is teleported to the app root instead of staying inside the shell', async () => {
+    const { mount } = await freshImport();
+    await mount.openAcuV2App();
+
+    const pinia = mount.getAcuV2PiniaForBridge();
+    expect(pinia).not.toBeNull();
+    const { useToastStore } = await import('../../../src/presentation-v2/stores/toast-store');
+    useToastStore(pinia!).info('手动填表开始。', { durationMs: 0, muteable: false });
+    await nextTick();
+
+    const root = document.getElementById(ROOT_ID);
+    const shell = document.querySelector<HTMLElement>('.acu-v2-app__shell');
+    const viewport = document.querySelector<HTMLElement>('.acu-toast-viewport');
+    const list = document.querySelector<HTMLElement>('.acu-toast-viewport__list');
+
+    expect(root).not.toBeNull();
+    expect(shell).not.toBeNull();
+    expect(viewport).not.toBeNull();
+    expect(list).not.toBeNull();
+    expect(viewport!.parentElement).toBe(root);
+    expect(shell!.contains(viewport!)).toBe(false);
+    expect(viewport!.style.zIndex).toBe('9410');
 
     mount.__resetAcuV2MountForTests();
   });

@@ -34,6 +34,13 @@ async function mountViewport() {
   return { store: useToastStore(), el };
 }
 
+function installAppRoot(): HTMLElement {
+  const root = document.createElement("div");
+  root.id = "acu-app-v2";
+  document.body.appendChild(root);
+  return root;
+}
+
 afterEach(() => {
   while (apps.length > 0) {
     const entry = apps.pop()!;
@@ -52,12 +59,15 @@ describe("AcuToastViewport", () => {
     store.error("操作失败，详情见运行日志", { durationMs: 0 });
     await nextTick();
 
-    const toasts = Array.from(el.querySelectorAll<HTMLElement>(".acu-v2-toast"));
-    const viewport = el.querySelector<HTMLElement>(".acu-toast-viewport");
+    const toasts = Array.from(document.querySelectorAll<HTMLElement>(".acu-v2-toast"));
+    const viewport = document.querySelector<HTMLElement>(".acu-toast-viewport");
+    const list = document.querySelector<HTMLElement>(".acu-toast-viewport__list");
     expect(viewport).not.toBeNull();
+    expect(list).not.toBeNull();
     expect(viewport!.getAttribute("role")).toBe("status");
     expect(getComputedStyle(viewport!).zIndex).toBe("9410");
     expect(Number(getComputedStyle(viewport!).zIndex)).toBeGreaterThan(9300);
+    expect(viewport!.style.zIndex).toBe("9410");
     expect(toasts).toHaveLength(2);
     expect(toasts[0].classList.contains("acu-v2-toast--success")).toBe(true);
     expect(toasts[0].classList.contains("acu-toast--success")).toBe(false);
@@ -65,8 +75,9 @@ describe("AcuToastViewport", () => {
     expect(toasts[1].classList.contains("acu-v2-toast--error")).toBe(true);
     expect(toasts[1].classList.contains("acu-toast--error")).toBe(false);
     expect(toasts[1].getAttribute("role")).toBe("alert");
-    expect(el.textContent || "").toContain("提示词已保存");
-    expect(el.textContent || "").toContain("操作失败，详情见运行日志");
+    expect(el.textContent || "").toBe("");
+    expect(document.body.textContent || "").toContain("提示词已保存");
+    expect(document.body.textContent || "").toContain("操作失败，详情见运行日志");
   });
 
   it("dismiss button removes the toast item", async () => {
@@ -75,17 +86,18 @@ describe("AcuToastViewport", () => {
     store.info("已开始导出", { durationMs: 0 });
     await nextTick();
 
-    const dismiss = el.querySelector<HTMLButtonElement>(".acu-v2-toast__dismiss");
+    const dismiss = document.querySelector<HTMLButtonElement>(".acu-v2-toast__dismiss");
     expect(dismiss).not.toBeNull();
     dismiss!.click();
     await nextTick();
 
     expect(store.items).toHaveLength(0);
     expect(el.querySelector(".acu-v2-toast")).toBeNull();
+    expect(document.querySelector(".acu-v2-toast")).toBeNull();
   });
 
   it("runs toast action and follows dismissOnClick", async () => {
-    const { store, el } = await mountViewport();
+    const { store } = await mountViewport();
     const action = vi.fn();
 
     store.info("可查看日志", {
@@ -98,7 +110,7 @@ describe("AcuToastViewport", () => {
     });
     await nextTick();
 
-    const actionButton = Array.from(el.querySelectorAll<HTMLButtonElement>(".acu-v2-toast__action"))
+    const actionButton = Array.from(document.querySelectorAll<HTMLButtonElement>(".acu-v2-toast__action"))
       .find((button) => button.textContent?.includes("查看"));
     expect(actionButton).not.toBeUndefined();
     actionButton!.click();
@@ -106,5 +118,19 @@ describe("AcuToastViewport", () => {
 
     expect(action).toHaveBeenCalled();
     expect(store.items).toHaveLength(1);
+  });
+
+  it("portals the full-screen layer to #acu-app-v2 when available", async () => {
+    const root = installAppRoot();
+    const { store, el } = await mountViewport();
+
+    store.info("手动填表开始。", { durationMs: 0, muteable: false });
+    await nextTick();
+
+    const viewport = document.querySelector<HTMLElement>(".acu-toast-viewport");
+    expect(viewport).not.toBeNull();
+    expect(viewport!.parentElement).toBe(root);
+    expect(el.querySelector(".acu-toast-viewport")).toBeNull();
+    expect(viewport!.style.zIndex).toBe("9410");
   });
 });
