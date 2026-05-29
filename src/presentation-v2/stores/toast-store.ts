@@ -7,6 +7,7 @@ export interface ToastAction {
   label: string;
   onClick: () => void | Promise<void>;
   dismissOnClick?: boolean;
+  variant?: "default" | "danger";
 }
 
 export interface ToastItem {

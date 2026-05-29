@@ -22,6 +22,7 @@
             v-if="item.action"
             class="acu-v2-toast__action"
             size="sm"
+            :variant="item.action.variant || 'default'"
             @click="runAction(item)"
           >
             {{ item.action.label }}

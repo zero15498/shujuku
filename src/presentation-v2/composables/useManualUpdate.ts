@@ -2,7 +2,10 @@ import { computed, ref, type ComputedRef, type Ref } from 'vue';
 import {
   currentJsonTableData_ACU,
   settings_ACU,
+  abortAllActiveRequests_ACU,
+  _set_isAutoUpdatingCard_ACU,
   _set_manualExtraHint_ACU,
+  _set_wasStoppedByUser_ACU,
 } from '../../service/runtime/state-manager';
 import { saveSettings_ACU } from '../../service/settings/settings-service';
 import { getCurrentWorldbookConfig_ACU } from '../../service/settings/settings-readers';
@@ -154,12 +157,29 @@ export function useManualUpdate(): ManualUpdateState {
   const manualUpdateBusy = ref(false);
   const refreshTick = ref(0);
   let progressToastId: string | null = null;
+  let abortRequested = false;
+
+  function progressToastOptions() {
+    return {
+      durationMs: 0,
+      muteable: false,
+      dismissible: false,
+      action: abortRequested
+        ? undefined
+        : {
+            label: '终止',
+            variant: 'danger' as const,
+            dismissOnClick: false,
+            onClick: requestAbort,
+          },
+    };
+  }
 
   function notifyProgress(text: string): void {
-    if (progressToastId && toast.update(progressToastId, 'info', text, { durationMs: 0, muteable: false })) {
+    if (progressToastId && toast.update(progressToastId, 'info', text, progressToastOptions())) {
       return;
     }
-    progressToastId = toast.info(text, { durationMs: 0, muteable: false });
+    progressToastId = toast.info(text, progressToastOptions());
   }
 
   function finishToast(kind: MessageKind, text: string): void {
@@ -171,6 +191,27 @@ export function useManualUpdate(): ManualUpdateState {
       progressToastId = null;
     }
     toast[kind](text, { muteable: false });
+  }
+
+  function requestAbort(): void {
+    if (abortRequested) return;
+    abortRequested = true;
+    _set_wasStoppedByUser_ACU(true);
+    abortAllActiveRequests_ACU();
+    _set_isAutoUpdatingCard_ACU(false);
+    if (progressToastId) {
+      toast.update(progressToastId, 'warning', '手动填表已终止，正在停止当前任务与后续批次...', {
+        durationMs: 0,
+        muteable: false,
+        dismissible: false,
+      });
+    } else {
+      toast.warning('手动填表已终止，正在停止当前任务与后续批次...', {
+        durationMs: 0,
+        muteable: false,
+        dismissible: false,
+      });
+    }
   }
 
   const sheetKeys = computed(() => {
@@ -239,6 +280,8 @@ export function useManualUpdate(): ManualUpdateState {
 
     manualUpdateBusy.value = true;
     progressToastId = null;
+    abortRequested = false;
+    _set_wasStoppedByUser_ACU(false);
     notifyProgress('手动填表开始。');
     const extra = manualExtraHint.value.trim();
     if (extra) _set_manualExtraHint_ACU(`以下为用户的额外填表要求,请严格遵守:\n${extra}`);
@@ -288,12 +331,12 @@ export function useManualUpdate(): ManualUpdateState {
         restoreAutoUpdateSettings();
       }
       finishToast(
-        result.success ? 'success' : 'error',
+        result.success ? 'success' : (abortRequested || result.error?.includes('终止') ? 'warning' : 'error'),
         result.success
           ? (result.autoMergeTriggered
               ? `手动填表完成;自动合并总结${result.autoMergeSuccess ? '已完成' : '未完成'}。`
               : '手动填表完成。')
-          : (result.error || '手动填表失败。'),
+          : (abortRequested ? '手动填表任务已由用户终止。' : (result.error || '手动填表失败。')),
       );
     } catch (error: any) {
       finishToast('error', error?.message || '手动填表执行异常。');

@@ -74,6 +74,9 @@ async function mountFormFillPage(settings = createSettings(), activePageId = 'fo
     );
   });
   const manualExtraHintSetter = vi.fn();
+  const abortAllActiveRequests = vi.fn();
+  const setWasStoppedByUser = vi.fn();
+  const setIsAutoUpdatingCard = vi.fn();
   const openVisualizer = vi.fn(async () => {});
 
   const worldbookConfig: any = {
@@ -90,6 +93,9 @@ async function mountFormFillPage(settings = createSettings(), activePageId = 'fo
     getCurrentIsolationKey_ACU: () => '',
     coreApisAreReady_ACU: true,
     _set_manualExtraHint_ACU: manualExtraHintSetter,
+    abortAllActiveRequests_ACU: abortAllActiveRequests,
+    _set_wasStoppedByUser_ACU: setWasStoppedByUser,
+    _set_isAutoUpdatingCard_ACU: setIsAutoUpdatingCard,
   }));
   vi.doMock('../../../src/service/settings/settings-service', () => ({
     saveSettings_ACU: saveSettings,
@@ -209,6 +215,9 @@ async function mountFormFillPage(settings = createSettings(), activePageId = 'fo
     executeCore,
     worldbookConfig,
     manualExtraHintSetter,
+    abortAllActiveRequests,
+    setWasStoppedByUser,
+    setIsAutoUpdatingCard,
     openVisualizer,
   };
 }
@@ -757,6 +766,41 @@ describe('FormFillPage · 手动填表面板', () => {
     expect(button.textContent || '').toContain('填表中...');
 
     expect(orchestrate).toHaveBeenCalled();
+    releaseOrchestrate();
+    await new Promise(r => setTimeout(r, 0));
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it('手动填表进度 toast 提供终止按钮并触发中止链路', async () => {
+    const { mount, orchestrate, abortAllActiveRequests, setWasStoppedByUser, setIsAutoUpdatingCard } = await mountFormFillPage();
+    let releaseOrchestrate = () => {};
+    orchestrate.mockImplementation(async () => {
+      await new Promise<void>(resolve => {
+        releaseOrchestrate = resolve;
+      });
+      return { success: false, error: '手动更新已终止。' };
+    });
+
+    const panel = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-form-fill-page__grid > .acu-panel'))
+      .find(item => item.querySelector('.acu-panel__title')?.textContent?.includes('手动填表'))!;
+    const button = Array.from(panel.querySelectorAll('button'))
+      .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
+    button.click();
+    await new Promise(r => setTimeout(r, 0));
+
+    const stopButton = Array.from(document.querySelectorAll<HTMLButtonElement>('.acu-v2-toast__action'))
+      .find(btn => btn.textContent?.includes('终止'));
+    expect(stopButton).toBeDefined();
+    stopButton!.click();
+    await Promise.resolve();
+
+    expect(setWasStoppedByUser).toHaveBeenCalledWith(false);
+    expect(setWasStoppedByUser).toHaveBeenCalledWith(true);
+    expect(abortAllActiveRequests).toHaveBeenCalledTimes(1);
+    expect(setIsAutoUpdatingCard).toHaveBeenCalledWith(false);
+    expect(document.querySelector('.acu-toast-viewport')?.textContent || '').toContain('手动填表已终止');
+
     releaseOrchestrate();
     await new Promise(r => setTimeout(r, 0));
 
