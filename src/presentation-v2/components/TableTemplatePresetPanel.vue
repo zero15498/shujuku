@@ -38,14 +38,12 @@
       >
         <i class="fa-solid fa-file-import"></i>
       </AcuFileButton>
-      <AcuButton
-        icon-only
+      <AcuIconButton
+        icon="fa-solid fa-gear"
         title="管理表格模板预设"
         :disabled="management.busy.value"
         @click="management.openManage"
-      >
-        <i class="fa-solid fa-gear"></i>
-      </AcuButton>
+      />
     </div>
 
     <div class="acu-table-template-panel__action-area">
@@ -85,6 +83,7 @@ import AcuBadge from './_lib/AcuBadge.vue';
 import AcuButton from './_lib/AcuButton.vue';
 import AcuFileButton from './_lib/AcuFileButton.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
+import AcuIconButton from './_lib/AcuIconButton.vue';
 import AcuPanel from './_lib/AcuPanel.vue';
 import AcuPresetDropdown from './_lib/AcuPresetDropdown.vue';
 import AcuText from './_lib/AcuText.vue';

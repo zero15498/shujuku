@@ -72194,6 +72194,10 @@ Expected function or array of functions, received type ${typeof value}.`
                 iconOnly: props.iconOnly,
                 title: props.title,
             }));
+            const buttonClass = computed(() => ({
+                'acu-file-button__button--icon-only-default': props.iconOnly && props.variant === 'default',
+                [`acu-file-button__button--${props.size}`]: true,
+            }));
             function trigger() {
                 inputRef.value?.click();
             }
@@ -72204,28 +72208,25 @@ Expected function or array of functions, received type ${typeof value}.`
                     emit('file', file);
                 input.value = '';
             }
-            const __returned__ = { props, emit, inputRef, buttonProps, trigger, onChange, AcuButton };
+            const __returned__ = { props, emit, inputRef, buttonProps, buttonClass, trigger, onChange, AcuButton };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-file-button[data-v-98f5b301] { display: inline-flex;\n}\n.acu-file-button__input[data-v-98f5b301] { display: none;\n}\r\n", "src/presentation-v2/components/_lib/AcuFileButton.vue#style-0-98f5b301");
-    var AcuFileButton_vue_vue_type_style_index_0_scoped_98f5b301_lang = null;
+    injectSfcStyle("\n.acu-file-button[data-v-b3336286] { display: inline-flex;\n}\n.acu-file-button__input[data-v-b3336286] { display: none;\n}\n.acu-file-button__button--icon-only-default[data-v-b3336286] {\n  background: transparent;\n  color: var(--acu-text-2);\n}\n.acu-file-button__button--icon-only-default[data-v-b3336286]:hover:not(:disabled) {\n  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);\n  color: var(--acu-text-1);\n}\n.acu-file-button__button--icon-only-default.acu-file-button__button--md[data-v-b3336286] {\n  width: 32px;\n  min-width: 32px;\n}\n.acu-file-button__button--icon-only-default.acu-file-button__button--sm[data-v-b3336286] {\n  width: 22px;\n  min-width: 22px;\n  min-height: 22px;\n  padding: 4px;\n  font-size: var(--acu-font-size-micro, 10px);\n}\n", "src/presentation-v2/components/_lib/AcuFileButton.vue#style-0-b3336286");
+    var AcuFileButton_vue_vue_type_style_index_0_scoped_b3336286_lang = null;
 
     const _hoisted_1$Y = { class: "acu-file-button" };
     const _hoisted_2$O = ["accept"];
     function _sfc_render$10(_ctx, _cache, $props, $setup, $data, $options) {
-    	return openBlock(), createElementBlock("span", _hoisted_1$Y, [createVNode(
-    		$setup["AcuButton"],
-    		mergeProps($setup.buttonProps, { onClick: $setup.trigger }),
-    		{
-    			default: withCtx(() => [renderSlot(_ctx.$slots, "default", {}, undefined, true)]),
-    			_: 3
-    		},
-    		16
-    		/* FULL_PROPS */
-    	), createBaseVNode("input", {
+    	return openBlock(), createElementBlock("span", _hoisted_1$Y, [createVNode($setup["AcuButton"], mergeProps($setup.buttonProps, {
+    		class: ["acu-file-button__button", $setup.buttonClass],
+    		onClick: $setup.trigger
+    	}), {
+    		default: withCtx(() => [renderSlot(_ctx.$slots, "default", {}, undefined, true)]),
+    		_: 3
+    	}, 16, ["class"]), createBaseVNode("input", {
     		ref: "inputRef",
     		type: "file",
     		accept: $props.accept,
@@ -72233,7 +72234,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		onChange: $setup.onChange
     	}, null, 40, _hoisted_2$O)]);
     }
-    var AcuFileButton = /* @__PURE__ */ _export_sfc(_sfc_main$10, [["render", _sfc_render$10], ["__scopeId", "data-v-98f5b301"]]);
+    var AcuFileButton = /* @__PURE__ */ _export_sfc(_sfc_main$10, [["render", _sfc_render$10], ["__scopeId", "data-v-b3336286"]]);
 
     var _sfc_main$$ = /*@__PURE__*/ defineComponent({
         __name: 'AcuIconButton',
@@ -79607,14 +79608,14 @@ Expected function or array of functions, received type ${typeof value}.`
             }
             onMounted(refreshAll);
             watch(useChatChangedTick(), refreshAll);
-            const __returned__ = { templates, management, refreshAll, AcuBadge, AcuButton, AcuFileButton, AcuMessage, AcuPanel, AcuPresetDropdown, AcuText, TablePresetDrawer, get tableCopy() { return tableCopy; } };
+            const __returned__ = { templates, management, refreshAll, AcuBadge, AcuButton, AcuFileButton, AcuMessage, AcuIconButton, AcuPanel, AcuPresetDropdown, AcuText, TablePresetDrawer, get tableCopy() { return tableCopy; } };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-table-template-panel__status-line[data-v-e3506265] {\r\n  margin: 0 0 10px;\n}\n.acu-table-template-panel__preset-row[data-v-e3506265] {\r\n  display: grid;\r\n  grid-template-columns: minmax(0, 1fr) repeat(2, max-content);\r\n  gap: 6px;\r\n  align-items: stretch;\r\n  min-width: 0;\n}\n.acu-table-template-panel__action-area[data-v-e3506265] {\r\n  margin-top: 10px;\n}\n.acu-table-template-panel__visualizer-button[data-v-e3506265] {\r\n  width: 100%;\n}\r\n\r\n", "src/presentation-v2/components/TableTemplatePresetPanel.vue#style-0-e3506265");
-    var TableTemplatePresetPanel_vue_vue_type_style_index_0_scoped_e3506265_lang = null;
+    injectSfcStyle("\n.acu-table-template-panel__status-line[data-v-baa9b9fc] {\r\n  margin: 0 0 10px;\n}\n.acu-table-template-panel__preset-row[data-v-baa9b9fc] {\r\n  display: grid;\r\n  grid-template-columns: minmax(0, 1fr) repeat(2, max-content);\r\n  gap: 6px;\r\n  align-items: stretch;\r\n  min-width: 0;\n}\n.acu-table-template-panel__action-area[data-v-baa9b9fc] {\r\n  margin-top: 10px;\n}\n.acu-table-template-panel__visualizer-button[data-v-baa9b9fc] {\r\n  width: 100%;\n}\r\n\r\n", "src/presentation-v2/components/TableTemplatePresetPanel.vue#style-0-baa9b9fc");
+    var TableTemplatePresetPanel_vue_vue_type_style_index_0_scoped_baa9b9fc_lang = null;
 
     const _hoisted_1$A = { class: "acu-text__value" };
     const _hoisted_2$t = { class: "acu-text__value" };
@@ -79740,21 +79741,12 @@ Expected function or array of functions, received type ${typeof value}.`
     					)])]),
     					_: 1
     				}, 8, ["disabled"]),
-    				createVNode($setup["AcuButton"], {
-    					"icon-only": "",
+    				createVNode($setup["AcuIconButton"], {
+    					icon: "fa-solid fa-gear",
     					title: "管理表格模板预设",
     					disabled: $setup.management.busy.value,
     					onClick: $setup.management.openManage
-    				}, {
-    					default: withCtx(() => [..._cache[13] || (_cache[13] = [createBaseVNode(
-    						"i",
-    						{ class: "fa-solid fa-gear" },
-    						null,
-    						-1
-    						/* CACHED */
-    					)])]),
-    					_: 1
-    				}, 8, ["disabled", "onClick"])
+    				}, null, 8, ["disabled", "onClick"])
     			]),
     			createBaseVNode("div", _hoisted_4$j, [createVNode($setup["AcuButton"], {
     				variant: "primary",
@@ -79763,7 +79755,7 @@ Expected function or array of functions, received type ${typeof value}.`
     				disabled: $setup.templates.busy.value || $setup.management.busy.value,
     				onClick: $setup.management.openVisualizer
     			}, {
-    				default: withCtx(() => [..._cache[14] || (_cache[14] = [createBaseVNode(
+    				default: withCtx(() => [..._cache[13] || (_cache[13] = [createBaseVNode(
     					"i",
     					{ class: "fa-solid fa-table-columns" },
     					null,
@@ -79804,7 +79796,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		_: 1
     	}, 8, ["title", "description"]);
     }
-    var TableTemplatePresetPanel = /* @__PURE__ */ _export_sfc(_sfc_main$A, [["render", _sfc_render$A], ["__scopeId", "data-v-e3506265"]]);
+    var TableTemplatePresetPanel = /* @__PURE__ */ _export_sfc(_sfc_main$A, [["render", _sfc_render$A], ["__scopeId", "data-v-baa9b9fc"]]);
 
     const basicConfigCopy = {
         nav: {

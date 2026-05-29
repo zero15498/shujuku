@@ -1,6 +1,11 @@
 <template>
   <span class="acu-file-button">
-    <AcuButton v-bind="buttonProps" @click="trigger">
+    <AcuButton
+      v-bind="buttonProps"
+      class="acu-file-button__button"
+      :class="buttonClass"
+      @click="trigger"
+    >
       <slot />
     </AcuButton>
     <input
@@ -50,6 +55,11 @@ const buttonProps = computed(() => ({
   title: props.title,
 }));
 
+const buttonClass = computed(() => ({
+  'acu-file-button__button--icon-only-default': props.iconOnly && props.variant === 'default',
+  [`acu-file-button__button--${props.size}`]: true,
+}));
+
 function trigger(): void {
   inputRef.value?.click();
 }
@@ -65,4 +75,23 @@ function onChange(ev: Event): void {
 <style scoped>
 .acu-file-button { display: inline-flex; }
 .acu-file-button__input { display: none; }
+.acu-file-button__button--icon-only-default {
+  background: transparent;
+  color: var(--acu-text-2);
+}
+.acu-file-button__button--icon-only-default:hover:not(:disabled) {
+  background: linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)), var(--acu-bg-2);
+  color: var(--acu-text-1);
+}
+.acu-file-button__button--icon-only-default.acu-file-button__button--md {
+  width: 32px;
+  min-width: 32px;
+}
+.acu-file-button__button--icon-only-default.acu-file-button__button--sm {
+  width: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 4px;
+  font-size: var(--acu-font-size-micro, 10px);
+}
 </style>
