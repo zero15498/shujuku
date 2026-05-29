@@ -152,6 +152,58 @@ describe('openVisualizerSurface_ACU', () => {
     mount.__resetAcuV2MountForTests();
   });
 
+  it('删除行确认弹层挂到 v2 根节点，确认后才修改草稿', async () => {
+    persistAdvancedMode();
+    const state = await import('../../../src/service/runtime/state-manager');
+    state._set_currentJsonTableData_ACU({
+      mate: { type: 'chatSheets', version: 1 },
+      sheet_a: {
+        uid: 'sheet_a',
+        name: '角色状态',
+        orderNo: 0,
+        content: [[null, '姓名'], [null, 'A'], [null, 'B']],
+      },
+    });
+    const bridge = await import('../../../src/presentation-v2/surfaces/visualizer/open-visualizer-surface');
+    const mount = await import('../../../src/presentation-v2/bootstrap/mount');
+    const { useVisualizerStore } = await import('../../../src/presentation-v2/stores/visualizer-store');
+
+    await bridge.openVisualizerSurface_ACU({ source: 'external-api' });
+    await new Promise(r => setTimeout(r, 0));
+
+    const surface = document.querySelector('[data-acu-visualizer-surface]') as HTMLElement;
+    const firstDeleteButton = surface.querySelector<HTMLButtonElement>('button[title="删除这一行"]')!;
+    firstDeleteButton.click();
+    await Promise.resolve();
+
+    let layer = document.querySelector<HTMLElement>('.acu-visualizer-surface__dialog-layer')!;
+    expect(layer).not.toBeNull();
+    expect(layer.parentElement?.id).toBe('acu-app-v2');
+    expect(surface.contains(layer)).toBe(false);
+    expect(layer.textContent).toContain('删除数据行');
+    expect(layer.textContent).toContain('确定要删除第 1 行吗？');
+
+    const cancelButton = Array.from(layer.querySelectorAll<HTMLButtonElement>('button'))
+      .find(button => button.textContent?.includes('取消'))!;
+    cancelButton.click();
+    await Promise.resolve();
+
+    const pinia = mount.getAcuV2PiniaForBridge();
+    const visualizer = useVisualizerStore(pinia!);
+    expect(visualizer.currentSheet.content).toHaveLength(3);
+
+    firstDeleteButton.click();
+    await Promise.resolve();
+    layer = document.querySelector<HTMLElement>('.acu-visualizer-surface__dialog-layer')!;
+    const confirmButton = Array.from(layer.querySelectorAll<HTMLButtonElement>('button'))
+      .find(button => button.textContent?.includes('删除这一行'))!;
+    confirmButton.click();
+    await Promise.resolve();
+
+    expect(visualizer.currentSheet.content).toEqual([[null, '姓名'], [null, 'B']]);
+    mount.__resetAcuV2MountForTests();
+  });
+
   it('数据卡片按表格字段顺序布局，仅连续两个短字段双列显示', async () => {
     persistAdvancedMode();
     const state = await import('../../../src/service/runtime/state-manager');
