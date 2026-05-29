@@ -185,6 +185,13 @@ beforeEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function flushDialog(): Promise<HTMLElement> {
+  await new Promise(r => setTimeout(r, 0));
+  const layer = document.querySelector<HTMLElement>('.acu-dialog-layer');
+  expect(layer).not.toBeNull();
+  return layer!;
+}
+
 describe('VectorIndexPage', () => {
   it('渲染交火模式页骨架，包含核心面板', async () => {
     const { mount, getStats } = await mountVectorIndexPage();
@@ -461,7 +468,6 @@ describe('VectorIndexPage', () => {
 
   it('关键词提示词抽屉有未保存修改时关闭整个 UI 会确认', async () => {
     const { mount } = await mountVectorIndexPage();
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const editButton = Array.from(document.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('编辑提示词')) as HTMLButtonElement | undefined;
@@ -480,9 +486,9 @@ describe('VectorIndexPage', () => {
     const appClose = document.querySelector<HTMLButtonElement>('.acu-v2-app__close');
     expect(appClose).not.toBeNull();
     appClose!.click();
-    await new Promise(r => setTimeout(r, 0));
+    const layer = await flushDialog();
 
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(layer.textContent || '').toContain('你有未保存的关键词生成提示词修改');
     expect(document.getElementById('acu-app-v2')!.style.display).not.toBe('none');
     expect(document.querySelector('.acu-v2-drawer')).not.toBeNull();
 

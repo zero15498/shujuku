@@ -228,6 +228,17 @@ beforeEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function clickDialogButton(label: string): Promise<void> {
+  await Promise.resolve();
+  const layer = document.querySelector<HTMLElement>('.acu-dialog-layer');
+  expect(layer).not.toBeNull();
+  const button = Array.from(layer!.querySelectorAll<HTMLButtonElement>('button'))
+    .find(item => item.textContent?.includes(label));
+  expect(button).not.toBeUndefined();
+  button!.click();
+  await new Promise(r => setTimeout(r, 0));
+}
+
 describe('FormFillPage', () => {
   it('渲染填表工作台的状态、自动更新、表格模板与手动填表面板', async () => {
     const { mount } = await mountFormFillPage();
@@ -581,7 +592,6 @@ describe('FormFillPage', () => {
 
   it('关闭有未保存修改的提示词抽屉会确认', async () => {
     const { mount } = await mountFormFillPage(createSettings(), 'table');
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const openButton = Array.from(document.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('编辑提示词')) as HTMLButtonElement;
@@ -598,7 +608,8 @@ describe('FormFillPage', () => {
     closeButton.click();
     await Promise.resolve();
 
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(document.querySelector('.acu-dialog-layer')?.textContent || '')
+      .toContain('你有未保存的填表提示词修改');
     expect(document.querySelector('.acu-v2-drawer')).not.toBeNull();
 
     mount.__resetAcuV2MountForTests();
@@ -606,7 +617,6 @@ describe('FormFillPage', () => {
 
   it('提示词抽屉有未保存修改时关闭整个 UI 会确认', async () => {
     const { mount } = await mountFormFillPage(createSettings(), 'table');
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
     const openButton = Array.from(document.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('编辑提示词')) as HTMLButtonElement;
@@ -623,7 +633,8 @@ describe('FormFillPage', () => {
     appClose.click();
     await Promise.resolve();
 
-    expect(confirmSpy).toHaveBeenCalled();
+    expect(document.querySelector('.acu-dialog-layer')?.textContent || '')
+      .toContain('你有未保存的填表提示词修改');
     expect(document.getElementById('acu-app-v2')!.style.display).not.toBe('none');
     expect(document.querySelector('.acu-v2-drawer')).not.toBeNull();
 
@@ -708,6 +719,7 @@ describe('FormFillPage · 手动填表面板', () => {
     const button = Array.from(document.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     button.click();
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     expect(observedSettings).toEqual([{ threshold: 100, batchSize: 4 }]);
@@ -724,10 +736,23 @@ describe('FormFillPage · 手动填表面板', () => {
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     expect(button).not.toBeUndefined();
     button.click();
+    await Promise.resolve();
+
+    const dialogText = document.querySelector('.acu-dialog-layer')?.textContent || '';
+    expect(dialogText).toContain('即将执行手动填表');
+    expect(dialogText).toContain('系统将先清除本次涉及楼层中当前选中表格的数据');
+    expect(dialogText).toContain('确认并继续');
+    expect(dialogText).not.toContain('直接填表');
+    expect(document.querySelector('.acu-toast-viewport')?.textContent || '')
+      .not.toContain('手动填表开始');
+    expect(orchestrate).not.toHaveBeenCalled();
+
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     expect(orchestrate).toHaveBeenCalled();
     expect(orchestrate.mock.calls[0][0]).toEqual(['sheet_a', 'sheet_b']);
+    expect(orchestrate.mock.calls[0][3]).toEqual({ clearBeforeUpdate: true });
     expect(manualExtraHintSetter).not.toHaveBeenCalled();
 
     mount.__resetAcuV2MountForTests();
@@ -758,6 +783,7 @@ describe('FormFillPage · 手动填表面板', () => {
     const button = Array.from(panel.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     button.click();
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     const toastText = document.querySelector('.acu-toast-viewport')?.textContent || '';
@@ -787,6 +813,7 @@ describe('FormFillPage · 手动填表面板', () => {
     const button = Array.from(panel.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     button.click();
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     const stopButton = Array.from(document.querySelectorAll<HTMLButtonElement>('.acu-v2-toast__action'))
@@ -825,6 +852,7 @@ describe('FormFillPage · 手动填表面板', () => {
     const button = Array.from(panel.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     button.click();
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     expect(executeCore).toHaveBeenCalled();
@@ -853,6 +881,7 @@ describe('FormFillPage · 手动填表面板', () => {
     const button = Array.from(panel.querySelectorAll('button'))
       .find(btn => btn.textContent?.includes('执行手动填表')) as HTMLButtonElement;
     button.click();
+    await clickDialogButton('确认并继续');
     await new Promise(r => setTimeout(r, 0));
 
     expect(manualExtraHintSetter).toHaveBeenCalledWith(

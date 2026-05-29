@@ -114,6 +114,7 @@ import { usePlotPresetManagement } from "../composables/usePlotPresetManagement"
 import { usePlotRates } from "../composables/usePlotRates";
 import { useUiCloseGuard } from "../composables/useUiCloseGuard";
 import { plotCopy } from "../copy/plot-copy";
+import { useDialogStore } from "../stores/dialog-store";
 import { usePlotPresetStore } from "../stores/plot-preset-store";
 import { useToastStore } from "../stores/toast-store";
 import AcuBadge from "./_lib/AcuBadge.vue";
@@ -139,6 +140,7 @@ withDefaults(
 );
 
 const store = usePlotPresetStore();
+const dialogStore = useDialogStore();
 const toast = useToastStore();
 const {
   apiStore,
@@ -189,8 +191,14 @@ function onTaskApiOverride(value: string): void {
   store.setTaskApiOverride(taskId, value);
 }
 
-function onDelete(name: string): void {
-  if (!window.confirm(`删除剧情推进预设"${name}"？`)) return;
+async function onDelete(name: string): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "删除剧情推进预设",
+    message: `删除剧情推进预设"${name}"？`,
+    confirmLabel: "删除预设",
+    confirmVariant: "danger",
+  });
+  if (!confirmed) return;
   management.deletePreset(name);
 }
 

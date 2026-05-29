@@ -1,6 +1,5 @@
 <template>
   <main
-    ref="surfaceRoot"
     class="acu-visualizer-surface"
     data-acu-visualizer-surface
   >
@@ -359,88 +358,6 @@
       </aside>
     </div>
 
-    <Teleport v-if="dialogPortalTarget" :to="dialogPortalTarget">
-      <Transition name="acu-visualizer-dialog">
-        <div
-          v-if="activeDialog"
-          class="acu-visualizer-surface__dialog-layer"
-          role="presentation"
-          @click.self="cancelActiveDialog"
-        >
-          <section
-            class="acu-visualizer-surface__dialog"
-            role="dialog"
-            aria-modal="true"
-            :aria-labelledby="dialogTitleId"
-          >
-            <header class="acu-visualizer-surface__dialog-header">
-              <h2 :id="dialogTitleId">{{ activeDialog.title }}</h2>
-              <AcuBadge
-                v-if="activeDialog.kind === 'close-dirty'"
-                variant="warning"
-              >
-                未保存
-              </AcuBadge>
-            </header>
-
-            <p class="acu-visualizer-surface__dialog-message">
-              {{ activeDialog.message }}
-            </p>
-
-            <label
-              v-if="activeDialog.kind === 'input'"
-              class="acu-visualizer-surface__dialog-field"
-            >
-              <span>{{ activeDialog.label }}</span>
-              <AcuInput
-                v-model="dialogInputValue"
-                autocomplete="off"
-                :placeholder="activeDialog.placeholder"
-                @keyup.enter="confirmInputDialog"
-              />
-            </label>
-
-            <footer
-              v-if="activeDialog.kind === 'close-dirty'"
-              class="acu-visualizer-surface__dialog-actions acu-visualizer-surface__dialog-actions--three"
-            >
-              <AcuButton
-                :loading="visualizer.isSaving"
-                variant="primary"
-                @click="resolveCloseDirtyDialog('save')"
-              >
-                保存到当前聊天
-              </AcuButton>
-              <AcuButton
-                variant="danger"
-                @click="resolveCloseDirtyDialog('discard')"
-              >
-                丢弃草稿
-              </AcuButton>
-              <AcuButton @click="resolveCloseDirtyDialog('cancel')">
-                取消关闭
-              </AcuButton>
-            </footer>
-
-            <footer v-else class="acu-visualizer-surface__dialog-actions">
-              <AcuButton @click="cancelActiveDialog">
-                {{ activeDialog.cancelLabel || "取消" }}
-              </AcuButton>
-              <AcuButton
-                :variant="activeDialog.confirmVariant || 'primary'"
-                :disabled="
-                  activeDialog.kind === 'input' &&
-                  !String(dialogInputValue).trim()
-                "
-                @click="confirmActiveDialog"
-              >
-                {{ activeDialog.confirmLabel }}
-              </AcuButton>
-            </footer>
-          </section>
-        </div>
-      </Transition>
-    </Teleport>
   </main>
 </template>
 
@@ -450,7 +367,6 @@ import AcuBadge from "../../components/_lib/AcuBadge.vue";
 import AcuButton from "../../components/_lib/AcuButton.vue";
 import AcuIconButton from "../../components/_lib/AcuIconButton.vue";
 import AcuInfoBanner from "../../components/_lib/AcuInfoBanner.vue";
-import AcuInput from "../../components/_lib/AcuInput.vue";
 import AcuPanel from "../../components/_lib/AcuPanel.vue";
 import AcuSegmentedControl from "../../components/_lib/AcuSegmentedControl.vue";
 import AcuTextarea from "../../components/_lib/AcuTextarea.vue";
@@ -458,6 +374,7 @@ import { useUiCloseGuard } from "../../composables/useUiCloseGuard";
 import { useVisualizerConfigEditing } from "../../composables/visualizer/useVisualizerConfigEditing";
 import { useVisualizerData } from "../../composables/visualizer/useVisualizerData";
 import { useVisualizerSave } from "../../composables/visualizer/useVisualizerSave";
+import { useDialogStore } from "../../stores/dialog-store";
 import { useVisualizerStore } from "../../stores/visualizer-store";
 import VisualizerAssistantPanel from "./VisualizerAssistantPanel.vue";
 import VisualizerConfigPanels from "./VisualizerConfigPanels.vue";
@@ -466,44 +383,12 @@ import VisualizerNavigation from "./VisualizerNavigation.vue";
 import VisualizerTableManagementPanel from "./VisualizerTableManagementPanel.vue";
 
 const visualizer = useVisualizerStore();
+const dialogStore = useDialogStore();
 const data = useVisualizerData();
 const config = useVisualizerConfigEditing();
 const emit = defineEmits<{
   (event: "close"): void;
 }>();
-type VisualizerDialog =
-  | {
-      kind: "input";
-      title: string;
-      message: string;
-      label: string;
-      placeholder?: string;
-      confirmLabel: string;
-      cancelLabel?: string;
-      confirmVariant?: "default" | "primary" | "danger";
-      resolve: (value: string | null) => void;
-    }
-  | {
-      kind: "confirm";
-      title: string;
-      message: string;
-      confirmLabel: string;
-      cancelLabel?: string;
-      confirmVariant?: "default" | "primary" | "danger";
-      resolve: (value: boolean) => void;
-    }
-  | {
-      kind: "close-dirty";
-      title: string;
-      message: string;
-      resolve: (value: "save" | "discard" | "cancel") => void;
-    };
-
-const dialogTitleId = "acu-visualizer-dialog-title";
-const surfaceRoot = ref<HTMLElement | null>(null);
-const dialogPortalTarget = ref<HTMLElement | null>(null);
-const activeDialog = ref<VisualizerDialog | null>(null);
-const dialogInputValue = ref("");
 const isMobileNavRendered = ref(false);
 const isMobileNavClosing = ref(false);
 const VISUALIZER_MOBILE_NAV_LEAVE_MS = 150;
@@ -819,17 +704,13 @@ function openInputDialog(options: {
   placeholder?: string;
   confirmLabel: string;
 }): Promise<string | null> {
-  dialogInputValue.value = options.defaultValue;
-  return new Promise((resolve) => {
-    activeDialog.value = {
-      kind: "input",
-      title: options.title,
-      message: options.message,
-      label: options.label,
-      placeholder: options.placeholder,
-      confirmLabel: options.confirmLabel,
-      resolve,
-    };
+  return dialogStore.prompt({
+    title: options.title,
+    message: options.message,
+    label: options.label,
+    defaultValue: options.defaultValue,
+    placeholder: options.placeholder,
+    confirmLabel: options.confirmLabel,
   });
 }
 
@@ -839,72 +720,29 @@ function openConfirmDialog(options: {
   confirmLabel: string;
   confirmVariant?: "default" | "primary" | "danger";
 }): Promise<boolean> {
-  return new Promise((resolve) => {
-    activeDialog.value = {
-      kind: "confirm",
-      title: options.title,
-      message: options.message,
-      confirmLabel: options.confirmLabel,
-      confirmVariant: options.confirmVariant,
-      resolve,
-    };
+  return dialogStore.confirm({
+    title: options.title,
+    message: options.message,
+    confirmLabel: options.confirmLabel,
+    confirmVariant: options.confirmVariant,
   });
 }
 
 function openCloseDirtyDialog(): Promise<"save" | "discard" | "cancel"> {
-  return new Promise((resolve) => {
-    activeDialog.value = {
-      kind: "close-dirty",
-      title: "关闭数据库编辑器",
-      message:
-        "当前草稿还没有保存。保存会先写入当前聊天再关闭；丢弃会关闭编辑器并清空这次草稿；取消关闭会回到编辑器继续处理。",
-      resolve,
-    };
-  });
-}
-
-function cancelActiveDialog(): void {
-  const dialog = activeDialog.value;
-  activeDialog.value = null;
-  if (!dialog) return;
-  if (dialog.kind === "input") dialog.resolve(null);
-  else if (dialog.kind === "confirm") dialog.resolve(false);
-  else dialog.resolve("cancel");
-}
-
-function confirmInputDialog(): void {
-  const dialog = activeDialog.value;
-  if (!dialog || dialog.kind !== "input") return;
-  const value = String(dialogInputValue.value || "").trim();
-  if (!value) return;
-  activeDialog.value = null;
-  dialog.resolve(value);
-}
-
-function confirmActiveDialog(): void {
-  const dialog = activeDialog.value;
-  if (!dialog) return;
-  if (dialog.kind === "input") {
-    confirmInputDialog();
-    return;
-  }
-  if (dialog.kind === "confirm") {
-    activeDialog.value = null;
-    dialog.resolve(true);
-  }
-}
-
-function resolveCloseDirtyDialog(value: "save" | "discard" | "cancel"): void {
-  const dialog = activeDialog.value;
-  if (!dialog || dialog.kind !== "close-dirty") return;
-  activeDialog.value = null;
-  dialog.resolve(value);
+  return dialogStore.choose({
+    title: "关闭数据库编辑器",
+    message:
+      "当前草稿还没有保存。保存会先写入当前聊天再关闭；丢弃会关闭编辑器并清空这次草稿；取消关闭会回到编辑器继续处理。",
+    badge: { label: "未保存", variant: "warning" },
+    cancelLabel: "取消关闭",
+    actions: [
+      { value: "save", label: "保存到当前聊天", variant: "primary" },
+      { value: "discard", label: "丢弃草稿", variant: "danger" },
+    ],
+  }).then((value) => value || "cancel");
 }
 
 onMounted(() => {
-  const ownerDocument = surfaceRoot.value?.ownerDocument ?? document;
-  dialogPortalTarget.value =
-    ownerDocument.getElementById("acu-app-v2") ?? ownerDocument.body;
   void data.loadFromCurrentContext();
 });
 
@@ -1390,132 +1228,6 @@ watch(
   }
 }
 
-.acu-visualizer-surface__dialog-layer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  inset: 0;
-  box-sizing: border-box;
-  width: 100%;
-  width: 100vw;
-  width: 100dvw;
-  min-height: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
-  z-index: 9400;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 18px;
-  overflow: auto;
-  overscroll-behavior: contain;
-  background: rgba(0, 0, 0, 0.58);
-  color: var(--acu-text-1);
-  font-family: var(--acu-font-ui);
-  font-size: var(--acu-font-size-body);
-}
-
-.acu-visualizer-surface__dialog-layer,
-.acu-visualizer-surface__dialog-layer * {
-  box-sizing: border-box;
-}
-
-.acu-visualizer-surface__dialog {
-  width: min(420px, 100%);
-  max-height: calc(100vh - 36px);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 16px;
-  overflow: auto;
-  border: 1px solid var(--acu-border);
-  border-radius: var(--acu-radius-md);
-  background: var(--acu-bg-1);
-  box-shadow: var(--acu-shadow);
-}
-
-@supports (height: 100dvh) {
-  .acu-visualizer-surface__dialog {
-    max-height: calc(100dvh - 36px);
-  }
-}
-
-.acu-visualizer-surface__dialog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.acu-visualizer-surface__dialog-header h2 {
-  min-width: 0;
-  margin: 0;
-  overflow: hidden;
-  color: var(--acu-text-1);
-  font-size: var(--acu-font-size-panel-title, 15px);
-  line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.acu-visualizer-surface__dialog-message {
-  margin: 0;
-  color: var(--acu-text-2);
-  font-size: var(--acu-font-size-body-lg, 13px);
-  line-height: 1.55;
-}
-
-.acu-visualizer-surface__dialog-field {
-  display: grid;
-  gap: 5px;
-}
-
-.acu-visualizer-surface__dialog-field span {
-  color: var(--acu-text-2);
-  font-size: var(--acu-font-size-caption, 11px);
-  font-weight: 600;
-}
-
-.acu-visualizer-surface__dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding-top: 4px;
-}
-
-.acu-visualizer-surface__dialog-actions--three {
-  justify-content: stretch;
-}
-
-.acu-visualizer-surface__dialog-actions--three :deep(.acu-btn) {
-  flex: 1 1 0;
-}
-
-.acu-visualizer-dialog-enter-active,
-.acu-visualizer-dialog-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.acu-visualizer-dialog-enter-active .acu-visualizer-surface__dialog,
-.acu-visualizer-dialog-leave-active .acu-visualizer-surface__dialog {
-  transition:
-    transform 0.15s ease,
-    opacity 0.15s ease;
-}
-
-.acu-visualizer-dialog-enter-from,
-.acu-visualizer-dialog-leave-to {
-  opacity: 0;
-}
-
-.acu-visualizer-dialog-enter-from .acu-visualizer-surface__dialog,
-.acu-visualizer-dialog-leave-to .acu-visualizer-surface__dialog {
-  opacity: 0;
-  transform: translateY(6px);
-}
-
 @keyframes visualizer-mobile-nav-layer-in {
   from {
     opacity: 0;
@@ -1669,9 +1381,6 @@ watch(
     width: 100%;
   }
 
-  .acu-visualizer-surface__dialog {
-    width: 100%;
-  }
 }
 
 @media (max-width: 480px) {
@@ -1700,9 +1409,5 @@ watch(
     display: none;
   }
 
-  .acu-visualizer-surface__dialog-actions,
-  .acu-visualizer-surface__dialog-actions--three {
-    flex-direction: column;
-  }
 }
 </style>

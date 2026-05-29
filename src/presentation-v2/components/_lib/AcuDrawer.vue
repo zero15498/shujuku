@@ -58,6 +58,7 @@ const emit = defineEmits<{
 const resolvedWidth = computed(() => props.width);
 const isRendered = ref(false);
 const isClosing = ref(false);
+const closeGuardPending = ref(false);
 const DRAWER_LEAVE_MS = 150;
 let closeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -75,13 +76,23 @@ async function guard(): Promise<boolean> {
 }
 
 async function requestClose(): Promise<void> {
-  if (isClosing.value) return;
-  if (await guard()) emit('close');
+  if (isClosing.value || closeGuardPending.value) return;
+  closeGuardPending.value = true;
+  try {
+    if (await guard()) emit('close');
+  } finally {
+    closeGuardPending.value = false;
+  }
 }
 
 async function requestBack(): Promise<void> {
-  if (isClosing.value) return;
-  if (await guard()) emit('back');
+  if (isClosing.value || closeGuardPending.value) return;
+  closeGuardPending.value = true;
+  try {
+    if (await guard()) emit('back');
+  } finally {
+    closeGuardPending.value = false;
+  }
 }
 
 function showDrawer(): void {

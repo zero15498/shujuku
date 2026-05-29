@@ -384,7 +384,9 @@ import { useUiCloseGuard } from "../composables/useUiCloseGuard";
 import { useVectorApiConfig } from "../composables/useVectorApiConfig";
 import { useVectorIndexConfig } from "../composables/useVectorIndexConfig";
 import { vectorIndexCopy } from "../copy/vector-index-copy";
+import { useDialogStore } from "../stores/dialog-store";
 
+const dialogStore = useDialogStore();
 const vector = useVectorIndexConfig();
 const vectorApiConfig = useVectorApiConfig();
 const devOptions = useDevOptions();
@@ -435,11 +437,14 @@ const promptTemplateBadgeVariant = computed<AcuBadgeVariant>(() =>
   vector.promptTemplateMode.value === "default" ? "neutral" : "accent",
 );
 
-function confirmPromptClose(): boolean {
+function confirmPromptClose(): boolean | Promise<boolean> {
   if (!promptDrawerOpen.value || !vector.promptDirty.value) return true;
-  return window.confirm(
-    "你有未保存的关键词生成提示词修改，确定要关闭新 UI 吗？",
-  );
+  return dialogStore.confirm({
+    title: "关闭新 UI",
+    message: "你有未保存的关键词生成提示词修改，确定要关闭新 UI 吗？",
+    confirmLabel: "关闭新 UI",
+    confirmVariant: "danger",
+  });
 }
 
 function onPromptUpdate(index: number, patch: Partial<PromptSegment>): void {
@@ -460,12 +465,15 @@ function saveVectorApiConfig(): void {
   if (vectorApiConfig.save()) vector.refresh();
 }
 
-function onDeleteCurrentIndex(): void {
-  if (
-    !window.confirm(
+async function onDeleteCurrentIndex(): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "删除当前索引",
+    message:
       "删除当前聊天的交火索引？这会移除索引引用并清理可回收外置资产，之后需要重新构建。",
-    )
-  )
+    confirmLabel: "删除索引",
+    confirmVariant: "danger",
+  });
+  if (!confirmed)
     return;
   void vector.deleteCurrentIndex();
 }

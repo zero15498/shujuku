@@ -106,6 +106,7 @@
         </aside>
       </div>
 
+      <AcuDialogHost />
       <AcuToastViewport />
     </div>
 
@@ -114,6 +115,7 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import AcuDialogHost from "./components/_lib/AcuDialogHost.vue";
 import AcuFileButton from "./components/_lib/AcuFileButton.vue";
 import AcuIconButton from "./components/_lib/AcuIconButton.vue";
 import AcuToastViewport from "./components/_lib/AcuToastViewport.vue";
@@ -122,6 +124,7 @@ import Sidebar from "./components/Sidebar.vue";
 import { useChatChangedListener } from "./composables/useChatChangedListener";
 import { useDevOptions } from "./composables/useDevOptions";
 import { canCloseUi } from "./composables/useUiCloseGuard";
+import { useDialogStore } from "./stores/dialog-store";
 import { useRootShellStore } from "./stores/root-shell-store";
 import { useRouterStore } from "./stores/router-store";
 import { isCustomThemeId, useThemeStore } from "./stores/theme-store";
@@ -135,6 +138,7 @@ import { getAcuHostDocument } from "./bootstrap/host-document";
 const emit = defineEmits<{ (event: "close"): void }>();
 const rootShell = useRootShellStore();
 const router = useRouterStore();
+const dialogStore = useDialogStore();
 const themeStore = useThemeStore();
 const toastStore = useToastStore();
 const uiMode = useUiModeStore();
@@ -194,14 +198,17 @@ function exportTheme(id: AcuV2ThemeId): void {
   }
 }
 
-function deleteTheme(id: AcuV2ThemeId): void {
+async function deleteTheme(id: AcuV2ThemeId): Promise<void> {
   if (!isCustomThemeId(id)) {
     return;
   }
   const theme = themeStore.themes.find(t => t.id === id);
-  const confirmed = window.confirm(
-    `删除"${theme?.name || "自定义主题"}"后会从本浏览器移除；如果正在使用它，界面会切回默认深色主题。`,
-  );
+  const confirmed = await dialogStore.confirm({
+    title: "删除自定义主题",
+    message: `删除"${theme?.name || "自定义主题"}"后会从本浏览器移除；如果正在使用它，界面会切回默认深色主题。`,
+    confirmLabel: "删除主题",
+    confirmVariant: "danger",
+  });
   if (!confirmed) return;
   themeStore.deleteCustomTheme(id);
   closeThemeMenu();

@@ -165,7 +165,9 @@ import { useUiCloseGuard } from '../composables/useUiCloseGuard';
 import { useWorldbookSelector } from '../composables/useWorldbookSelector';
 import { formFillCopy } from '../copy/form-fill-copy';
 import { tableCopy } from '../copy/table-copy';
+import { useDialogStore } from '../stores/dialog-store';
 
+const dialogStore = useDialogStore();
 const settings = useFormFillSettings();
 const injectionTarget = useFormFillInjectionTarget();
 const entriesSource = useFormFillWorldbookConfig();
@@ -212,9 +214,14 @@ async function refreshInjectionLabel(): Promise<void> {
   injectionTargetLabel.value = await injectionTarget.describeTarget();
 }
 
-function confirmPromptClose(): boolean {
+function confirmPromptClose(): boolean | Promise<boolean> {
   if (!promptDrawerOpen.value || !settings.promptDirty.value) return true;
-  return window.confirm('你有未保存的填表提示词修改，确定要关闭新 UI 吗？');
+  return dialogStore.confirm({
+    title: '关闭新 UI',
+    message: '你有未保存的填表提示词修改，确定要关闭新 UI 吗？',
+    confirmLabel: '关闭新 UI',
+    confirmVariant: 'danger',
+  });
 }
 
 function updatePromptSegment(

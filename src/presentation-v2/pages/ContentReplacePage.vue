@@ -319,8 +319,10 @@ import {
   useContentReplaceStore,
   type ContentReplacePromptSegment,
 } from "../stores/content-replace-store";
+import { useDialogStore } from "../stores/dialog-store";
 
 const store = useContentReplaceStore();
+const dialogStore = useDialogStore();
 const {
   apiStore,
   followActiveApiLabel,
@@ -395,14 +397,26 @@ const promptTemplateBadgeVariant = computed<AcuBadgeVariant>(() =>
 );
 const canEditCurrentPrompt = computed(() => store.selectedPresetName !== "");
 
-function onDeletePreset(name: string): void {
+async function onDeletePreset(name: string): Promise<void> {
   if (!name) return;
-  if (!window.confirm(`删除正文替换预设"${name}"？`)) return;
+  const confirmed = await dialogStore.confirm({
+    title: "删除正文替换预设",
+    message: `删除正文替换预设"${name}"？`,
+    confirmLabel: "删除预设",
+    confirmVariant: "danger",
+  });
+  if (!confirmed) return;
   store.deletePresetByName(name);
 }
 
-function onRenamePreset(name: string): void {
-  const next = window.prompt(`将正文替换预设"${name}"重命名为：`, name);
+async function onRenamePreset(name: string): Promise<void> {
+  const next = await dialogStore.prompt({
+    title: "重命名正文替换预设",
+    message: `将正文替换预设"${name}"重命名为：`,
+    label: "预设名称",
+    defaultValue: name,
+    confirmLabel: "重命名",
+  });
   if (!next) return;
   store.renamePreset(name, next);
 }
@@ -432,12 +446,15 @@ function onSavePromptGroup(): void {
   else store.savePromptGroup();
 }
 
-function onResetPromptGroup(): void {
-  if (
-    !window.confirm(
+async function onResetPromptGroup(): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "载入默认提示词组",
+    message:
       "载入默认正文替换提示词组？这会覆盖当前编辑器里的提示词内容，需要保存后才会生效。",
-    )
-  )
+    confirmLabel: "载入默认",
+    confirmVariant: "danger",
+  });
+  if (!confirmed)
     return;
   store.resetPromptGroup();
 }
@@ -449,9 +466,14 @@ function onPromptUpdate(index: number, patch: Partial<PromptSegment>): void {
   );
 }
 
-function confirmPromptClose(): boolean {
+function confirmPromptClose(): boolean | Promise<boolean> {
   if (!promptDrawerOpen.value || !store.promptDirty) return true;
-  return window.confirm("你有未保存的正文替换提示词修改，确定要关闭新 UI 吗？");
+  return dialogStore.confirm({
+    title: "关闭新 UI",
+    message: "你有未保存的正文替换提示词修改，确定要关闭新 UI 吗？",
+    confirmLabel: "关闭新 UI",
+    confirmVariant: "danger",
+  });
 }
 
 function refreshAll(): void {

@@ -55,10 +55,14 @@ beforeEach(() => {
 
 describe('useTablePresetManagement', () => {
   it('删除当前选中预设后，将全局默认和当前聊天回退到默认预设', async () => {
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { management, deleteTemplatePreset, applyTemplatePresetToCurrent } = await importManagement();
 
-    await management.deletePreset('global-A');
+    const promise = management.deletePreset('global-A');
+    const { useDialogStore } = await import('../../../src/presentation-v2/stores/dialog-store');
+    const dialog = useDialogStore();
+    expect(dialog.active?.message).toContain('确定要删除全局模板预设「global-A」吗？');
+    dialog.submitActive();
+    await promise;
 
     expect(deleteTemplatePreset).toHaveBeenCalledWith('global-A');
     expect(applyTemplatePresetToCurrent).toHaveBeenCalledWith('', expect.objectContaining({

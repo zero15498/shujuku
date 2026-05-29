@@ -20,6 +20,7 @@ import { settings_ACU } from '../../service/runtime/state-manager';
 import { safeJsonParse_ACU } from '../../shared/json-helpers';
 import { getCurrentTemplatePresetName_ACU, normalizeTemplatePresetSelectionValue_ACU, sanitizeFilenameComponent_ACU } from '../../shared/template-preset-utils';
 import { deriveTemplatePresetNameForImport_ACU } from '../../shared/template-preset-utils';
+import { useDialogStore } from '../stores/dialog-store';
 import { useToastStore } from '../stores/toast-store';
 
 export type TemplateScope = 'global' | 'chat';
@@ -66,6 +67,7 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 }
 
 export function useTableTemplatePresets() {
+  const dialogStore = useDialogStore();
   const toast = useToastStore();
   const busy = ref(false);
   const message = ref<{ kind: MessageKind; text: string } | null>(null);
@@ -170,7 +172,13 @@ export function useTableTemplatePresets() {
 
   async function saveGlobalAs(): Promise<void> {
     const current = selectedGlobalPreset.value;
-    const raw = window.prompt('另存为全局模板预设名称：', current ? `${current}_副本` : '新模板预设');
+    const raw = await dialogStore.prompt({
+      title: '另存为全局模板预设',
+      message: '请输入要另存为的全局模板预设名称。',
+      label: '预设名称',
+      defaultValue: current ? `${current}_副本` : '新模板预设',
+      confirmLabel: '另存为',
+    });
     if (!raw) return;
     const requested = raw.trim();
     if (!requested) return;
@@ -178,7 +186,14 @@ export function useTableTemplatePresets() {
       const normalizedTemplate = normalizeTemplateForPresetSave_ACU();
       if (!normalizedTemplate) throw new Error('无法解析当前模板。');
       const finalName = ensureUniqueTemplatePresetName_ACU(requested);
-      if (finalName !== requested && !window.confirm(`预设名已存在，将自动另存为「${finalName}」。是否继续？`)) return;
+      if (finalName !== requested) {
+        const confirmed = await dialogStore.confirm({
+          title: '预设名已存在',
+          message: `预设名已存在，将自动另存为「${finalName}」。是否继续？`,
+          confirmLabel: '继续保存',
+        });
+        if (!confirmed) return;
+      }
       if (!upsertTemplatePreset_ACU(finalName, normalizedTemplate.templateStr)) throw new Error('无法写入全局模板预设。');
       const result = await applyTemplatePresetToCurrent_ACU(finalName, {
         source: 'v2_table_global_save_as',
@@ -203,7 +218,13 @@ export function useTableTemplatePresets() {
       message.value = { kind: 'warning', text: '找不到当前选中的全局模板预设。' };
       return;
     }
-    const raw = window.prompt(`将全局模板预设「${oldName}」重命名为：`, oldName);
+    const raw = await dialogStore.prompt({
+      title: '重命名全局模板预设',
+      message: `将全局模板预设「${oldName}」重命名为：`,
+      label: '预设名称',
+      defaultValue: oldName,
+      confirmLabel: '重命名',
+    });
     if (!raw) return;
     const newName = raw.trim();
     if (!newName) return;
@@ -229,7 +250,13 @@ export function useTableTemplatePresets() {
       message.value = { kind: 'warning', text: '默认预设不能删除。' };
       return;
     }
-    if (!window.confirm(`确定要删除全局模板预设「${name}」吗？此操作不可撤销。`)) return;
+    const confirmed = await dialogStore.confirm({
+      title: '删除全局模板预设',
+      message: `确定要删除全局模板预设「${name}」吗？此操作不可撤销。`,
+      confirmLabel: '删除预设',
+      confirmVariant: 'danger',
+    });
+    if (!confirmed) return;
     await run(() => {
       if (!deleteTemplatePreset_ACU(name)) throw new Error('删除失败或全局模板预设不存在。');
       message.value = null;

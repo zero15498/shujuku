@@ -150,6 +150,17 @@ beforeEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function clickDialogButton(label: string): Promise<void> {
+  await Promise.resolve();
+  const layer = document.querySelector<HTMLElement>('.acu-dialog-layer');
+  expect(layer).not.toBeNull();
+  const button = Array.from(layer!.querySelectorAll<HTMLButtonElement>('button'))
+    .find(item => item.textContent?.includes(label));
+  expect(button).not.toBeUndefined();
+  button!.click();
+  await new Promise(r => setTimeout(r, 0));
+}
+
 describe('DataMgmtPage', () => {
   it('渲染数据管理页三个面板，不包含交火模式索引管理', async () => {
     const { mount } = await mountDataMgmtPage();
@@ -354,12 +365,12 @@ describe('DataMgmtPage', () => {
 
   it('删除当前标识本地数据会保存范围并调用清理链路', async () => {
     const { mount, deleteLocalData, cleanupWorldbook, loadOrCreate, refreshMerged, saveSettings } = await mountDataMgmtPage();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const deleteButton = Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
       .find(button => button.textContent?.includes('删除当前标识本地数据'));
     expect(deleteButton).not.toBeUndefined();
     deleteButton!.click();
+    await clickDialogButton('删除数据');
     await new Promise(r => setTimeout(r, 0));
     await new Promise(r => setTimeout(r, 0));
 
@@ -375,7 +386,6 @@ describe('DataMgmtPage', () => {
 
   it('删除当前标识注入条目会调用世界书注入条目删除链路', async () => {
     const { mount, deleteGenerated } = await mountDataMgmtPage();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const isolationPanel = Array.from(document.querySelectorAll<HTMLElement>('.acu-v2-data-mgmt-page .acu-panel'))
       .find(el => el.querySelector('.acu-panel__title')?.textContent?.includes('数据隔离'))!;
@@ -391,6 +401,7 @@ describe('DataMgmtPage', () => {
       .find(item => item.textContent?.includes('删除当前标识注入条目'));
     expect(button).not.toBeUndefined();
     button!.click();
+    await clickDialogButton('删除注入条目');
     await new Promise(r => setTimeout(r, 0));
 
     expect(deleteGenerated).toHaveBeenCalled();
@@ -420,12 +431,12 @@ describe('DataMgmtPage', () => {
 
   it('模板覆盖最新层数据会先同步当前聊天生效模板再执行覆盖链路', async () => {
     const { mount, applyTemplateScope, overrideLatest, loadOrCreate, refreshMerged } = await mountDataMgmtPage();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
 
     const button = Array.from(document.querySelectorAll<HTMLButtonElement>('button'))
       .find(item => item.textContent?.includes('模板覆盖最新层数据'));
     expect(button).not.toBeUndefined();
     button!.click();
+    await clickDialogButton('覆盖数据');
     await new Promise(r => setTimeout(r, 0));
     await new Promise(r => setTimeout(r, 0));
 

@@ -5,6 +5,7 @@
  * edit 视图内嵌 usePlotTaskEditing，drawer 关闭时丢弃 draft。
  */
 import { computed, reactive, ref } from 'vue';
+import { useDialogStore } from '../stores/dialog-store';
 import { getDefaultPlotPresetRawForV2, usePlotPresetStore } from '../stores/plot-preset-store';
 import { useToastStore } from '../stores/toast-store';
 import { usePlotTaskEditing } from './usePlotTaskEditing';
@@ -84,6 +85,7 @@ function rulesForSave(rules: PlotContextRulePair[], kind: 'extract' | 'exclude')
 
 export function usePlotPresetManagement() {
   const store = usePlotPresetStore();
+  const dialogStore = useDialogStore();
   const toast = useToastStore();
   const taskEditing = usePlotTaskEditing();
 
@@ -134,9 +136,14 @@ export function usePlotPresetManagement() {
     initialSnapshot.value = takeCurrentSnapshot();
   }
 
-  function confirmIfDirty(): boolean {
+  function confirmIfDirty(): boolean | Promise<boolean> {
     if (!isDirty.value) return true;
-    return window.confirm('你有未保存的修改，确定要退出吗？');
+    return dialogStore.confirm({
+      title: '退出预设编辑',
+      message: '你有未保存的修改，确定要退出吗？',
+      confirmLabel: '退出',
+      confirmVariant: 'danger',
+    });
   }
 
   function resetDraft(): void {

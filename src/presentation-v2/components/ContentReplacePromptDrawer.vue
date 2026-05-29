@@ -48,6 +48,7 @@ import AcuButton from './_lib/AcuButton.vue';
 import AcuDrawer from './_lib/AcuDrawer.vue';
 import AcuMessage from './_lib/AcuMessage.vue';
 import AcuPromptSegments, { type PromptSegment } from './_lib/AcuPromptSegments.vue';
+import { useDialogStore } from '../stores/dialog-store';
 import type { ContentReplaceMessage } from '../stores/content-replace-store';
 
 const props = defineProps<{
@@ -66,13 +67,20 @@ const emit = defineEmits<{
   (e: 'update', index: number, patch: Partial<PromptSegment>): void;
 }>();
 
-function confirmIfDirty(): boolean {
+const dialogStore = useDialogStore();
+
+async function confirmIfDirty(): Promise<boolean> {
   if (!props.dirty) return true;
-  return window.confirm('你有未保存的正文替换提示词修改，确定要关闭吗？');
+  return dialogStore.confirm({
+    title: '关闭提示词编辑器',
+    message: '你有未保存的正文替换提示词修改，确定要关闭吗？',
+    confirmLabel: '关闭',
+    confirmVariant: 'danger',
+  });
 }
 
-function requestClose(): void {
-  if (confirmIfDirty()) emit('close');
+async function requestClose(): Promise<void> {
+  if (await confirmIfDirty()) emit('close');
 }
 </script>
 

@@ -202,7 +202,7 @@ const props = defineProps<{
     rateCuckold: number;
     recallCount: number;
   };
-  beforeClose?: () => boolean;
+  beforeClose?: () => boolean | Promise<boolean>;
 }>();
 
 const emit = defineEmits<{

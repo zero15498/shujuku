@@ -19,6 +19,7 @@ import {
   type CardUpdateProgressEvent,
   type ExecuteCardUpdateOptions_ACU,
 } from '../../service/table/update-orchestrator';
+import { useDialogStore } from '../stores/dialog-store';
 import { useToastStore } from '../stores/toast-store';
 
 type MessageKind = 'info' | 'success' | 'warning' | 'error';
@@ -149,6 +150,7 @@ function normalizeManualProgressMessage(message: string): string {
 }
 
 export function useManualUpdate(): ManualUpdateState {
+  const dialogStore = useDialogStore();
   const toast = useToastStore();
   const selectedManualTableKeys = ref<string[]>(resolveManualSelection(currentSheetKeys()));
   const manualContextDepth = ref(resolveManualContextDepth());
@@ -278,6 +280,15 @@ export function useManualUpdate(): ManualUpdateState {
       return;
     }
 
+    const confirmed = await dialogStore.confirm({
+      title: '执行手动填表',
+      message: '即将执行手动填表。\n\n为确保填表成功，系统将先清除本次涉及楼层中当前选中表格的数据，再进行新的数据填写。\n此操作可防止 SQL 严格填表逻辑因旧数据残留导致写入失败。\n\n如果不想清空旧数据，可以选择取消。',
+      confirmLabel: '确认并继续',
+      cancelLabel: '取消',
+    });
+    if (!confirmed) return;
+    const clearBeforeUpdate = true;
+
     manualUpdateBusy.value = true;
     progressToastId = null;
     abortRequested = false;
@@ -314,9 +325,6 @@ export function useManualUpdate(): ManualUpdateState {
       ));
 
     try {
-      const clearBeforeUpdate = typeof window !== 'undefined' && typeof window.confirm === 'function'
-        ? window.confirm('手动填表前是否清空目标楼层中这些表的旧数据?SQLite 模式下建议清空。')
-        : false;
       const restoreAutoUpdateSettings = applyManualSettingsForOrchestrator();
       let result: Awaited<ReturnType<typeof orchestrateManualUpdate_ACU>>;
       try {

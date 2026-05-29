@@ -176,7 +176,7 @@ describe('openVisualizerSurface_ACU', () => {
     firstDeleteButton.click();
     await Promise.resolve();
 
-    let layer = document.querySelector<HTMLElement>('.acu-visualizer-surface__dialog-layer')!;
+    let layer = document.querySelector<HTMLElement>('.acu-dialog-layer')!;
     expect(layer).not.toBeNull();
     expect(layer.parentElement?.id).toBe('acu-app-v2');
     expect(surface.contains(layer)).toBe(false);
@@ -186,7 +186,7 @@ describe('openVisualizerSurface_ACU', () => {
     const cancelButton = Array.from(layer.querySelectorAll<HTMLButtonElement>('button'))
       .find(button => button.textContent?.includes('取消'))!;
     cancelButton.click();
-    await Promise.resolve();
+    await new Promise(r => setTimeout(r, 200));
 
     const pinia = mount.getAcuV2PiniaForBridge();
     const visualizer = useVisualizerStore(pinia!);
@@ -194,11 +194,11 @@ describe('openVisualizerSurface_ACU', () => {
 
     firstDeleteButton.click();
     await Promise.resolve();
-    layer = document.querySelector<HTMLElement>('.acu-visualizer-surface__dialog-layer')!;
+    layer = document.querySelector<HTMLElement>('.acu-dialog-layer')!;
     const confirmButton = Array.from(layer.querySelectorAll<HTMLButtonElement>('button'))
       .find(button => button.textContent?.includes('删除这一行'))!;
     confirmButton.click();
-    await Promise.resolve();
+    await new Promise(r => setTimeout(r, 0));
 
     expect(visualizer.currentSheet.content).toEqual([[null, '姓名'], [null, 'B']]);
     mount.__resetAcuV2MountForTests();

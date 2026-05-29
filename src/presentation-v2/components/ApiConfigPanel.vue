@@ -199,6 +199,7 @@ import {
   useApiPresetStore,
   type AcuV2ApiPreset,
 } from "../stores/api-preset-store";
+import { useDialogStore } from "../stores/dialog-store";
 import { useToastStore } from "../stores/toast-store";
 import AcuButton from "./_lib/AcuButton.vue";
 import AcuFormRow from "./_lib/AcuFormRow.vue";
@@ -214,6 +215,7 @@ import AcuSegmentedControl from "./_lib/AcuSegmentedControl.vue";
 import AcuSelect, { type AcuSelectOption } from "./_lib/AcuSelect.vue";
 
 const store = useApiPresetStore();
+const dialogStore = useDialogStore();
 const toast = useToastStore();
 const formMode = ref<"empty" | "edit" | "create">("empty");
 const activeDraft = reactive<ApiPresetDraft>(createEmptyApiPresetDraft());
@@ -260,14 +262,14 @@ function refreshAll(): void {
 onMounted(() => {
   refreshAll();
 });
-useUiCloseGuard(() => {
-  if (
-    activeDraftDirty.value &&
-    !window.confirm("你有未保存的当前 API 修改，确定要关闭新 UI 吗？")
-  ) {
-    return false;
-  }
-  return true;
+useUiCloseGuard(async () => {
+  if (!activeDraftDirty.value) return true;
+  return dialogStore.confirm({
+    title: "关闭新 UI",
+    message: "你有未保存的当前 API 修改，确定要关闭新 UI 吗？",
+    confirmLabel: "关闭新 UI",
+    confirmVariant: "danger",
+  });
 });
 
 function syncActiveDraft(): void {
@@ -303,8 +305,14 @@ function selectPreset(name: string): void {
   store.setActivePresetForCurrentChat(name);
 }
 
-function deletePreset(name: string): void {
-  if (!window.confirm(`删除 API 预设"${name}"？`)) return;
+async function deletePreset(name: string): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "删除 API 预设",
+    message: `删除 API 预设"${name}"？`,
+    confirmLabel: "删除预设",
+    confirmVariant: "danger",
+  });
+  if (!confirmed) return;
   store.deletePreset(name);
 }
 

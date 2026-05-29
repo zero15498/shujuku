@@ -233,7 +233,9 @@ import AcuPanelGrid from "../components/_lib/AcuPanelGrid.vue";
 import { useChatChangedTick } from "../composables/useChatChangedListener";
 import { useDataManagement } from "../composables/useDataManagement";
 import { dataMgmtCopy } from "../copy/data-mgmt-copy";
+import { useDialogStore } from "../stores/dialog-store";
 
+const dialogStore = useDialogStore();
 const flow = useDataManagement();
 const historyExpanded = ref(false);
 
@@ -257,35 +259,52 @@ async function onRemoveHistory(code: string): Promise<void> {
   await flow.removeHistory(code);
 }
 
-function onDeleteCurrentIsolationEntries(): void {
-  if (
-    !window.confirm(
+async function onDeleteCurrentIsolationEntries(): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "删除注入条目",
+    message:
       "删除当前标识的数据库注入条目？这不会删除聊天正文，但会移除世界书里的插件生成条目。",
-    )
-  )
+    confirmLabel: "删除注入条目",
+    confirmVariant: "danger",
+  });
+  if (!confirmed)
     return;
   void flow.deleteCurrentIsolationEntries();
 }
 
-function onOverrideLatestLayer(): void {
-  if (
-    !window.confirm(
+async function onOverrideLatestLayer(): Promise<void> {
+  const confirmed = await dialogStore.confirm({
+    title: "覆盖最新层数据",
+    message:
       "用当前生效模板覆盖最新 AI 楼层的表格数据？这会清空模板内表格的数据行，只保留表头。",
-    )
-  )
+    confirmLabel: "覆盖数据",
+    confirmVariant: "danger",
+  });
+  if (!confirmed)
     return;
   void flow.overrideLatestLayerWithTemplate();
 }
 
-function onDeleteLocalData(mode: "current" | "all"): void {
+async function onDeleteLocalData(mode: "current" | "all"): Promise<void> {
   const message =
     mode === "all"
       ? `删除当前聊天中 ${flow.rangeLabel.value} 的所有标识数据库数据？此操作不可恢复。`
       : `删除当前聊天中 ${flow.rangeLabel.value} 属于当前标识的数据库数据？此操作不可恢复。`;
-  if (!window.confirm(message)) return;
+  const confirmed = await dialogStore.confirm({
+    title: mode === "all" ? "删除所有本地数据" : "删除当前标识本地数据",
+    message,
+    confirmLabel: "删除数据",
+    confirmVariant: "danger",
+  });
+  if (!confirmed) return;
   if (
     mode === "all" &&
-    !window.confirm("再次确认：删除所有标识的本地数据库数据？")
+    !(await dialogStore.confirm({
+      title: "再次确认删除",
+      message: "再次确认：删除所有标识的本地数据库数据？",
+      confirmLabel: "确认删除全部",
+      confirmVariant: "danger",
+    }))
   )
     return;
   void flow.deleteLocalData(mode);

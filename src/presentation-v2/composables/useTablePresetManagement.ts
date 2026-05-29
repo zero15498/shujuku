@@ -28,6 +28,7 @@ import {
   getCurrentTemplatePresetName_ACU,
 } from '../../shared/template-preset-utils';
 import { settings_ACU } from '../../service/runtime/state-manager';
+import { useDialogStore } from '../stores/dialog-store';
 import { useToastStore } from '../stores/toast-store';
 import { openVisualizerSurface_ACU } from '../surfaces/visualizer/open-visualizer-surface';
 
@@ -52,6 +53,7 @@ function downloadJson(jsonData: Record<string, any>, filename: string): void {
 }
 
 export function useTablePresetManagement() {
+  const dialogStore = useDialogStore();
   const toast = useToastStore();
   const drawerView = ref<TablePresetDrawerView>('closed');
   const busy = ref(false);
@@ -141,7 +143,13 @@ export function useTablePresetManagement() {
       toast.warning('默认预设不能删除。');
       return;
     }
-    if (!window.confirm(`确定要删除全局模板预设「${name}」吗？此操作不可撤销。`)) return;
+    const confirmed = await dialogStore.confirm({
+      title: '删除全局模板预设',
+      message: `确定要删除全局模板预设「${name}」吗？此操作不可撤销。`,
+      confirmLabel: '删除预设',
+      confirmVariant: 'danger',
+    });
+    if (!confirmed) return;
     await run(async () => {
       const normalized = normalizeTemplatePresetSelectionValue_ACU(name);
       const wasGlobalDefault = defaultPresetName.value === normalized;
@@ -183,13 +191,26 @@ export function useTablePresetManagement() {
   }
 
   async function createBlankPreset(): Promise<void> {
-    const raw = window.prompt('新建全局模板预设名称：', '新模板预设');
+    const raw = await dialogStore.prompt({
+      title: '新建全局模板预设',
+      message: '请输入新建全局模板预设名称。',
+      label: '预设名称',
+      defaultValue: '新模板预设',
+      confirmLabel: '新建预设',
+    });
     if (!raw) return;
     const requested = raw.trim();
     if (!requested) return;
     await run(async () => {
       const finalName = ensureUniqueTemplatePresetName_ACU(requested);
-      if (finalName !== requested && !window.confirm(`预设名已存在，将自动另存为「${finalName}」。是否继续？`)) return;
+      if (finalName !== requested) {
+        const confirmed = await dialogStore.confirm({
+          title: '预设名已存在',
+          message: `预设名已存在，将自动另存为「${finalName}」。是否继续？`,
+          confirmLabel: '继续保存',
+        });
+        if (!confirmed) return;
+      }
       const snapshot = getDefaultTemplateSnapshot_ACU();
       if (!snapshot?.templateStr) throw new Error('无法解析默认模板。');
       if (!upsertTemplatePreset_ACU(finalName, snapshot.templateStr)) throw new Error('无法写入全局模板预设。');
@@ -208,7 +229,13 @@ export function useTablePresetManagement() {
       toast.warning('找不到目标预设。');
       return;
     }
-    const raw = window.prompt(`将全局模板预设「${name}」重命名为：`, name);
+    const raw = await dialogStore.prompt({
+      title: '重命名全局模板预设',
+      message: `将全局模板预设「${name}」重命名为：`,
+      label: '预设名称',
+      defaultValue: name,
+      confirmLabel: '重命名',
+    });
     if (!raw) return;
     const newName = raw.trim();
     if (!newName || newName === name) return;
