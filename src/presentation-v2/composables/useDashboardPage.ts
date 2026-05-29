@@ -408,7 +408,7 @@ function buildTableHealthItem(
       key: "tables",
       title: dashboardCopy.tableHealth.title,
       badge: dashboardCopy.tableHealth.notLoadedBadge,
-      kind: "warning",
+      kind: "info",
       summary: dashboardCopy.tableHealth.notLoadedSummary(totalAi),
       action: {
         label: dashboardCopy.tableHealth.updateSettingsAction,
@@ -444,7 +444,7 @@ function buildTableHealthItem(
       key: "tables",
       title: dashboardCopy.tableHealth.title,
       badge: dashboardCopy.tableHealth.overdueBadge,
-      kind: "warning",
+      kind: "info",
       summary: dashboardCopy.tableHealth.overdueSummary(
         issueCount,
         detailParts.join("；"),
@@ -519,6 +519,7 @@ function formatTableNameSamples(names: string[]): string {
 function buildSqlTemplateHealthItem(
   mode: StorageMode,
   hasActiveChat: boolean,
+  showDeveloperDiagnostics: boolean,
 ): DashboardHealthItem {
   const action = { label: dashboardCopy.sqlHealth.action, pageId: "form-fill" };
   const sqlEnabled = mode === "sqlite";
@@ -542,19 +543,19 @@ function buildSqlTemplateHealthItem(
       badge: sqlEnabled
         ? dashboardCopy.sqlHealth.pendingBadge
         : dashboardCopy.sqlHealth.disabledBadge,
-      kind: sqlEnabled ? "warning" : "info",
+      kind: "info",
       summary: dashboardCopy.sqlHealth.noTemplatesSummary(sqlEnabled),
       action,
     });
   }
 
   if (!sqlEnabled) {
-    if (check.ddlCount > 0) {
+    if (check.ddlCount > 0 && showDeveloperDiagnostics) {
       return makeHealthItem({
         key: "sql-template",
         title: dashboardCopy.sqlHealth.title,
         badge: dashboardCopy.sqlHealth.looksSqlBadge,
-        kind: "warning",
+        kind: "info",
         summary: dashboardCopy.sqlHealth.looksSqlSummary(
           check.ddlCount,
           check.total,
@@ -565,9 +566,15 @@ function buildSqlTemplateHealthItem(
     return makeHealthItem({
       key: "sql-template",
       title: dashboardCopy.sqlHealth.title,
-      badge: dashboardCopy.sqlHealth.nativeMatchBadge,
-      kind: "ok",
-      summary: dashboardCopy.sqlHealth.nativeMatchSummary(check.total),
+      badge:
+        check.ddlCount > 0
+          ? dashboardCopy.sqlHealth.nativeModeBadge
+          : dashboardCopy.sqlHealth.nativeMatchBadge,
+      kind: check.ddlCount > 0 ? "info" : "ok",
+      summary:
+        check.ddlCount > 0
+          ? dashboardCopy.sqlHealth.nativeModeSummary(check.total)
+          : dashboardCopy.sqlHealth.nativeMatchSummary(check.total),
     });
   }
 
@@ -617,7 +624,7 @@ function buildVectorHealthItem(): DashboardHealthItem {
       key: "vector",
       title: dashboardCopy.vectorHealth.title,
       badge: dashboardCopy.vectorHealth.disabledBadge,
-      kind: "ok",
+      kind: "info",
       summary: dashboardCopy.vectorHealth.disabledSummary,
     });
   }
@@ -720,7 +727,7 @@ function interpretLogEntry(entry: LogEntry): string {
     : dashboardCopy.logs.genericWarning;
 }
 
-function buildLogHealthItem(): DashboardHealthItem {
+function buildLogHealthItem(showDeveloperDiagnostics: boolean): DashboardHealthItem {
   const logs = getAllLogs();
   const errorEntries = logs.filter((entry) => entry.level === "error");
   const warnCount = logs.filter((entry) => entry.level === "warn").length;
@@ -730,7 +737,10 @@ function buildLogHealthItem(): DashboardHealthItem {
       title: dashboardCopy.logs.title,
       badge: dashboardCopy.logs.noErrorBadge,
       kind: "ok",
-      summary: dashboardCopy.logs.noErrorSummary(warnCount),
+      summary: dashboardCopy.logs.noErrorSummary(
+        showDeveloperDiagnostics ? warnCount : 0,
+        showDeveloperDiagnostics,
+      ),
     });
   }
   const latest = errorEntries[errorEntries.length - 1];
@@ -969,6 +979,7 @@ export function useDashboardPage(): DashboardPageState {
     void dataRefreshTick.value;
     void logRefreshTick.value;
     const hasActiveChat = hasActiveChatContext(chatFileIdentifier.value);
+    const showDeveloperDiagnostics = developerOptionsEnabled.value === true;
     return [
       buildApiHealthItem(coreApisReady.value),
       buildTableHealthItem(
@@ -977,9 +988,13 @@ export function useDashboardPage(): DashboardPageState {
         aiMessageCount.value,
         hasActiveChat,
       ),
-      buildSqlTemplateHealthItem(storageMode.value, hasActiveChat),
+      buildSqlTemplateHealthItem(
+        storageMode.value,
+        hasActiveChat,
+        showDeveloperDiagnostics,
+      ),
       buildVectorHealthItem(),
-      buildLogHealthItem(),
+      buildLogHealthItem(showDeveloperDiagnostics),
     ];
   });
 

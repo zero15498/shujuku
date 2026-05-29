@@ -3,9 +3,9 @@ import type { StorageMode } from "../../shared/table-storage-provider";
 export const dashboardCopy = {
   pageTitle: "仪表盘",
   panels: {
-    healthTitle: "运行健康",
+    healthTitle: "运行概览",
     healthDescription:
-      "快速检查当前数据库运行健康状态。状态异常时，可点击按钮前往对应页面处理。",
+      "这里显示当前聊天和已开启功能的状态。只有标为“需要处理”的项目才会影响使用；未启用或待准备通常不需要操作。",
     togglesTitle: "开关",
     togglesDescription:
       "基础设置：当前聊天中可随时开关的功能。高级设置：调整后可能影响数据库运行，请谨慎修改。",
@@ -78,13 +78,13 @@ export const dashboardCopy = {
     noChatBadge: "未加载聊天",
     noChatSummary:
       "当前没有加载 SillyTavern 聊天，暂时无法读取对应数据库表格或计算自动更新楼层。",
-    notLoadedBadge: "未加载",
+    notLoadedBadge: "待准备",
     notLoadedSummary(totalAi: number): string {
-      return `当前聊天尚未加载数据库表格，自动更新没有可写入的目标；当前已有 ${totalAi} 条 AI 回复。`;
+      return `当前聊天还没有加载数据库表格。第一次填表或初始化后，这里会自动显示更新状态；当前已有 ${totalAi} 条 AI 回复。`;
     },
     updateSettingsAction: "查看填表工作台",
     statusAction: "查看表格状态",
-    overdueBadge: "有积压",
+    overdueBadge: "待更新",
     dueRowsDetail(count: number): string {
       return `${count} 张表已到触发点但最后更新楼层没有前进`;
     },
@@ -96,8 +96,8 @@ export const dashboardCopy = {
     },
     overdueSummary(issueCount: number, detail: string): string {
       return detail
-        ? `${issueCount} 张表已经满足更新条件，但聊天记录里还没有对应的更新记录：${detail}。`
-        : `${issueCount} 张表已经满足更新条件，但聊天记录里还没有对应的更新记录。`;
+        ? `${issueCount} 张表已经满足自动更新条件，后续填表或手动检查时会继续处理：${detail}。`
+        : `${issueCount} 张表已经满足自动更新条件，后续填表或手动检查时会继续处理。`;
     },
     okBadge: "正常",
     okSummary(
@@ -128,12 +128,16 @@ export const dashboardCopy = {
     disabledBadge: "未启用",
     noTemplatesSummary(sqlEnabled: boolean): string {
       return sqlEnabled
-        ? "当前存储模式是 SQLite，但还没有加载表格模板。第一次填表前，请确认模板已经补好 SQL 表结构信息。"
-        : "当前存储模式是原生 JSON，当前也没有加载表格模板。如果要改用 SQLite，请先准备适配 SQL 的表格模板。";
+        ? "当前存储模式是 SQLite，还没有加载表格模板。第一次填表前，请确认模板已经补好 SQL 表结构信息。"
+        : "当前存储模式是原生 JSON，还没有加载表格模板。继续使用原生 JSON 时无需处理 SQL 模板信息。";
     },
-    looksSqlBadge: "模板不适配",
+    looksSqlBadge: "开发者提示",
     looksSqlSummary(ddlCount: number, total: number): string {
-      return `当前存储模式是原生 JSON，但 ${ddlCount}/${total} 张表看起来是 SQL 模板。若要使用这些模板，请在高级设置里选择“SQLite”；若继续使用原生 JSON，请换成普通表格模板。`;
+      return `当前存储模式是原生 JSON，开发者检查发现 ${ddlCount}/${total} 张表包含 SQL 结构信息。若要使用 SQLite，请在高级设置里选择“SQLite”；继续使用原生 JSON 时通常无需处理。`;
+    },
+    nativeModeBadge: "原生 JSON",
+    nativeModeSummary(total: number): string {
+      return `当前存储模式是原生 JSON，已加载 ${total} 张表。模板中的 SQL 信息不会影响原生 JSON 模式运行；需要切换 SQLite 时再检查模板。`;
     },
     nativeMatchBadge: "模板适配",
     nativeMatchSummary(total: number): string {
@@ -156,7 +160,7 @@ export const dashboardCopy = {
     title: "交火向量",
     configureAction: "配置交火模式",
     disabledBadge: "未启用",
-    disabledSummary: "交火模式没有开启，当前不会检查向量化服务是否填写。",
+    disabledSummary: "交火模式是可选增强，未开启时不会影响基础数据库更新。",
     incompleteBadge: "配置不完整",
     incompleteSummary(errors: string[]): string {
       return errors.length
@@ -179,9 +183,9 @@ export const dashboardCopy = {
     title: "运行日志",
     action: "查看运行日志",
     noErrorBadge: "无报错",
-    noErrorSummary(warnCount: number): string {
-      return warnCount
-        ? `本次前端会话没有记录到 Error 级别日志，有 ${warnCount} 条 Warn。`
+    noErrorSummary(warnCount: number, showDeveloperDiagnostics = false): string {
+      return showDeveloperDiagnostics && warnCount
+        ? `本次前端会话没有记录到 Error 级别日志；开发者模式下可见 ${warnCount} 条 Warn。`
         : "本次前端会话没有记录到 Error 级别日志。";
     },
     errorBadge(errorCount: number): string {

@@ -222,10 +222,6 @@ watch(useChatChangedTick(), () => {
   border-color: color-mix(in srgb, var(--acu-danger) 38%, var(--acu-border));
 }
 
-.acu-v2-dashboard-page__health-item--warning {
-  border-color: color-mix(in srgb, var(--acu-warning) 36%, var(--acu-border));
-}
-
 .acu-v2-dashboard-page__health-icon {
   width: 30px;
   height: 30px;

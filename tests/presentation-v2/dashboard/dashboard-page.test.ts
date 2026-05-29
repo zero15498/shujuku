@@ -116,14 +116,23 @@ function createSqlTableData() {
 async function mountDashboardPage(
   settings = createSettings(),
   tableData = createTableData(),
-  options: { chatFileIdentifier?: string; failStorageSwitch?: boolean } = {},
+  options: {
+    chatFileIdentifier?: string;
+    developerOptionsEnabled?: boolean;
+    failStorageSwitch?: boolean;
+  } = {},
 ) {
   vi.resetModules();
   document.body.innerHTML = "";
   document.head.innerHTML = "";
   localStorage.setItem(
     STORAGE_KEY,
-    JSON.stringify({ router: { activePageId: "dashboard" } }),
+    JSON.stringify({
+      router: { activePageId: "dashboard" },
+      devOptions: {
+        developerOptionsEnabled: options.developerOptionsEnabled === true,
+      },
+    }),
   );
 
   const saveSettings = vi.fn(() => ({ saved: true, storageType: "memory" }));
@@ -228,7 +237,7 @@ beforeEach(() => {
 });
 
 describe("DashboardPage", () => {
-  it("配置状态面板移除后，仪表盘展示运行健康和开关面板", () => {
+  it("配置状态面板移除后，仪表盘展示运行概览和开关面板", () => {
     const source = readFileSync(
       "src/presentation-v2/pages/DashboardPage.vue",
       "utf8",
@@ -240,7 +249,7 @@ describe("DashboardPage", () => {
 
     expect(source).toContain("dashboardCopy.panels.healthTitle");
     expect(source).toContain("dashboardCopy.panels.togglesTitle");
-    expect(copySource).toContain('healthTitle: "运行健康"');
+    expect(copySource).toContain('healthTitle: "运行概览"');
     expect(copySource).toContain('togglesTitle: "开关"');
     expect(source).not.toContain("ConfigStatusPanel");
     expect(source).not.toContain(
@@ -249,14 +258,14 @@ describe("DashboardPage", () => {
     expect(source).not.toContain("acu-v2-dashboard-page__spacer");
   });
 
-  it("默认渲染运行健康和基础开关；header 不再有 subtitle / 刷新按钮 / API 三件套", async () => {
+  it("默认渲染运行概览和基础开关；header 不再有 subtitle / 刷新按钮 / API 三件套", async () => {
     const { mount } = await mountDashboardPage();
 
     const page = document.querySelector(".acu-v2-dashboard-page");
     expect(page).not.toBeNull();
     const text = page!.textContent || "";
 
-    // 配置状态面板已移除，新的运行健康面板保留概览提醒
+    // 配置状态面板已移除，新的运行概览面板保留概览提醒
     expect(text).not.toContain("配置状态");
     expect(text).not.toContain("当前使用 table-fast");
     expect(text).not.toContain("默认预设（全局）");
@@ -269,7 +278,7 @@ describe("DashboardPage", () => {
     ).toBeNull();
     expect(text).not.toContain("下一次");
     expect(text).not.toContain("事件记录");
-    expect(text).toContain("运行健康");
+    expect(text).toContain("运行概览");
     expect(text).toContain("API");
     expect(text).toContain("表格更新");
     expect(text).toContain("SQL 模式");
@@ -285,10 +294,10 @@ describe("DashboardPage", () => {
     expect(vectorHealth!.textContent || "").toContain("未启用");
     expect(
       vectorHealth!.classList.contains(
-        "acu-v2-dashboard-page__health-item--ok",
+        "acu-v2-dashboard-page__health-item--info",
       ),
     ).toBe(true);
-    expect(vectorHealth!.querySelector(".acu-badge--success")).not.toBeNull();
+    expect(vectorHealth!.querySelector(".acu-badge--neutral")).not.toBeNull();
 
     // 基础设置默认呈现
     expect(text).toContain("基础设置");
@@ -429,7 +438,7 @@ describe("DashboardPage", () => {
     mount.__resetAcuV2MountForTests();
   });
 
-  it("原生 JSON 存储但表格模板适配 SQL 时提示模式与模板不适配", async () => {
+  it("原生 JSON 存储但表格模板包含 SQL 信息时默认显示中性说明", async () => {
     const settings = createSettings();
     const { mount } = await mountDashboardPage(settings, createSqlTableData());
 
@@ -440,10 +449,41 @@ describe("DashboardPage", () => {
     ).find((item) => (item.textContent || "").includes("SQL 模式"));
 
     expect(sqlHealth).toBeDefined();
-    expect(sqlHealth!.textContent || "").toContain("模板不适配");
+    expect(sqlHealth!.textContent || "").toContain("原生 JSON");
     expect(sqlHealth!.textContent || "").toContain("当前存储模式是原生 JSON");
-    expect(sqlHealth!.textContent || "").toContain("看起来是 SQL 模板");
+    expect(sqlHealth!.textContent || "").toContain("不会影响原生 JSON 模式运行");
+    expect(sqlHealth!.textContent || "").not.toContain("开发者检查");
+    expect(
+      sqlHealth!.classList.contains("acu-v2-dashboard-page__health-item--info"),
+    ).toBe(true);
+    expect(
+      sqlHealth!.classList.contains(
+        "acu-v2-dashboard-page__health-item--warning",
+      ),
+    ).toBe(false);
+
+    mount.__resetAcuV2MountForTests();
+  });
+
+  it("开发者模式显示原生 JSON 下的 SQL 模板诊断", async () => {
+    const settings = createSettings();
+    const { mount } = await mountDashboardPage(settings, createSqlTableData(), {
+      developerOptionsEnabled: true,
+    });
+
+    const sqlHealth = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        ".acu-v2-dashboard-page__health-item",
+      ),
+    ).find((item) => (item.textContent || "").includes("SQL 模式"));
+
+    expect(sqlHealth).toBeDefined();
+    expect(sqlHealth!.textContent || "").toContain("开发者提示");
+    expect(sqlHealth!.textContent || "").toContain("开发者检查发现");
     expect(sqlHealth!.textContent || "").toContain("选择“SQLite”");
+    expect(
+      sqlHealth!.classList.contains("acu-v2-dashboard-page__health-item--info"),
+    ).toBe(true);
 
     mount.__resetAcuV2MountForTests();
   });
@@ -533,6 +573,35 @@ describe("DashboardPage", () => {
     expect(useRouterStore().activePageId).toBe("advanced-tools");
 
     mount.__resetAcuV2MountForTests();
+  });
+
+  it("运行日志 Warn 计数默认隐藏，仅开发者模式显示", async () => {
+    const normal = await mountDashboardPage();
+    let logBuffer = await import("../../../src/shared/log-buffer");
+
+    logBuffer.pushLog("warn", ["[ACU]", "普通警告"]);
+    await Promise.resolve();
+
+    let pageText =
+      document.querySelector(".acu-v2-dashboard-page")?.textContent || "";
+    expect(pageText).toContain("本次前端会话没有记录到 Error 级别日志。");
+    expect(pageText).not.toContain("Warn");
+
+    normal.mount.__resetAcuV2MountForTests();
+
+    const developer = await mountDashboardPage(createSettings(), createTableData(), {
+      developerOptionsEnabled: true,
+    });
+    logBuffer = await import("../../../src/shared/log-buffer");
+    logBuffer.pushLog("warn", ["[ACU]", "开发者警告"]);
+    await Promise.resolve();
+
+    pageText =
+      document.querySelector(".acu-v2-dashboard-page")?.textContent || "";
+    expect(pageText).toContain("开发者模式下可见");
+    expect(pageText).toContain("条 Warn");
+
+    developer.mount.__resetAcuV2MountForTests();
   });
 
   it("交火模式开启但向量模型缺失时显示独立提醒", async () => {

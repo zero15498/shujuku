@@ -79856,8 +79856,8 @@ Expected function or array of functions, received type ${typeof value}.`
     const dashboardCopy = {
         pageTitle: "仪表盘",
         panels: {
-            healthTitle: "运行健康",
-            healthDescription: "快速检查当前数据库运行健康状态。状态异常时，可点击按钮前往对应页面处理。",
+            healthTitle: "运行概览",
+            healthDescription: "这里显示当前聊天和已开启功能的状态。只有标为“需要处理”的项目才会影响使用；未启用或待准备通常不需要操作。",
             togglesTitle: "开关",
             togglesDescription: "基础设置：当前聊天中可随时开关的功能。高级设置：调整后可能影响数据库运行，请谨慎修改。",
         },
@@ -79927,13 +79927,13 @@ Expected function or array of functions, received type ${typeof value}.`
             title: "表格更新",
             noChatBadge: "未加载聊天",
             noChatSummary: "当前没有加载 SillyTavern 聊天，暂时无法读取对应数据库表格或计算自动更新楼层。",
-            notLoadedBadge: "未加载",
+            notLoadedBadge: "待准备",
             notLoadedSummary(totalAi) {
-                return `当前聊天尚未加载数据库表格，自动更新没有可写入的目标；当前已有 ${totalAi} 条 AI 回复。`;
+                return `当前聊天还没有加载数据库表格。第一次填表或初始化后，这里会自动显示更新状态；当前已有 ${totalAi} 条 AI 回复。`;
             },
             updateSettingsAction: "查看填表工作台",
             statusAction: "查看表格状态",
-            overdueBadge: "有积压",
+            overdueBadge: "待更新",
             dueRowsDetail(count) {
                 return `${count} 张表已到触发点但最后更新楼层没有前进`;
             },
@@ -79945,8 +79945,8 @@ Expected function or array of functions, received type ${typeof value}.`
             },
             overdueSummary(issueCount, detail) {
                 return detail
-                    ? `${issueCount} 张表已经满足更新条件，但聊天记录里还没有对应的更新记录：${detail}。`
-                    : `${issueCount} 张表已经满足更新条件，但聊天记录里还没有对应的更新记录。`;
+                    ? `${issueCount} 张表已经满足自动更新条件，后续填表或手动检查时会继续处理：${detail}。`
+                    : `${issueCount} 张表已经满足自动更新条件，后续填表或手动检查时会继续处理。`;
             },
             okBadge: "正常",
             okSummary(activeCount, totalAi, disabledCount) {
@@ -79973,12 +79973,16 @@ Expected function or array of functions, received type ${typeof value}.`
             disabledBadge: "未启用",
             noTemplatesSummary(sqlEnabled) {
                 return sqlEnabled
-                    ? "当前存储模式是 SQLite，但还没有加载表格模板。第一次填表前，请确认模板已经补好 SQL 表结构信息。"
-                    : "当前存储模式是原生 JSON，当前也没有加载表格模板。如果要改用 SQLite，请先准备适配 SQL 的表格模板。";
+                    ? "当前存储模式是 SQLite，还没有加载表格模板。第一次填表前，请确认模板已经补好 SQL 表结构信息。"
+                    : "当前存储模式是原生 JSON，还没有加载表格模板。继续使用原生 JSON 时无需处理 SQL 模板信息。";
             },
-            looksSqlBadge: "模板不适配",
+            looksSqlBadge: "开发者提示",
             looksSqlSummary(ddlCount, total) {
-                return `当前存储模式是原生 JSON，但 ${ddlCount}/${total} 张表看起来是 SQL 模板。若要使用这些模板，请在高级设置里选择“SQLite”；若继续使用原生 JSON，请换成普通表格模板。`;
+                return `当前存储模式是原生 JSON，开发者检查发现 ${ddlCount}/${total} 张表包含 SQL 结构信息。若要使用 SQLite，请在高级设置里选择“SQLite”；继续使用原生 JSON 时通常无需处理。`;
+            },
+            nativeModeBadge: "原生 JSON",
+            nativeModeSummary(total) {
+                return `当前存储模式是原生 JSON，已加载 ${total} 张表。模板中的 SQL 信息不会影响原生 JSON 模式运行；需要切换 SQLite 时再检查模板。`;
             },
             nativeMatchBadge: "模板适配",
             nativeMatchSummary(total) {
@@ -80001,7 +80005,7 @@ Expected function or array of functions, received type ${typeof value}.`
             title: "交火向量",
             configureAction: "配置交火模式",
             disabledBadge: "未启用",
-            disabledSummary: "交火模式没有开启，当前不会检查向量化服务是否填写。",
+            disabledSummary: "交火模式是可选增强，未开启时不会影响基础数据库更新。",
             incompleteBadge: "配置不完整",
             incompleteSummary(errors) {
                 return errors.length
@@ -80023,9 +80027,9 @@ Expected function or array of functions, received type ${typeof value}.`
             title: "运行日志",
             action: "查看运行日志",
             noErrorBadge: "无报错",
-            noErrorSummary(warnCount) {
-                return warnCount
-                    ? `本次前端会话没有记录到 Error 级别日志，有 ${warnCount} 条 Warn。`
+            noErrorSummary(warnCount, showDeveloperDiagnostics = false) {
+                return showDeveloperDiagnostics && warnCount
+                    ? `本次前端会话没有记录到 Error 级别日志；开发者模式下可见 ${warnCount} 条 Warn。`
                     : "本次前端会话没有记录到 Error 级别日志。";
             },
             errorBadge(errorCount) {
@@ -80529,7 +80533,7 @@ Expected function or array of functions, received type ${typeof value}.`
                 key: "tables",
                 title: dashboardCopy.tableHealth.title,
                 badge: dashboardCopy.tableHealth.notLoadedBadge,
-                kind: "warning",
+                kind: "info",
                 summary: dashboardCopy.tableHealth.notLoadedSummary(totalAi),
                 action: {
                     label: dashboardCopy.tableHealth.updateSettingsAction,
@@ -80558,7 +80562,7 @@ Expected function or array of functions, received type ${typeof value}.`
                 key: "tables",
                 title: dashboardCopy.tableHealth.title,
                 badge: dashboardCopy.tableHealth.overdueBadge,
-                kind: "warning",
+                kind: "info",
                 summary: dashboardCopy.tableHealth.overdueSummary(issueCount, detailParts.join("；")),
                 action: {
                     label: dashboardCopy.tableHealth.statusAction,
@@ -80610,7 +80614,7 @@ Expected function or array of functions, received type ${typeof value}.`
         const visible = names.slice(0, 3).join("、");
         return dashboardCopy.sqlHealth.tableNameSamples(visible, names.length);
     }
-    function buildSqlTemplateHealthItem(mode, hasActiveChat) {
+    function buildSqlTemplateHealthItem(mode, hasActiveChat, showDeveloperDiagnostics) {
         const action = { label: dashboardCopy.sqlHealth.action, pageId: "form-fill" };
         const sqlEnabled = mode === "sqlite";
         if (!hasActiveChat) {
@@ -80630,18 +80634,18 @@ Expected function or array of functions, received type ${typeof value}.`
                 badge: sqlEnabled
                     ? dashboardCopy.sqlHealth.pendingBadge
                     : dashboardCopy.sqlHealth.disabledBadge,
-                kind: sqlEnabled ? "warning" : "info",
+                kind: "info",
                 summary: dashboardCopy.sqlHealth.noTemplatesSummary(sqlEnabled),
                 action,
             });
         }
         if (!sqlEnabled) {
-            if (check.ddlCount > 0) {
+            if (check.ddlCount > 0 && showDeveloperDiagnostics) {
                 return makeHealthItem({
                     key: "sql-template",
                     title: dashboardCopy.sqlHealth.title,
                     badge: dashboardCopy.sqlHealth.looksSqlBadge,
-                    kind: "warning",
+                    kind: "info",
                     summary: dashboardCopy.sqlHealth.looksSqlSummary(check.ddlCount, check.total),
                     action,
                 });
@@ -80649,9 +80653,13 @@ Expected function or array of functions, received type ${typeof value}.`
             return makeHealthItem({
                 key: "sql-template",
                 title: dashboardCopy.sqlHealth.title,
-                badge: dashboardCopy.sqlHealth.nativeMatchBadge,
-                kind: "ok",
-                summary: dashboardCopy.sqlHealth.nativeMatchSummary(check.total),
+                badge: check.ddlCount > 0
+                    ? dashboardCopy.sqlHealth.nativeModeBadge
+                    : dashboardCopy.sqlHealth.nativeMatchBadge,
+                kind: check.ddlCount > 0 ? "info" : "ok",
+                summary: check.ddlCount > 0
+                    ? dashboardCopy.sqlHealth.nativeModeSummary(check.total)
+                    : dashboardCopy.sqlHealth.nativeMatchSummary(check.total),
             });
         }
         if (check.missingDdlNames.length > 0) {
@@ -80689,7 +80697,7 @@ Expected function or array of functions, received type ${typeof value}.`
                 key: "vector",
                 title: dashboardCopy.vectorHealth.title,
                 badge: dashboardCopy.vectorHealth.disabledBadge,
-                kind: "ok",
+                kind: "info",
                 summary: dashboardCopy.vectorHealth.disabledSummary,
             });
         }
@@ -80766,7 +80774,7 @@ Expected function or array of functions, received type ${typeof value}.`
             ? dashboardCopy.logs.genericError
             : dashboardCopy.logs.genericWarning;
     }
-    function buildLogHealthItem() {
+    function buildLogHealthItem(showDeveloperDiagnostics) {
         const logs = getAllLogs();
         const errorEntries = logs.filter((entry) => entry.level === "error");
         const warnCount = logs.filter((entry) => entry.level === "warn").length;
@@ -80776,7 +80784,7 @@ Expected function or array of functions, received type ${typeof value}.`
                 title: dashboardCopy.logs.title,
                 badge: dashboardCopy.logs.noErrorBadge,
                 kind: "ok",
-                summary: dashboardCopy.logs.noErrorSummary(warnCount),
+                summary: dashboardCopy.logs.noErrorSummary(showDeveloperDiagnostics ? warnCount : 0, showDeveloperDiagnostics),
             });
         }
         const latest = errorEntries[errorEntries.length - 1];
@@ -80987,12 +80995,13 @@ Expected function or array of functions, received type ${typeof value}.`
             void dataRefreshTick.value;
             void logRefreshTick.value;
             const hasActiveChat = hasActiveChatContext(chatFileIdentifier.value);
+            const showDeveloperDiagnostics = developerOptionsEnabled.value === true;
             return [
                 buildApiHealthItem(coreApisReady.value),
                 buildTableHealthItem(tableRows.value, hasTables.value, aiMessageCount.value, hasActiveChat),
-                buildSqlTemplateHealthItem(storageMode.value, hasActiveChat),
+                buildSqlTemplateHealthItem(storageMode.value, hasActiveChat, showDeveloperDiagnostics),
                 buildVectorHealthItem(),
-                buildLogHealthItem(),
+                buildLogHealthItem(showDeveloperDiagnostics),
             ];
         });
         const contentReplaceGateEnabled = computed(() => {
@@ -81177,8 +81186,8 @@ Expected function or array of functions, received type ${typeof value}.`
         }
     });
 
-    injectSfcStyle("\n.acu-v2-dashboard-page[data-v-0210068e] {\r\n  min-height: 100%;\r\n  min-width: 0;\r\n  padding: 20px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 18px;\n}\n.acu-v2-dashboard-page__toggle-list[data-v-0210068e] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 14px;\r\n  margin-top: 14px;\n}\n.acu-v2-dashboard-page__health-list[data-v-0210068e] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-dashboard-page__health-item[data-v-0210068e] {\r\n  min-width: 0;\r\n  display: grid;\r\n  grid-template-columns: 30px minmax(0, 1fr) max-content;\r\n  column-gap: 10px;\r\n  row-gap: 8px;\r\n  align-items: center;\r\n  padding: 10px;\r\n  border: 1px solid var(--acu-border);\r\n  border-radius: var(--acu-radius-md);\r\n  background: var(--acu-bg-1);\r\n  transition:\r\n    border-color 0.15s ease,\r\n    background 0.15s ease;\n}\n.acu-v2-dashboard-page__health-item--error[data-v-0210068e] {\r\n  border-color: color-mix(in srgb, var(--acu-danger) 38%, var(--acu-border));\n}\n.acu-v2-dashboard-page__health-item--warning[data-v-0210068e] {\r\n  border-color: color-mix(in srgb, var(--acu-warning) 36%, var(--acu-border));\n}\n.acu-v2-dashboard-page__health-icon[data-v-0210068e] {\r\n  width: 30px;\r\n  height: 30px;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: var(--acu-bg-2);\r\n  color: var(--acu-text-2);\n}\n.acu-v2-dashboard-page__health-item--ok .acu-v2-dashboard-page__health-icon[data-v-0210068e] {\r\n  color: var(--acu-success);\r\n  background: color-mix(in srgb, var(--acu-success) 10%, transparent);\n}\n.acu-v2-dashboard-page__health-item--warning\r\n  .acu-v2-dashboard-page__health-icon[data-v-0210068e] {\r\n  color: var(--acu-warning);\r\n  background: color-mix(in srgb, var(--acu-warning) 12%, transparent);\n}\n.acu-v2-dashboard-page__health-item--error .acu-v2-dashboard-page__health-icon[data-v-0210068e] {\r\n  color: var(--acu-danger);\r\n  background: color-mix(in srgb, var(--acu-danger) 12%, transparent);\n}\n.acu-v2-dashboard-page__health-body[data-v-0210068e] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 4px;\n}\n.acu-v2-dashboard-page__health-heading[data-v-0210068e] {\r\n  min-width: 0;\n}\n.acu-v2-dashboard-page__health-heading strong[data-v-0210068e] {\r\n  min-width: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  font-weight: 650;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-v2-dashboard-page__health-body p[data-v-0210068e] {\r\n  margin: 0;\r\n  color: var(--acu-text-2);\r\n  line-height: 1.55;\n}\n.acu-v2-dashboard-page__health-side[data-v-0210068e] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: flex-end;\r\n  gap: 8px;\r\n  justify-self: end;\n}\n.acu-v2-dashboard-page__health-action[data-v-0210068e] {\r\n  white-space: nowrap;\n}\n@media (max-width: 860px) {\n.acu-v2-dashboard-page[data-v-0210068e] {\r\n    padding: 14px;\n}\n.acu-v2-dashboard-page__health-item[data-v-0210068e] {\r\n    grid-template-columns: 30px minmax(0, 1fr);\r\n    align-items: center;\n}\n.acu-v2-dashboard-page__health-side[data-v-0210068e] {\r\n    grid-column: 2;\r\n    align-items: flex-start;\r\n    justify-self: start;\r\n    flex-direction: row;\r\n    flex-wrap: wrap;\n}\n.acu-v2-dashboard-page__health-action[data-v-0210068e] {\r\n    justify-self: start;\n}\n}\r\n", "src/presentation-v2/pages/DashboardPage.vue#style-0-0210068e");
-    var DashboardPage_vue_vue_type_style_index_0_scoped_0210068e_lang = null;
+    injectSfcStyle("\n.acu-v2-dashboard-page[data-v-c976a8aa] {\r\n  min-height: 100%;\r\n  min-width: 0;\r\n  padding: 20px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 18px;\n}\n.acu-v2-dashboard-page__toggle-list[data-v-c976a8aa] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 14px;\r\n  margin-top: 14px;\n}\n.acu-v2-dashboard-page__health-list[data-v-c976a8aa] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-dashboard-page__health-item[data-v-c976a8aa] {\r\n  min-width: 0;\r\n  display: grid;\r\n  grid-template-columns: 30px minmax(0, 1fr) max-content;\r\n  column-gap: 10px;\r\n  row-gap: 8px;\r\n  align-items: center;\r\n  padding: 10px;\r\n  border: 1px solid var(--acu-border);\r\n  border-radius: var(--acu-radius-md);\r\n  background: var(--acu-bg-1);\r\n  transition:\r\n    border-color 0.15s ease,\r\n    background 0.15s ease;\n}\n.acu-v2-dashboard-page__health-item--error[data-v-c976a8aa] {\r\n  border-color: color-mix(in srgb, var(--acu-danger) 38%, var(--acu-border));\n}\n.acu-v2-dashboard-page__health-icon[data-v-c976a8aa] {\n  width: 30px;\r\n  height: 30px;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: var(--acu-bg-2);\r\n  color: var(--acu-text-2);\n}\n.acu-v2-dashboard-page__health-item--ok .acu-v2-dashboard-page__health-icon[data-v-c976a8aa] {\r\n  color: var(--acu-success);\r\n  background: color-mix(in srgb, var(--acu-success) 10%, transparent);\n}\n.acu-v2-dashboard-page__health-item--warning\r\n  .acu-v2-dashboard-page__health-icon[data-v-c976a8aa] {\r\n  color: var(--acu-warning);\r\n  background: color-mix(in srgb, var(--acu-warning) 12%, transparent);\n}\n.acu-v2-dashboard-page__health-item--error .acu-v2-dashboard-page__health-icon[data-v-c976a8aa] {\r\n  color: var(--acu-danger);\r\n  background: color-mix(in srgb, var(--acu-danger) 12%, transparent);\n}\n.acu-v2-dashboard-page__health-body[data-v-c976a8aa] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 4px;\n}\n.acu-v2-dashboard-page__health-heading[data-v-c976a8aa] {\r\n  min-width: 0;\n}\n.acu-v2-dashboard-page__health-heading strong[data-v-c976a8aa] {\r\n  min-width: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  font-weight: 650;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-v2-dashboard-page__health-body p[data-v-c976a8aa] {\r\n  margin: 0;\r\n  color: var(--acu-text-2);\r\n  line-height: 1.55;\n}\n.acu-v2-dashboard-page__health-side[data-v-c976a8aa] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  align-items: flex-end;\r\n  gap: 8px;\r\n  justify-self: end;\n}\n.acu-v2-dashboard-page__health-action[data-v-c976a8aa] {\r\n  white-space: nowrap;\n}\n@media (max-width: 860px) {\n.acu-v2-dashboard-page[data-v-c976a8aa] {\r\n    padding: 14px;\n}\n.acu-v2-dashboard-page__health-item[data-v-c976a8aa] {\r\n    grid-template-columns: 30px minmax(0, 1fr);\r\n    align-items: center;\n}\n.acu-v2-dashboard-page__health-side[data-v-c976a8aa] {\r\n    grid-column: 2;\r\n    align-items: flex-start;\r\n    justify-self: start;\r\n    flex-direction: row;\r\n    flex-wrap: wrap;\n}\n.acu-v2-dashboard-page__health-action[data-v-c976a8aa] {\r\n    justify-self: start;\n}\n}\r\n", "src/presentation-v2/pages/DashboardPage.vue#style-0-c976a8aa");
+    var DashboardPage_vue_vue_type_style_index_0_scoped_c976a8aa_lang = null;
 
     const _hoisted_1$w = { class: "acu-v2-dashboard-page" };
     const _hoisted_2$q = { class: "acu-v2-dashboard-page__health-list" };
@@ -81329,7 +81338,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		_: 1
     	})]);
     }
-    var DashboardPage = /* @__PURE__ */ _export_sfc(_sfc_main$w, [["render", _sfc_render$w], ["__scopeId", "data-v-0210068e"]]);
+    var DashboardPage = /* @__PURE__ */ _export_sfc(_sfc_main$w, [["render", _sfc_render$w], ["__scopeId", "data-v-c976a8aa"]]);
 
     var _sfc_main$v = /*@__PURE__*/ defineComponent({
         ...{ inheritAttrs: false },
