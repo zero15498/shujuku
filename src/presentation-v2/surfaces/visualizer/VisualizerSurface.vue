@@ -455,6 +455,7 @@ import { useVisualizerData } from "../../composables/visualizer/useVisualizerDat
 import { useVisualizerSave } from "../../composables/visualizer/useVisualizerSave";
 import { useDialogStore } from "../../stores/dialog-store";
 import { useVisualizerStore } from "../../stores/visualizer-store";
+import { logDebug_ACU, logWarn_ACU } from "../../../shared/utils";
 import VisualizerAssistantPanel from "./VisualizerAssistantPanel.vue";
 import VisualizerConfigPanels from "./VisualizerConfigPanels.vue";
 import VisualizerGlobalInjectionPanels from "./VisualizerGlobalInjectionPanels.vue";
@@ -465,6 +466,7 @@ const visualizer = useVisualizerStore();
 const dialogStore = useDialogStore();
 const data = useVisualizerData();
 const config = useVisualizerConfigEditing();
+const surfaceSetupStartedAt = nowMs();
 const emit = defineEmits<{
   (event: "close"): void;
 }>();
@@ -476,6 +478,22 @@ const VISUALIZER_MOBILE_NAV_LEAVE_MS = 150;
 const VISUALIZER_DATA_PAGE_SIZE = 50;
 let mobileNavCloseTimer: ReturnType<typeof setTimeout> | undefined;
 let paginationResizeObserver: ResizeObserver | undefined;
+let pendingModeChange:
+  | { startedAt: number; from: string; to: string }
+  | null = null;
+let pendingSheetChange:
+  | { startedAt: number; from: string | null; to: string }
+  | null = null;
+
+function nowMs(): number {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
+}
+
+function formatMs(value: number): string {
+  return `${Math.round(value)}ms`;
+}
 
 const save = useVisualizerSave({
   requestGlobalPresetName(defaultName) {
@@ -508,6 +526,16 @@ const modes: Array<{ value: "data" | "config" | "assistant"; label: string }> =
 
 function setWorkspaceMode(value: string): void {
   if (value === "data" || value === "config" || value === "assistant") {
+    if (value !== visualizer.mode) {
+      pendingModeChange = {
+        startedAt: nowMs(),
+        from: visualizer.mode,
+        to: value,
+      };
+      logDebug_ACU(
+        `[VisualizerPerf] modeSwitchStart from=${visualizer.mode} to=${value} ${getRenderStats()}`,
+      );
+    }
     visualizer.setMode(value);
   }
 }
@@ -557,6 +585,16 @@ function clearMobileNavCloseTimer(): void {
 }
 
 function selectNavSheet(key: string): void {
+  if (key !== visualizer.currentSheetKey) {
+    pendingSheetChange = {
+      startedAt: nowMs(),
+      from: visualizer.currentSheetKey,
+      to: key,
+    };
+    logDebug_ACU(
+      `[VisualizerPerf] sheetSwitchStart from=${visualizer.currentSheetKey || 'none'} to=${key} ${getRenderStats()}`,
+    );
+  }
   visualizer.selectSheet(key);
   closeMobileNav();
 }
@@ -928,6 +966,59 @@ const saveDisabled = computed(
   () => visualizer.isLoading || !!visualizer.loadError || !visualizer.tempData,
 );
 
+function getFirstPageTextChars(): number {
+  const colCount = headers.value.length;
+  return visibleDataRows.value.reduce((total, row) => {
+    if (!Array.isArray(row)) return total;
+    let next = total;
+    for (let colIndex = 0; colIndex < colCount; colIndex += 1) {
+      next += String(row[colIndex + 1] ?? "").length;
+    }
+    return next;
+  }, 0);
+}
+
+function getRenderStats(): string {
+  const fieldCount = rows.value.reduce((total, row) => total + row.fields.length, 0);
+  const surfaceEl = workspaceRef.value?.closest(".acu-visualizer-surface") as HTMLElement | null;
+  const docEl = surfaceEl?.ownerDocument?.documentElement ?? null;
+  const domCards = workspaceRef.value?.querySelectorAll(".acu-visualizer-surface__data-card").length ?? 0;
+  const domFields = workspaceRef.value?.querySelectorAll(".acu-visualizer-surface__field").length ?? 0;
+  const domIconButtons = workspaceRef.value?.querySelectorAll(".acu-icon-btn").length ?? 0;
+  const domPanels = workspaceRef.value?.querySelectorAll(".acu-panel").length ?? 0;
+  const domButtons = workspaceRef.value?.querySelectorAll("button").length ?? 0;
+  const domInputs = workspaceRef.value?.querySelectorAll("input").length ?? 0;
+  const domTextareas = workspaceRef.value?.querySelectorAll("textarea").length ?? 0;
+  const surfaceSize = surfaceEl
+    ? `${surfaceEl.clientWidth}x${surfaceEl.clientHeight}`
+    : "unknown";
+  const workspaceSize = workspaceRef.value
+    ? `${workspaceRef.value.clientWidth}x${workspaceRef.value.clientHeight}`
+    : "unknown";
+  const docSize = docEl
+    ? `${docEl.clientWidth}x${docEl.clientHeight}`
+    : "unknown";
+  const viewport = typeof window === "undefined"
+    ? "unknown"
+    : `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`;
+  return `mode=${visualizer.mode} rows=${rowCount.value} cols=${headers.value.length} page=${currentDataPage.value}/${dataPageCount.value} visibleRows=${visibleDataRows.value.length} fields=${fieldCount} textChars=${getFirstPageTextChars()} domCards=${domCards} domFields=${domFields} domPanels=${domPanels} domButtons=${domButtons} domIconButtons=${domIconButtons} domInputs=${domInputs} domTextareas=${domTextareas} viewport=${viewport} docSize=${docSize} surfaceSize=${surfaceSize} workspaceSize=${workspaceSize}`;
+}
+
+async function logInteractionRender(
+  trigger: "mode" | "sheet",
+  startedAt: number,
+  detail: string,
+): Promise<void> {
+  const renderStartedAt = nowMs();
+  await nextTick();
+  updatePaginationWidth();
+  const renderElapsed = nowMs() - renderStartedAt;
+  const totalElapsed = nowMs() - startedAt;
+  const message = `[VisualizerPerf] interactionReady trigger=${trigger} ${detail} renderTick=${formatMs(renderElapsed)} total=${formatMs(totalElapsed)} ${getRenderStats()}`;
+  logDebug_ACU(message);
+  if (totalElapsed >= 500 || renderElapsed >= 300) logWarn_ACU(message);
+}
+
 async function requestAddSheet(): Promise<void> {
   const name = await openInputDialog({
     title: "新增表格",
@@ -1107,8 +1198,24 @@ function openCloseDirtyDialog(): Promise<"save" | "discard" | "cancel"> {
 }
 
 onMounted(() => {
-  void data.loadFromCurrentContext();
+  const mountedAt = nowMs();
+  logDebug_ACU(
+    `[VisualizerPerf] surfaceMounted setupToMounted=${formatMs(mountedAt - surfaceSetupStartedAt)}`,
+  );
   void nextTick(updatePaginationWidth);
+  void (async () => {
+    const loadStartedAt = nowMs();
+    const loaded = await data.loadFromCurrentContext();
+    const loadElapsed = nowMs() - loadStartedAt;
+    const renderStartedAt = nowMs();
+    await nextTick();
+    updatePaginationWidth();
+    const renderElapsed = nowMs() - renderStartedAt;
+    const totalElapsed = nowMs() - surfaceSetupStartedAt;
+    const message = `[VisualizerPerf] surfaceReady loaded=${loaded} loadAwait=${formatMs(loadElapsed)} firstRenderTick=${formatMs(renderElapsed)} totalSinceSetup=${formatMs(totalElapsed)} ${getRenderStats()}`;
+    logDebug_ACU(message);
+    if (totalElapsed >= 1000 || renderElapsed >= 500) logWarn_ACU(message);
+  })();
 });
 
 onBeforeUnmount(() => {
@@ -1135,16 +1242,36 @@ watch(
 
 watch(
   () => visualizer.currentSheetKey,
-  () => {
+  (key, previousKey) => {
     currentDataPage.value = 1;
     clearDataCellEditing();
+    const pending = pendingSheetChange;
+    pendingSheetChange = null;
+    if (!previousKey && !pending) return;
+    const startedAt = pending?.startedAt ?? nowMs();
+    const from = pending?.from ?? previousKey ?? null;
+    const to = key ?? pending?.to ?? null;
+    void logInteractionRender(
+      "sheet",
+      startedAt,
+      `from=${from || "none"} to=${to || "none"}`,
+    );
   },
 );
 
 watch(
   () => visualizer.mode,
-  () => {
+  (mode, previousMode) => {
     clearDataCellEditing();
+    const pending = pendingModeChange;
+    pendingModeChange = null;
+    if (!previousMode && !pending) return;
+    const startedAt = pending?.startedAt ?? nowMs();
+    void logInteractionRender(
+      "mode",
+      startedAt,
+      `from=${pending?.from ?? previousMode} to=${mode}`,
+    );
   },
 );
 

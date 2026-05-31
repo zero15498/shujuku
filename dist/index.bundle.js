@@ -76087,7 +76087,17 @@ Expected function or array of functions, received type ${typeof value}.`
         },
     });
 
+    function nowMs$1() {
+        return typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
+    }
+    function formatMs$1(value) {
+        return `${Math.round(value)}ms`;
+    }
     async function openVisualizerSurface_ACU(options = {}) {
+        const startedAt = nowMs$1();
+        const source = options.source ?? 'external-api';
         try {
             const existingPinia = getAcuV2PiniaForBridge();
             const wasShellOpen = existingPinia
@@ -76096,17 +76106,26 @@ Expected function or array of functions, received type ${typeof value}.`
             const previousPageId = existingPinia
                 ? useRouterStore(existingPinia).activePageId
                 : null;
+            const openAppStartedAt = nowMs$1();
             await openAcuV2App();
+            const openAppElapsed = nowMs$1() - openAppStartedAt;
             const pinia = getAcuV2PiniaForBridge();
             if (!pinia)
                 throw new Error('v2 app was not mounted.');
             const router = useRouterStore(pinia);
             const visualizer = useVisualizerStore(pinia);
+            const storeOpenStartedAt = nowMs$1();
             visualizer.open({
-                source: options.source ?? 'external-api',
+                source,
                 wasShellOpen,
                 previousPageId: previousPageId ?? router.activePageId,
             });
+            const storeOpenElapsed = nowMs$1() - storeOpenStartedAt;
+            const totalElapsed = nowMs$1() - startedAt;
+            const message = `[VisualizerPerf] openSurface source=${source} wasMounted=${!!existingPinia} wasShellOpen=${wasShellOpen} previousPage=${previousPageId ?? router.activePageId ?? 'none'} openApp=${formatMs$1(openAppElapsed)} storeOpen=${formatMs$1(storeOpenElapsed)} total=${formatMs$1(totalElapsed)}`;
+            logDebug_ACU(message);
+            if (totalElapsed >= 1000)
+                logWarn_ACU(message);
             return true;
         }
         catch (error) {
@@ -87495,6 +87514,29 @@ Expected function or array of functions, received type ${typeof value}.`
     function hasSheetData(data) {
         return !!data && typeof data === 'object' && Object.keys(data).some(key => key.startsWith('sheet_'));
     }
+    function nowMs() {
+        return typeof performance !== 'undefined' && typeof performance.now === 'function'
+            ? performance.now()
+            : Date.now();
+    }
+    function formatMs(value) {
+        return `${Math.round(value)}ms`;
+    }
+    function getSheetKeys(data) {
+        return data && typeof data === 'object'
+            ? Object.keys(data).filter(key => key.startsWith('sheet_'))
+            : [];
+    }
+    function summarizeData(data, currentSheetKey) {
+        const keys = getSheetKeys(data);
+        const selectedKey = currentSheetKey && data?.[currentSheetKey]
+            ? currentSheetKey
+            : keys[0] || '';
+        const sheet = selectedKey ? data?.[selectedKey] : null;
+        const content = Array.isArray(sheet?.content) ? sheet.content : [];
+        const header = Array.isArray(content[0]) ? content[0] : [];
+        return `sheets=${keys.length} current=${selectedKey || 'none'} rows=${Math.max(0, content.length - 1)} cols=${Math.max(0, header.length - 1)}`;
+    }
     function cloneData$2(value) {
         return JSON.parse(JSON.stringify(value));
     }
@@ -87564,27 +87606,55 @@ Expected function or array of functions, received type ${typeof value}.`
             }
         }
         async function loadFromCurrentContext() {
+            const startedAt = nowMs();
             visualizer.setLoading(true);
             refreshTemplatePresetLabel();
             try {
                 let data = currentJsonTableData_ACU;
+                const hadRuntimeSheetData = hasSheetData(data);
+                let loadMessagesElapsed = 0;
+                let mergeElapsed = 0;
+                let reorderElapsed = 0;
                 if (!hasSheetData(data)) {
+                    const loadMessagesStartedAt = nowMs();
                     await loadAllChatMessages_ACU();
+                    loadMessagesElapsed = nowMs() - loadMessagesStartedAt;
+                    const mergeStartedAt = nowMs();
                     const merged = await mergeAllIndependentTables_ACU();
+                    mergeElapsed = nowMs() - mergeStartedAt;
                     if (hasSheetData(merged)) {
+                        const reorderStartedAt = nowMs();
                         const stableKeys = getSortedSheetKeys_ACU(merged);
                         data = reorderDataBySheetKeys_ACU(merged, stableKeys);
                         _set_currentJsonTableData_ACU(cloneData$2(data));
+                        reorderElapsed = nowMs() - reorderStartedAt;
                     }
                 }
                 if (!hasSheetData(data)) {
+                    const snapshotStartedAt = nowMs();
                     visualizer.loadSnapshot({ mate: { type: 'chatSheets', version: 1 } }, []);
+                    const snapshotElapsed = nowMs() - snapshotStartedAt;
+                    const lockStartedAt = nowMs();
                     visualizer.loadLockDrafts({});
+                    const lockElapsed = nowMs() - lockStartedAt;
+                    const totalElapsed = nowMs() - startedAt;
+                    logDebug_ACU(`[VisualizerPerf] loadData empty runtimeHadSheets=${hadRuntimeSheetData} loadMessages=${formatMs(loadMessagesElapsed)} merge=${formatMs(mergeElapsed)} reorder=${formatMs(reorderElapsed)} snapshot=${formatMs(snapshotElapsed)} locks=${formatMs(lockElapsed)} total=${formatMs(totalElapsed)}`);
                     return true;
                 }
+                const orderedStartedAt = nowMs();
                 const orderedKeys = buildOrderedKeys(data);
+                const orderedElapsed = nowMs() - orderedStartedAt;
+                const snapshotStartedAt = nowMs();
                 visualizer.loadSnapshot(data, orderedKeys);
+                const snapshotElapsed = nowMs() - snapshotStartedAt;
+                const lockStartedAt = nowMs();
                 visualizer.loadLockDrafts(buildLockDrafts(orderedKeys));
+                const lockElapsed = nowMs() - lockStartedAt;
+                const totalElapsed = nowMs() - startedAt;
+                const message = `[VisualizerPerf] loadData runtimeHadSheets=${hadRuntimeSheetData} historyFallback=${!hadRuntimeSheetData} loadMessages=${formatMs(loadMessagesElapsed)} merge=${formatMs(mergeElapsed)} reorder=${formatMs(reorderElapsed)} order=${formatMs(orderedElapsed)} snapshot=${formatMs(snapshotElapsed)} locks=${formatMs(lockElapsed)} total=${formatMs(totalElapsed)} ${summarizeData(data, visualizer.currentSheetKey)}`;
+                logDebug_ACU(message);
+                if (totalElapsed >= 1000)
+                    logWarn_ACU(message);
                 return true;
             }
             catch (error) {
@@ -89759,6 +89829,7 @@ Expected function or array of functions, received type ${typeof value}.`
             const dialogStore = useDialogStore();
             const data = useVisualizerData();
             const config = useVisualizerConfigEditing();
+            const surfaceSetupStartedAt = nowMs();
             const emit = __emit;
             const isMobileNavRendered = ref(false);
             const isMobileNavClosing = ref(false);
@@ -89766,6 +89837,16 @@ Expected function or array of functions, received type ${typeof value}.`
             const paginationRef = ref(null);
             let mobileNavCloseTimer;
             let paginationResizeObserver;
+            let pendingModeChange = null;
+            let pendingSheetChange = null;
+            function nowMs() {
+                return typeof performance !== "undefined" && typeof performance.now === "function"
+                    ? performance.now()
+                    : Date.now();
+            }
+            function formatMs(value) {
+                return `${Math.round(value)}ms`;
+            }
             const save = useVisualizerSave({
                 requestGlobalPresetName(defaultName) {
                     return openInputDialog({
@@ -89793,6 +89874,14 @@ Expected function or array of functions, received type ${typeof value}.`
             ];
             function setWorkspaceMode(value) {
                 if (value === "data" || value === "config" || value === "assistant") {
+                    if (value !== visualizer.mode) {
+                        pendingModeChange = {
+                            startedAt: nowMs(),
+                            from: visualizer.mode,
+                            to: value,
+                        };
+                        logDebug_ACU(`[VisualizerPerf] modeSwitchStart from=${visualizer.mode} to=${value} ${getRenderStats()}`);
+                    }
                     visualizer.setMode(value);
                 }
             }
@@ -89825,6 +89914,14 @@ Expected function or array of functions, received type ${typeof value}.`
                 mobileNavCloseTimer = undefined;
             }
             function selectNavSheet(key) {
+                if (key !== visualizer.currentSheetKey) {
+                    pendingSheetChange = {
+                        startedAt: nowMs(),
+                        from: visualizer.currentSheetKey,
+                        to: key,
+                    };
+                    logDebug_ACU(`[VisualizerPerf] sheetSwitchStart from=${visualizer.currentSheetKey || 'none'} to=${key} ${getRenderStats()}`);
+                }
                 visualizer.selectSheet(key);
                 closeMobileNav();
             }
@@ -90129,6 +90226,54 @@ Expected function or array of functions, received type ${typeof value}.`
                 return "载入后可以编辑数据卡片，并选择保存到当前聊天或全局模板。";
             });
             const saveDisabled = computed(() => visualizer.isLoading || !!visualizer.loadError || !visualizer.tempData);
+            function getFirstPageTextChars() {
+                const colCount = headers.value.length;
+                return visibleDataRows.value.reduce((total, row) => {
+                    if (!Array.isArray(row))
+                        return total;
+                    let next = total;
+                    for (let colIndex = 0; colIndex < colCount; colIndex += 1) {
+                        next += String(row[colIndex + 1] ?? "").length;
+                    }
+                    return next;
+                }, 0);
+            }
+            function getRenderStats() {
+                const fieldCount = rows.value.reduce((total, row) => total + row.fields.length, 0);
+                const surfaceEl = workspaceRef.value?.closest(".acu-visualizer-surface");
+                const docEl = surfaceEl?.ownerDocument?.documentElement ?? null;
+                const domCards = workspaceRef.value?.querySelectorAll(".acu-visualizer-surface__data-card").length ?? 0;
+                const domFields = workspaceRef.value?.querySelectorAll(".acu-visualizer-surface__field").length ?? 0;
+                const domIconButtons = workspaceRef.value?.querySelectorAll(".acu-icon-btn").length ?? 0;
+                const domPanels = workspaceRef.value?.querySelectorAll(".acu-panel").length ?? 0;
+                const domButtons = workspaceRef.value?.querySelectorAll("button").length ?? 0;
+                const domInputs = workspaceRef.value?.querySelectorAll("input").length ?? 0;
+                const domTextareas = workspaceRef.value?.querySelectorAll("textarea").length ?? 0;
+                const surfaceSize = surfaceEl
+                    ? `${surfaceEl.clientWidth}x${surfaceEl.clientHeight}`
+                    : "unknown";
+                const workspaceSize = workspaceRef.value
+                    ? `${workspaceRef.value.clientWidth}x${workspaceRef.value.clientHeight}`
+                    : "unknown";
+                const docSize = docEl
+                    ? `${docEl.clientWidth}x${docEl.clientHeight}`
+                    : "unknown";
+                const viewport = typeof window === "undefined"
+                    ? "unknown"
+                    : `${window.innerWidth}x${window.innerHeight}@${window.devicePixelRatio || 1}`;
+                return `mode=${visualizer.mode} rows=${rowCount.value} cols=${headers.value.length} page=${currentDataPage.value}/${dataPageCount.value} visibleRows=${visibleDataRows.value.length} fields=${fieldCount} textChars=${getFirstPageTextChars()} domCards=${domCards} domFields=${domFields} domPanels=${domPanels} domButtons=${domButtons} domIconButtons=${domIconButtons} domInputs=${domInputs} domTextareas=${domTextareas} viewport=${viewport} docSize=${docSize} surfaceSize=${surfaceSize} workspaceSize=${workspaceSize}`;
+            }
+            async function logInteractionRender(trigger, startedAt, detail) {
+                const renderStartedAt = nowMs();
+                await nextTick();
+                updatePaginationWidth();
+                const renderElapsed = nowMs() - renderStartedAt;
+                const totalElapsed = nowMs() - startedAt;
+                const message = `[VisualizerPerf] interactionReady trigger=${trigger} ${detail} renderTick=${formatMs(renderElapsed)} total=${formatMs(totalElapsed)} ${getRenderStats()}`;
+                logDebug_ACU(message);
+                if (totalElapsed >= 500 || renderElapsed >= 300)
+                    logWarn_ACU(message);
+            }
             async function requestAddSheet() {
                 const name = await openInputDialog({
                     title: "新增表格",
@@ -90285,8 +90430,23 @@ Expected function or array of functions, received type ${typeof value}.`
                 }).then((value) => value || "cancel");
             }
             onMounted(() => {
-                void data.loadFromCurrentContext();
+                const mountedAt = nowMs();
+                logDebug_ACU(`[VisualizerPerf] surfaceMounted setupToMounted=${formatMs(mountedAt - surfaceSetupStartedAt)}`);
                 void nextTick(updatePaginationWidth);
+                void (async () => {
+                    const loadStartedAt = nowMs();
+                    const loaded = await data.loadFromCurrentContext();
+                    const loadElapsed = nowMs() - loadStartedAt;
+                    const renderStartedAt = nowMs();
+                    await nextTick();
+                    updatePaginationWidth();
+                    const renderElapsed = nowMs() - renderStartedAt;
+                    const totalElapsed = nowMs() - surfaceSetupStartedAt;
+                    const message = `[VisualizerPerf] surfaceReady loaded=${loaded} loadAwait=${formatMs(loadElapsed)} firstRenderTick=${formatMs(renderElapsed)} totalSinceSetup=${formatMs(totalElapsed)} ${getRenderStats()}`;
+                    logDebug_ACU(message);
+                    if (totalElapsed >= 1000 || renderElapsed >= 500)
+                        logWarn_ACU(message);
+                })();
             });
             onBeforeUnmount(() => {
                 clearMobileNavCloseTimer();
@@ -90301,12 +90461,26 @@ Expected function or array of functions, received type ${typeof value}.`
                     return;
                 void data.loadFromCurrentContext();
             });
-            watch(() => visualizer.currentSheetKey, () => {
+            watch(() => visualizer.currentSheetKey, (key, previousKey) => {
                 currentDataPage.value = 1;
                 clearDataCellEditing();
+                const pending = pendingSheetChange;
+                pendingSheetChange = null;
+                if (!previousKey && !pending)
+                    return;
+                const startedAt = pending?.startedAt ?? nowMs();
+                const from = pending?.from ?? previousKey ?? null;
+                const to = key ?? pending?.to ?? null;
+                void logInteractionRender("sheet", startedAt, `from=${from || "none"} to=${to || "none"}`);
             });
-            watch(() => visualizer.mode, () => {
+            watch(() => visualizer.mode, (mode, previousMode) => {
                 clearDataCellEditing();
+                const pending = pendingModeChange;
+                pendingModeChange = null;
+                if (!previousMode && !pending)
+                    return;
+                const startedAt = pending?.startedAt ?? nowMs();
+                void logInteractionRender("mode", startedAt, `from=${pending?.from ?? previousMode} to=${mode}`);
             });
             watch(currentDataPage, (page) => {
                 dataPageJumpValue.value = page;
@@ -90319,14 +90493,14 @@ Expected function or array of functions, received type ${typeof value}.`
                     currentDataPage.value = 1;
                 clearDataCellEditing();
             });
-            const __returned__ = { visualizer, dialogStore, data, config, emit, isMobileNavRendered, isMobileNavClosing, workspaceRef, paginationRef, VISUALIZER_MOBILE_NAV_LEAVE_MS, VISUALIZER_DATA_PAGE_SIZE, get mobileNavCloseTimer() { return mobileNavCloseTimer; }, set mobileNavCloseTimer(v) { mobileNavCloseTimer = v; }, get paginationResizeObserver() { return paginationResizeObserver; }, set paginationResizeObserver(v) { paginationResizeObserver = v; }, save, modes, setWorkspaceMode, isSheetEditingMode, currentSheetName, templatePresetLabel, isMobileNavOpen, openMobileNav, closeMobileNav, clearMobileNavCloseTimer, selectNavSheet, selectTableManagementNav, returnToCurrentSheet, moveSheet, headers, VISUALIZER_SHORT_FIELD_CHAR_LIMIT, activeDataCell, activeDataTextareaRef, editingColumnLayoutSnapshot, currentDataPage, dataPageJumpValue, paginationWidth, rowCount, dataPageSize, dataPageCount, isDataPaginated, dataPaginationSiblingWindow, dataPaginationItems, dataPageStartIndex, dataPageEndIndex, dataRangeText, visibleDataRows, scrollWorkspaceToTop, preserveWorkspaceScrollPosition, setDataPage, updateDataPageJumpValue, commitDataPageJumpValue, isShortDataField, getColumnIsShort, getEffectiveColumnIsShort, buildFieldLayoutRows, asTextarea, setActiveDataTextareaRef, isDataCellEditing, startDataCellEditing, stopDataCellEditing, clearDataCellEditing, rows, footerStatus, saveDisabled, requestAddSheet, requestDeleteSheet, deleteRow, addRow, refreshSpecialIndexColumnDraft, requestAddColumn, requestDeleteColumn, openInputDialog, openConfirmDialog, updatePaginationWidth, observePaginationWidth, openCloseDirtyDialog, AcuBadge, AcuButton, AcuIconButton, AcuInfoBanner, AcuInput, AcuPanel, AcuSegmentedControl, AcuTextarea, VisualizerAssistantPanel, VisualizerConfigPanels, VisualizerGlobalInjectionPanels, VisualizerNavigation, VisualizerTableManagementPanel };
+            const __returned__ = { visualizer, dialogStore, data, config, surfaceSetupStartedAt, emit, isMobileNavRendered, isMobileNavClosing, workspaceRef, paginationRef, VISUALIZER_MOBILE_NAV_LEAVE_MS, VISUALIZER_DATA_PAGE_SIZE, get mobileNavCloseTimer() { return mobileNavCloseTimer; }, set mobileNavCloseTimer(v) { mobileNavCloseTimer = v; }, get paginationResizeObserver() { return paginationResizeObserver; }, set paginationResizeObserver(v) { paginationResizeObserver = v; }, get pendingModeChange() { return pendingModeChange; }, set pendingModeChange(v) { pendingModeChange = v; }, get pendingSheetChange() { return pendingSheetChange; }, set pendingSheetChange(v) { pendingSheetChange = v; }, nowMs, formatMs, save, modes, setWorkspaceMode, isSheetEditingMode, currentSheetName, templatePresetLabel, isMobileNavOpen, openMobileNav, closeMobileNav, clearMobileNavCloseTimer, selectNavSheet, selectTableManagementNav, returnToCurrentSheet, moveSheet, headers, VISUALIZER_SHORT_FIELD_CHAR_LIMIT, activeDataCell, activeDataTextareaRef, editingColumnLayoutSnapshot, currentDataPage, dataPageJumpValue, paginationWidth, rowCount, dataPageSize, dataPageCount, isDataPaginated, dataPaginationSiblingWindow, dataPaginationItems, dataPageStartIndex, dataPageEndIndex, dataRangeText, visibleDataRows, scrollWorkspaceToTop, preserveWorkspaceScrollPosition, setDataPage, updateDataPageJumpValue, commitDataPageJumpValue, isShortDataField, getColumnIsShort, getEffectiveColumnIsShort, buildFieldLayoutRows, asTextarea, setActiveDataTextareaRef, isDataCellEditing, startDataCellEditing, stopDataCellEditing, clearDataCellEditing, rows, footerStatus, saveDisabled, getFirstPageTextChars, getRenderStats, logInteractionRender, requestAddSheet, requestDeleteSheet, deleteRow, addRow, refreshSpecialIndexColumnDraft, requestAddColumn, requestDeleteColumn, openInputDialog, openConfirmDialog, updatePaginationWidth, observePaginationWidth, openCloseDirtyDialog, AcuBadge, AcuButton, AcuIconButton, AcuInfoBanner, AcuInput, AcuPanel, AcuSegmentedControl, AcuTextarea, VisualizerAssistantPanel, VisualizerConfigPanels, VisualizerGlobalInjectionPanels, VisualizerNavigation, VisualizerTableManagementPanel };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-visualizer-surface[data-v-f2488d59] {\r\n  flex: 1 1 auto;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: grid;\r\n  grid-template-columns: 260px minmax(0, 1fr);\r\n  overflow: hidden;\r\n  background: var(--acu-bg-0);\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__sidebar[data-v-f2488d59] {\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 8px;\r\n  padding: 24px 12px 16px;\r\n  overflow-y: auto;\r\n  border-right: 1px solid var(--acu-border-2);\r\n  background: var(--acu-sidebar-bg);\n}\n.acu-visualizer-surface__main[data-v-f2488d59] {\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  overflow: hidden;\r\n  background: var(--acu-bg-0);\n}\n.acu-visualizer-surface__topbar[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  min-height: 50px;\r\n  padding: 8px 12px 8px 16px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  background: var(--acu-bg-0);\n}\n.acu-visualizer-surface__topbar-context[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  flex: 1 1 auto;\r\n  gap: 10px;\n}\n.acu-visualizer-surface__mobile-menu[data-v-f2488d59] {\r\n  display: none;\r\n  flex: 0 0 auto;\r\n  background: transparent;\r\n  color: var(--acu-text-2);\r\n  box-shadow: none;\n}\n.acu-visualizer-surface__mobile-menu[data-v-f2488d59]:hover:not(:disabled) {\r\n  background: transparent;\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__context-items[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  flex: 1 1 auto;\r\n  justify-content: flex-start;\r\n  gap: 16px;\n}\n.acu-visualizer-surface__context-item[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: grid;\r\n  gap: 2px;\n}\n.acu-visualizer-surface__context-item[data-v-f2488d59]:first-child {\r\n  flex: 0 1 auto;\r\n  max-width: min(560px, 42vw);\n}\n.acu-visualizer-surface__context-item + .acu-visualizer-surface__context-item[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  max-width: min(260px, 20vw);\n}\n.acu-visualizer-surface__context-item span[data-v-f2488d59] {\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  line-height: 1.2;\n}\n.acu-visualizer-surface__context-item strong[data-v-f2488d59] {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  color: var(--acu-text-1);\r\n  font-weight: 600;\r\n  line-height: 1.25;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__context-item:first-child strong[data-v-f2488d59] {\r\n  overflow: visible;\r\n  text-overflow: clip;\r\n  white-space: normal;\r\n  word-break: break-word;\n}\n.acu-visualizer-surface__context-badge[data-v-f2488d59] {\r\n  flex: 0 0 auto;\n}\n.acu-visualizer-surface__conflict[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  margin: 12px 16px 0;\n}\n.acu-visualizer-surface__conflict-actions[data-v-f2488d59] {\r\n  display: inline-flex;\r\n  flex-wrap: wrap;\r\n  gap: 6px;\r\n  margin-left: 8px;\n}\n.acu-visualizer-surface__data-toolbar[data-v-f2488d59],\n.acu-visualizer-surface__data-toolbar-actions[data-v-f2488d59],\n.acu-visualizer-surface__database-toolbar[data-v-f2488d59],\n.acu-visualizer-surface__pagination[data-v-f2488d59],\n.acu-visualizer-surface__pagination-pages[data-v-f2488d59],\n.acu-visualizer-surface__card-header[data-v-f2488d59] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n}\n.acu-visualizer-surface__workspace[data-v-f2488d59] {\r\n  flex: 1 1 auto;\r\n  min-height: 0;\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  overflow: auto;\r\n  padding: 16px;\n}\n.acu-visualizer-surface__loading[data-v-f2488d59] {\r\n  min-height: 140px;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  gap: 8px;\r\n  color: var(--acu-text-3);\n}\n.acu-visualizer-surface__mode-tabs[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  width: min(360px, 42vw);\n}\n.acu-visualizer-surface__close[data-v-f2488d59] {\r\n  width: 30px;\r\n  height: 30px;\r\n  flex: 0 0 auto;\r\n  border: 0;\r\n  background: transparent;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-page-title, 22px);\r\n  line-height: 1;\r\n  border-radius: var(--acu-radius-sm);\n}\n.acu-visualizer-surface__close[data-v-f2488d59]:hover {\r\n  background: var(--acu-hover-overlay);\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__data-toolbar[data-v-f2488d59] {\n  flex: 0 0 auto;\n  justify-content: space-between;\n  padding: 4px 0 0;\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__data-toolbar-actions[data-v-f2488d59] {\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n.acu-visualizer-surface__pagination[data-v-f2488d59] {\n  flex: 0 0 auto;\n  justify-content: center;\n  gap: 14px;\n  padding: 6px 0;\n  color: var(--acu-text-2);\n  font-size: var(--acu-font-size-body-lg, 13px);\n}\n.acu-visualizer-surface__pagination-pages[data-v-f2488d59] {\n  min-width: 0;\n  flex-wrap: wrap;\n  justify-content: center;\n  gap: 8px;\n}\n.acu-visualizer-surface__page-button[data-v-f2488d59] {\n  width: 34px;\n  min-width: 34px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid var(--acu-border);\n  background: var(--acu-bg-0);\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body-lg, 13px);\n  font-weight: 500;\n}\n.acu-visualizer-surface__page-button[data-v-f2488d59]:hover:not(:disabled) {\n  border-color: var(--acu-accent);\n  color: var(--acu-accent);\n}\n.acu-visualizer-surface__page-button--active[data-v-f2488d59],\n.acu-visualizer-surface__page-button--active[data-v-f2488d59]:hover:not(:disabled) {\n  border-color: var(--acu-accent);\n  background: var(--acu-accent);\n  color: var(--acu-on-accent);\n}\n.acu-visualizer-surface__page-button[data-v-f2488d59]:disabled:not(\n    .acu-visualizer-surface__page-button--active\n  ) {\n  border-color: var(--acu-border);\n  background: var(--acu-bg-0);\n  color: var(--acu-text-2);\n  opacity: 1;\n  cursor: default;\n}\n.acu-visualizer-surface__page-jump[data-v-f2488d59] {\n  flex: 0 0 64px;\n  width: 64px;\n}\n.acu-visualizer-surface__page-jump[data-v-f2488d59] .acu-input {\n  min-height: 34px;\n  border: 1px solid var(--acu-border) !important;\n  background: var(--acu-bg-0) !important;\n  text-align: center;\n  font-size: var(--acu-font-size-body-lg, 13px) !important;\n  font-variant-numeric: tabular-nums;\n}\n.acu-visualizer-surface__data-range[data-v-f2488d59] {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.acu-visualizer-surface__database-toolbar[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  padding: 0 0 4px;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__database-toolbar h2[data-v-f2488d59] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-page-title, 22px);\r\n  font-weight: 700;\r\n  line-height: 1.2;\n}\n.acu-visualizer-surface__database-toolbar p[data-v-f2488d59] {\r\n  margin: 5px 0 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: var(--acu-line-height-readable, 1.55);\n}\n.acu-visualizer-surface__empty[data-v-f2488d59] {\r\n  margin: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  line-height: 1.55;\n}\n.acu-visualizer-surface__card-grid[data-v-f2488d59] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));\r\n  gap: 12px;\n}\n.acu-visualizer-surface__data-card[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  height: 100%;\r\n  padding: 16px;\r\n  border: 1px solid var(--acu-border);\r\n  border-radius: var(--acu-radius-md);\r\n  background: var(--acu-bg-1);\n}\n.acu-visualizer-surface__card-header strong[data-v-f2488d59] {\r\n  color: var(--acu-text-1);\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-panel-title, 15px);\n}\n.acu-visualizer-surface__card-header span[data-v-f2488d59] {\r\n  min-width: 0;\r\n  margin-right: auto;\r\n  overflow: hidden;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__card-header[data-v-f2488d59] .acu-icon-btn {\r\n  background: transparent;\n}\n.acu-visualizer-surface__card-header[data-v-f2488d59]\r\n  .acu-icon-btn--default:hover:not(:disabled) {\r\n  background:\r\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\r\n    transparent;\n}\n.acu-visualizer-surface__card-header[data-v-f2488d59] .acu-icon-btn--accent {\r\n  background: var(--acu-accent-glow);\r\n  color: var(--acu-accent);\n}\n.acu-visualizer-surface__card-header[data-v-f2488d59]\r\n  .acu-icon-btn--danger:hover:not(:disabled) {\r\n  background: color-mix(in srgb, var(--acu-danger) 12%, transparent);\n}\n.acu-visualizer-surface__fields[data-v-f2488d59] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 8px;\n}\n.acu-visualizer-surface__field-row[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: grid;\r\n  grid-template-columns: repeat(2, minmax(0, 1fr));\r\n  gap: 8px;\r\n  align-items: stretch;\n}\n.acu-visualizer-surface__field-row.is-wide[data-v-f2488d59] {\r\n  grid-template-columns: minmax(0, 1fr);\n}\n.acu-visualizer-surface__field[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 4px;\r\n  padding: 2px;\r\n  border: 1px solid transparent;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\r\n  transition:\r\n    background 0.15s ease,\r\n    border-color 0.15s ease;\n}\n.acu-visualizer-surface__field[data-v-f2488d59] .acu-textarea {\n  flex: 1 1 auto;\n}\n.acu-visualizer-surface__field-preview[data-v-f2488d59] {\n  min-height: 34px;\n  box-sizing: border-box;\n  padding: 8px 10px;\n  border-radius: var(--acu-radius-sm);\n  background: var(--acu-bg-2);\n  color: var(--acu-text-1);\n  cursor: text;\n  display: -webkit-box;\n  overflow: hidden;\n  font-size: var(--acu-font-size-body, 12px);\n  line-height: 1.45;\n  white-space: pre-wrap;\n  word-break: break-word;\n  -webkit-box-orient: vertical;\n  -webkit-line-clamp: 4;\n  transition:\n    background 0.15s ease,\n    box-shadow 0.15s ease;\n}\n.acu-visualizer-surface__field-preview[data-v-f2488d59]:hover,\n.acu-visualizer-surface__field-preview[data-v-f2488d59]:focus-visible {\n  outline: none;\n  background:\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\n    var(--acu-bg-2);\n  box-shadow: 0 0 0 2px var(--acu-accent-glow);\n}\n.acu-visualizer-surface__field-preview.is-empty[data-v-f2488d59] {\n  color: var(--acu-text-3);\n}\n.acu-visualizer-surface__field-label[data-v-f2488d59] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 6px;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  font-weight: 600;\n}\n.acu-visualizer-surface__field-label > span[data-v-f2488d59]:first-child {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__field-locks[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  gap: 3px;\r\n  opacity: 0.44;\r\n  transition: opacity 0.15s ease;\n}\n.acu-visualizer-surface__field:hover .acu-visualizer-surface__field-locks[data-v-f2488d59],\r\n.acu-visualizer-surface__field:focus-within\r\n  .acu-visualizer-surface__field-locks[data-v-f2488d59],\r\n.acu-visualizer-surface__field.is-locked .acu-visualizer-surface__field-locks[data-v-f2488d59],\r\n.acu-visualizer-surface__field.is-special-index\r\n  .acu-visualizer-surface__field-locks[data-v-f2488d59] {\r\n  opacity: 1;\n}\n.acu-visualizer-surface__field-locks[data-v-f2488d59] .acu-icon-btn {\r\n  width: 24px;\r\n  height: 24px;\r\n  background: transparent;\n}\n.acu-visualizer-surface__field-locks[data-v-f2488d59]\r\n  .acu-icon-btn--default:hover:not(:disabled) {\r\n  background:\r\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\r\n    transparent;\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__field-locks[data-v-f2488d59] .acu-icon-btn--accent {\r\n  color: var(--acu-accent);\r\n  background: var(--acu-accent-glow);\n}\n.acu-visualizer-surface__field.is-locked[data-v-f2488d59] {\r\n  border-color: var(--acu-border);\r\n  background: color-mix(in srgb, var(--acu-warning) 8%, transparent);\n}\n.acu-visualizer-surface__footer[data-v-f2488d59] {\r\n  flex: 0 0 auto;\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  padding: 12px 16px;\r\n  border-top: 1px solid var(--acu-border-2);\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__footer-actions[data-v-f2488d59] {\r\n  display: flex;\r\n  gap: 8px;\r\n  flex: 0 0 auto;\n}\n.acu-visualizer-surface__footer-actions[data-v-f2488d59] .acu-btn {\r\n  min-width: 132px;\n}\n.acu-visualizer-surface__mobile-nav-layer[data-v-f2488d59] {\r\n  position: fixed;\r\n  top: 0;\r\n  right: 0;\r\n  bottom: 0;\r\n  left: 0;\r\n  inset: 0;\r\n  width: 100%;\r\n  width: 100vw;\r\n  width: 100dvw;\r\n  height: 100%;\r\n  height: 100vh;\r\n  height: 100dvh;\r\n  min-height: 100vh;\r\n  min-height: 100dvh;\r\n  z-index: 9350;\r\n  display: none;\r\n  align-items: stretch;\r\n  justify-content: flex-start;\r\n  overflow: hidden;\r\n  background: rgba(0, 0, 0, 0.58);\r\n  pointer-events: auto;\r\n  overscroll-behavior: contain;\r\n  animation: visualizer-mobile-nav-layer-in-f2488d59 0.18s ease-out both;\n}\n.acu-visualizer-surface__mobile-nav-layer.is-closing[data-v-f2488d59] {\r\n  pointer-events: auto;\r\n  animation: visualizer-mobile-nav-layer-out-f2488d59 0.15s ease-in both;\n}\n.acu-visualizer-surface__mobile-nav[data-v-f2488d59] {\r\n  width: 280px;\r\n  max-width: calc(100vw - 72px);\r\n  height: 100%;\r\n  max-height: 100vh;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  align-self: stretch;\r\n  flex: 0 1 280px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  padding: 24px 12px 16px;\r\n  overflow-y: auto;\r\n  border-right: 0;\r\n  background: var(--acu-sidebar-bg);\r\n  box-shadow: var(--acu-shadow);\r\n  pointer-events: auto;\r\n  animation: visualizer-mobile-nav-drawer-in-f2488d59 0.18s ease-out both;\n}\n.acu-visualizer-surface__mobile-nav-layer.is-closing\r\n  .acu-visualizer-surface__mobile-nav[data-v-f2488d59] {\r\n  animation: visualizer-mobile-nav-drawer-out-f2488d59 0.15s ease-in both;\n}\n@supports (width: min(280px, calc(100vw - 72px))) {\n.acu-visualizer-surface__mobile-nav[data-v-f2488d59] {\r\n    width: min(280px, calc(100vw - 72px));\r\n    flex: 0 0 min(280px, calc(100vw - 72px));\n}\n}\n@supports (width: 100dvw) {\n.acu-visualizer-surface__mobile-nav[data-v-f2488d59] {\r\n    max-width: calc(100dvw - 72px);\n}\n}\n@supports (height: 100dvh) {\n.acu-visualizer-surface__mobile-nav[data-v-f2488d59] {\r\n    height: 100dvh;\r\n    max-height: 100dvh;\n}\n}\n@keyframes visualizer-mobile-nav-layer-in-f2488d59 {\nfrom {\r\n    opacity: 0;\n}\nto {\r\n    opacity: 1;\n}\n}\n@keyframes visualizer-mobile-nav-drawer-in-f2488d59 {\nfrom {\r\n    transform: translateX(-100%);\n}\nto {\r\n    transform: translateX(0);\n}\n}\n@keyframes visualizer-mobile-nav-layer-out-f2488d59 {\nfrom {\r\n    opacity: 1;\n}\nto {\r\n    opacity: 0;\n}\n}\n@keyframes visualizer-mobile-nav-drawer-out-f2488d59 {\nfrom {\r\n    transform: translateX(0);\n}\nto {\r\n    transform: translateX(-100%);\n}\n}\n@media (max-width: 1024px) {\n.acu-visualizer-surface[data-v-f2488d59] {\r\n    grid-template-columns: 220px minmax(0, 1fr);\n}\n.acu-visualizer-surface__card-grid[data-v-f2488d59] {\r\n    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));\n}\n.acu-visualizer-surface__topbar[data-v-f2488d59] {\r\n    flex-wrap: wrap;\n}\n.acu-visualizer-surface__mode-tabs[data-v-f2488d59] {\r\n    order: 3;\r\n    width: min(420px, 100%);\n}\n}\n@media (max-width: 767px) {\n.acu-visualizer-surface[data-v-f2488d59] {\r\n    grid-template-columns: 1fr;\r\n    grid-template-rows: minmax(0, 1fr);\n}\n.acu-visualizer-surface__sidebar[data-v-f2488d59] {\r\n    display: none;\n}\n.acu-visualizer-surface__topbar[data-v-f2488d59] {\r\n    display: grid;\r\n    grid-template-columns: minmax(0, 1fr) auto;\r\n    gap: 8px;\r\n    min-height: 0;\r\n    padding: 8px;\n}\n.acu-visualizer-surface__topbar-context[data-v-f2488d59] {\r\n    grid-column: 1;\r\n    display: grid;\r\n    grid-template-columns: auto minmax(0, 1fr) auto;\r\n    align-items: center;\r\n    gap: 8px;\r\n    min-width: 0;\n}\n.acu-visualizer-surface__mobile-menu[data-v-f2488d59] {\r\n    display: inline-flex;\n}\n.acu-visualizer-surface__context-items[data-v-f2488d59] {\r\n    display: grid;\r\n    grid-template-columns: repeat(2, minmax(0, 1fr));\r\n    gap: 8px;\n}\n.acu-visualizer-surface__context-item[data-v-f2488d59]:first-child,\r\n  .acu-visualizer-surface__context-item + .acu-visualizer-surface__context-item[data-v-f2488d59] {\r\n    max-width: none;\n}\n.acu-visualizer-surface__mobile-nav-layer[data-v-f2488d59] {\r\n    display: flex;\n}\n.acu-visualizer-surface__close[data-v-f2488d59] {\r\n    grid-column: 2;\r\n    grid-row: 1;\r\n    align-self: center;\n}\n.acu-visualizer-surface__mode-tabs[data-v-f2488d59] {\r\n    grid-column: 1 / -1;\r\n    width: 100%;\n}\n.acu-visualizer-surface__workspace[data-v-f2488d59] {\r\n    padding: 10px;\n}\n.acu-visualizer-surface__data-toolbar[data-v-f2488d59],\n  .acu-visualizer-surface__database-toolbar[data-v-f2488d59] {\n    align-items: stretch;\n    flex-direction: column;\n}\n.acu-visualizer-surface__data-toolbar[data-v-f2488d59] .acu-btn,\n  .acu-visualizer-surface__database-toolbar[data-v-f2488d59] .acu-btn {\n    width: 100%;\n}\n.acu-visualizer-surface__data-toolbar-actions[data-v-f2488d59] {\n    align-items: stretch;\n    flex-direction: column;\n}\n.acu-visualizer-surface__pagination[data-v-f2488d59] {\n    align-items: center;\n    flex-direction: row;\n    flex-wrap: wrap;\n    gap: 6px;\n    padding: 2px 0 6px;\n}\n.acu-visualizer-surface__pagination-pages[data-v-f2488d59] {\n    flex: 0 1 auto;\n    align-items: center;\n    flex-direction: row;\n    flex-wrap: wrap;\n    gap: 5px;\n}\n.acu-visualizer-surface__page-button[data-v-f2488d59] {\n    width: 36px;\n    min-width: 36px;\n    height: 34px;\n    flex: 0 0 36px;\n}\n.acu-visualizer-surface__page-jump[data-v-f2488d59] {\n    flex: 0 0 54px;\n    width: 54px;\n}\n.acu-visualizer-surface__footer[data-v-f2488d59] {\r\n    display: grid;\r\n    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);\r\n    align-items: center;\r\n    gap: 8px;\r\n    padding: 8px;\n}\n.acu-visualizer-surface__footer > span[data-v-f2488d59] {\r\n    min-width: 0;\r\n    overflow: hidden;\r\n    text-overflow: ellipsis;\r\n    white-space: nowrap;\n}\n.acu-visualizer-surface__footer-actions[data-v-f2488d59] {\r\n    display: grid;\r\n    grid-template-columns: repeat(2, minmax(0, 1fr));\r\n    gap: 6px;\n}\n.acu-visualizer-surface__footer-actions[data-v-f2488d59] .acu-btn {\r\n    min-width: 0;\r\n    width: 100%;\n}\n}\n@media (max-width: 480px) {\n.acu-visualizer-surface__card-grid[data-v-f2488d59] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__fields[data-v-f2488d59] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__mode-tabs[data-v-f2488d59] {\r\n    width: 100%;\n}\n.acu-visualizer-surface__conflict-actions[data-v-f2488d59] {\r\n    display: flex;\r\n    margin: 8px 0 0;\n}\n.acu-visualizer-surface__footer[data-v-f2488d59] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__footer > span[data-v-f2488d59] {\r\n    display: none;\n}\n}\r\n", "src/presentation-v2/surfaces/visualizer/VisualizerSurface.vue#style-0-f2488d59");
-    var VisualizerSurface_vue_vue_type_style_index_0_scoped_f2488d59_lang = null;
+    injectSfcStyle("\n.acu-visualizer-surface[data-v-d43904d6] {\r\n  flex: 1 1 auto;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: grid;\r\n  grid-template-columns: 260px minmax(0, 1fr);\r\n  overflow: hidden;\r\n  background: var(--acu-bg-0);\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__sidebar[data-v-d43904d6] {\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 8px;\r\n  padding: 24px 12px 16px;\r\n  overflow-y: auto;\r\n  border-right: 1px solid var(--acu-border-2);\r\n  background: var(--acu-sidebar-bg);\n}\n.acu-visualizer-surface__main[data-v-d43904d6] {\r\n  min-width: 0;\r\n  min-height: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  overflow: hidden;\r\n  background: var(--acu-bg-0);\n}\n.acu-visualizer-surface__topbar[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  min-height: 50px;\r\n  padding: 8px 12px 8px 16px;\r\n  border-bottom: 1px solid var(--acu-border-2);\r\n  background: var(--acu-bg-0);\n}\n.acu-visualizer-surface__topbar-context[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  flex: 1 1 auto;\r\n  gap: 10px;\n}\n.acu-visualizer-surface__mobile-menu[data-v-d43904d6] {\r\n  display: none;\r\n  flex: 0 0 auto;\r\n  background: transparent;\r\n  color: var(--acu-text-2);\r\n  box-shadow: none;\n}\n.acu-visualizer-surface__mobile-menu[data-v-d43904d6]:hover:not(:disabled) {\r\n  background: transparent;\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__context-items[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  flex: 1 1 auto;\r\n  justify-content: flex-start;\r\n  gap: 16px;\n}\n.acu-visualizer-surface__context-item[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: grid;\r\n  gap: 2px;\n}\n.acu-visualizer-surface__context-item[data-v-d43904d6]:first-child {\r\n  flex: 0 1 auto;\r\n  max-width: min(560px, 42vw);\n}\n.acu-visualizer-surface__context-item + .acu-visualizer-surface__context-item[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  max-width: min(260px, 20vw);\n}\n.acu-visualizer-surface__context-item span[data-v-d43904d6] {\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  line-height: 1.2;\n}\n.acu-visualizer-surface__context-item strong[data-v-d43904d6] {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  color: var(--acu-text-1);\r\n  font-weight: 600;\r\n  line-height: 1.25;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__context-item:first-child strong[data-v-d43904d6] {\r\n  overflow: visible;\r\n  text-overflow: clip;\r\n  white-space: normal;\r\n  word-break: break-word;\n}\n.acu-visualizer-surface__context-badge[data-v-d43904d6] {\r\n  flex: 0 0 auto;\n}\n.acu-visualizer-surface__conflict[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  margin: 12px 16px 0;\n}\n.acu-visualizer-surface__conflict-actions[data-v-d43904d6] {\r\n  display: inline-flex;\r\n  flex-wrap: wrap;\r\n  gap: 6px;\r\n  margin-left: 8px;\n}\n.acu-visualizer-surface__data-toolbar[data-v-d43904d6],\n.acu-visualizer-surface__data-toolbar-actions[data-v-d43904d6],\n.acu-visualizer-surface__database-toolbar[data-v-d43904d6],\n.acu-visualizer-surface__pagination[data-v-d43904d6],\n.acu-visualizer-surface__pagination-pages[data-v-d43904d6],\n.acu-visualizer-surface__card-header[data-v-d43904d6] {\n  display: flex;\n  align-items: center;\n  justify-content: space-between;\n  gap: 8px;\n}\n.acu-visualizer-surface__workspace[data-v-d43904d6] {\r\n  flex: 1 1 auto;\r\n  min-height: 0;\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  overflow: auto;\r\n  padding: 16px;\n}\n.acu-visualizer-surface__loading[data-v-d43904d6] {\r\n  min-height: 140px;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: center;\r\n  gap: 8px;\r\n  color: var(--acu-text-3);\n}\n.acu-visualizer-surface__mode-tabs[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  width: min(360px, 42vw);\n}\n.acu-visualizer-surface__close[data-v-d43904d6] {\r\n  width: 30px;\r\n  height: 30px;\r\n  flex: 0 0 auto;\r\n  border: 0;\r\n  background: transparent;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-page-title, 22px);\r\n  line-height: 1;\r\n  border-radius: var(--acu-radius-sm);\n}\n.acu-visualizer-surface__close[data-v-d43904d6]:hover {\r\n  background: var(--acu-hover-overlay);\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__data-toolbar[data-v-d43904d6] {\n  flex: 0 0 auto;\n  justify-content: space-between;\n  padding: 4px 0 0;\n  color: var(--acu-text-3);\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__data-toolbar-actions[data-v-d43904d6] {\n  flex: 0 0 auto;\n  justify-content: flex-end;\n}\n.acu-visualizer-surface__pagination[data-v-d43904d6] {\n  flex: 0 0 auto;\n  justify-content: center;\n  gap: 14px;\n  padding: 6px 0;\n  color: var(--acu-text-2);\n  font-size: var(--acu-font-size-body-lg, 13px);\n}\n.acu-visualizer-surface__pagination-pages[data-v-d43904d6] {\n  min-width: 0;\n  flex-wrap: wrap;\n  justify-content: center;\n  gap: 8px;\n}\n.acu-visualizer-surface__page-button[data-v-d43904d6] {\n  width: 34px;\n  min-width: 34px;\n  height: 34px;\n  padding: 0;\n  border: 1px solid var(--acu-border);\n  background: var(--acu-bg-0);\n  color: var(--acu-text-1);\n  font-size: var(--acu-font-size-body-lg, 13px);\n  font-weight: 500;\n}\n.acu-visualizer-surface__page-button[data-v-d43904d6]:hover:not(:disabled) {\n  border-color: var(--acu-accent);\n  color: var(--acu-accent);\n}\n.acu-visualizer-surface__page-button--active[data-v-d43904d6],\n.acu-visualizer-surface__page-button--active[data-v-d43904d6]:hover:not(:disabled) {\n  border-color: var(--acu-accent);\n  background: var(--acu-accent);\n  color: var(--acu-on-accent);\n}\n.acu-visualizer-surface__page-button[data-v-d43904d6]:disabled:not(\n    .acu-visualizer-surface__page-button--active\n  ) {\n  border-color: var(--acu-border);\n  background: var(--acu-bg-0);\n  color: var(--acu-text-2);\n  opacity: 1;\n  cursor: default;\n}\n.acu-visualizer-surface__page-jump[data-v-d43904d6] {\n  flex: 0 0 64px;\n  width: 64px;\n}\n.acu-visualizer-surface__page-jump[data-v-d43904d6] .acu-input {\n  min-height: 34px;\n  border: 1px solid var(--acu-border) !important;\n  background: var(--acu-bg-0) !important;\n  text-align: center;\n  font-size: var(--acu-font-size-body-lg, 13px) !important;\n  font-variant-numeric: tabular-nums;\n}\n.acu-visualizer-surface__data-range[data-v-d43904d6] {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}\n.acu-visualizer-surface__database-toolbar[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  padding: 0 0 4px;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__database-toolbar h2[data-v-d43904d6] {\r\n  margin: 0;\r\n  color: var(--acu-text-1);\r\n  font-size: var(--acu-font-size-page-title, 22px);\r\n  font-weight: 700;\r\n  line-height: 1.2;\n}\n.acu-visualizer-surface__database-toolbar p[data-v-d43904d6] {\r\n  margin: 5px 0 0;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: var(--acu-line-height-readable, 1.55);\n}\n.acu-visualizer-surface__empty[data-v-d43904d6] {\r\n  margin: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-body-lg, 13px);\r\n  line-height: 1.55;\n}\n.acu-visualizer-surface__card-grid[data-v-d43904d6] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));\r\n  gap: 12px;\n}\n.acu-visualizer-surface__data-card[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  height: 100%;\r\n  padding: 16px;\r\n  border: 1px solid var(--acu-border);\r\n  border-radius: var(--acu-radius-md);\r\n  background: var(--acu-bg-1);\n}\n.acu-visualizer-surface__card-header strong[data-v-d43904d6] {\r\n  color: var(--acu-text-1);\r\n  font-family: var(--acu-font-mono);\r\n  font-size: var(--acu-font-size-panel-title, 15px);\n}\n.acu-visualizer-surface__card-header span[data-v-d43904d6] {\r\n  min-width: 0;\r\n  margin-right: auto;\r\n  overflow: hidden;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__card-header[data-v-d43904d6] .acu-icon-btn {\r\n  background: transparent;\n}\n.acu-visualizer-surface__card-header[data-v-d43904d6]\r\n  .acu-icon-btn--default:hover:not(:disabled) {\r\n  background:\r\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\r\n    transparent;\n}\n.acu-visualizer-surface__card-header[data-v-d43904d6] .acu-icon-btn--accent {\r\n  background: var(--acu-accent-glow);\r\n  color: var(--acu-accent);\n}\n.acu-visualizer-surface__card-header[data-v-d43904d6]\r\n  .acu-icon-btn--danger:hover:not(:disabled) {\r\n  background: color-mix(in srgb, var(--acu-danger) 12%, transparent);\n}\n.acu-visualizer-surface__fields[data-v-d43904d6] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 8px;\n}\n.acu-visualizer-surface__field-row[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: grid;\r\n  grid-template-columns: repeat(2, minmax(0, 1fr));\r\n  gap: 8px;\r\n  align-items: stretch;\n}\n.acu-visualizer-surface__field-row.is-wide[data-v-d43904d6] {\r\n  grid-template-columns: minmax(0, 1fr);\n}\n.acu-visualizer-surface__field[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 4px;\r\n  padding: 2px;\r\n  border: 1px solid transparent;\r\n  border-radius: var(--acu-radius-sm);\r\n  background: transparent;\r\n  transition:\r\n    background 0.15s ease,\r\n    border-color 0.15s ease;\n}\n.acu-visualizer-surface__field[data-v-d43904d6] .acu-textarea {\n  flex: 1 1 auto;\n}\n.acu-visualizer-surface__field-preview[data-v-d43904d6] {\n  min-height: 34px;\n  box-sizing: border-box;\n  padding: 8px 10px;\n  border-radius: var(--acu-radius-sm);\n  background: var(--acu-bg-2);\n  color: var(--acu-text-1);\n  cursor: text;\n  display: -webkit-box;\n  overflow: hidden;\n  font-size: var(--acu-font-size-body, 12px);\n  line-height: 1.45;\n  white-space: pre-wrap;\n  word-break: break-word;\n  -webkit-box-orient: vertical;\n  -webkit-line-clamp: 4;\n  transition:\n    background 0.15s ease,\n    box-shadow 0.15s ease;\n}\n.acu-visualizer-surface__field-preview[data-v-d43904d6]:hover,\n.acu-visualizer-surface__field-preview[data-v-d43904d6]:focus-visible {\n  outline: none;\n  background:\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\n    var(--acu-bg-2);\n  box-shadow: 0 0 0 2px var(--acu-accent-glow);\n}\n.acu-visualizer-surface__field-preview.is-empty[data-v-d43904d6] {\n  color: var(--acu-text-3);\n}\n.acu-visualizer-surface__field-label[data-v-d43904d6] {\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 6px;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  font-weight: 600;\n}\n.acu-visualizer-surface__field-label > span[data-v-d43904d6]:first-child {\r\n  min-width: 0;\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-visualizer-surface__field-locks[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  display: inline-flex;\r\n  align-items: center;\r\n  gap: 3px;\r\n  opacity: 0.44;\r\n  transition: opacity 0.15s ease;\n}\n.acu-visualizer-surface__field:hover .acu-visualizer-surface__field-locks[data-v-d43904d6],\r\n.acu-visualizer-surface__field:focus-within\r\n  .acu-visualizer-surface__field-locks[data-v-d43904d6],\r\n.acu-visualizer-surface__field.is-locked .acu-visualizer-surface__field-locks[data-v-d43904d6],\r\n.acu-visualizer-surface__field.is-special-index\r\n  .acu-visualizer-surface__field-locks[data-v-d43904d6] {\r\n  opacity: 1;\n}\n.acu-visualizer-surface__field-locks[data-v-d43904d6] .acu-icon-btn {\r\n  width: 24px;\r\n  height: 24px;\r\n  background: transparent;\n}\n.acu-visualizer-surface__field-locks[data-v-d43904d6]\r\n  .acu-icon-btn--default:hover:not(:disabled) {\r\n  background:\r\n    linear-gradient(var(--acu-hover-overlay), var(--acu-hover-overlay)),\r\n    transparent;\r\n  color: var(--acu-text-1);\n}\n.acu-visualizer-surface__field-locks[data-v-d43904d6] .acu-icon-btn--accent {\r\n  color: var(--acu-accent);\r\n  background: var(--acu-accent-glow);\n}\n.acu-visualizer-surface__field.is-locked[data-v-d43904d6] {\r\n  border-color: var(--acu-border);\r\n  background: color-mix(in srgb, var(--acu-warning) 8%, transparent);\n}\n.acu-visualizer-surface__footer[data-v-d43904d6] {\r\n  flex: 0 0 auto;\r\n  min-width: 0;\r\n  display: flex;\r\n  align-items: center;\r\n  justify-content: space-between;\r\n  gap: 12px;\r\n  padding: 12px 16px;\r\n  border-top: 1px solid var(--acu-border-2);\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\n.acu-visualizer-surface__footer-actions[data-v-d43904d6] {\r\n  display: flex;\r\n  gap: 8px;\r\n  flex: 0 0 auto;\n}\n.acu-visualizer-surface__footer-actions[data-v-d43904d6] .acu-btn {\r\n  min-width: 132px;\n}\n.acu-visualizer-surface__mobile-nav-layer[data-v-d43904d6] {\r\n  position: fixed;\r\n  top: 0;\r\n  right: 0;\r\n  bottom: 0;\r\n  left: 0;\r\n  inset: 0;\r\n  width: 100%;\r\n  width: 100vw;\r\n  width: 100dvw;\r\n  height: 100%;\r\n  height: 100vh;\r\n  height: 100dvh;\r\n  min-height: 100vh;\r\n  min-height: 100dvh;\r\n  z-index: 9350;\r\n  display: none;\r\n  align-items: stretch;\r\n  justify-content: flex-start;\r\n  overflow: hidden;\r\n  background: rgba(0, 0, 0, 0.58);\r\n  pointer-events: auto;\r\n  overscroll-behavior: contain;\r\n  animation: visualizer-mobile-nav-layer-in-d43904d6 0.18s ease-out both;\n}\n.acu-visualizer-surface__mobile-nav-layer.is-closing[data-v-d43904d6] {\r\n  pointer-events: auto;\r\n  animation: visualizer-mobile-nav-layer-out-d43904d6 0.15s ease-in both;\n}\n.acu-visualizer-surface__mobile-nav[data-v-d43904d6] {\r\n  width: 280px;\r\n  max-width: calc(100vw - 72px);\r\n  height: 100%;\r\n  max-height: 100vh;\r\n  min-width: 0;\r\n  min-height: 0;\r\n  align-self: stretch;\r\n  flex: 0 1 280px;\r\n  display: flex;\r\n  flex-direction: column;\r\n  padding: 24px 12px 16px;\r\n  overflow-y: auto;\r\n  border-right: 0;\r\n  background: var(--acu-sidebar-bg);\r\n  box-shadow: var(--acu-shadow);\r\n  pointer-events: auto;\r\n  animation: visualizer-mobile-nav-drawer-in-d43904d6 0.18s ease-out both;\n}\n.acu-visualizer-surface__mobile-nav-layer.is-closing\r\n  .acu-visualizer-surface__mobile-nav[data-v-d43904d6] {\r\n  animation: visualizer-mobile-nav-drawer-out-d43904d6 0.15s ease-in both;\n}\n@supports (width: min(280px, calc(100vw - 72px))) {\n.acu-visualizer-surface__mobile-nav[data-v-d43904d6] {\r\n    width: min(280px, calc(100vw - 72px));\r\n    flex: 0 0 min(280px, calc(100vw - 72px));\n}\n}\n@supports (width: 100dvw) {\n.acu-visualizer-surface__mobile-nav[data-v-d43904d6] {\r\n    max-width: calc(100dvw - 72px);\n}\n}\n@supports (height: 100dvh) {\n.acu-visualizer-surface__mobile-nav[data-v-d43904d6] {\r\n    height: 100dvh;\r\n    max-height: 100dvh;\n}\n}\n@keyframes visualizer-mobile-nav-layer-in-d43904d6 {\nfrom {\r\n    opacity: 0;\n}\nto {\r\n    opacity: 1;\n}\n}\n@keyframes visualizer-mobile-nav-drawer-in-d43904d6 {\nfrom {\r\n    transform: translateX(-100%);\n}\nto {\r\n    transform: translateX(0);\n}\n}\n@keyframes visualizer-mobile-nav-layer-out-d43904d6 {\nfrom {\r\n    opacity: 1;\n}\nto {\r\n    opacity: 0;\n}\n}\n@keyframes visualizer-mobile-nav-drawer-out-d43904d6 {\nfrom {\r\n    transform: translateX(0);\n}\nto {\r\n    transform: translateX(-100%);\n}\n}\n@media (max-width: 1024px) {\n.acu-visualizer-surface[data-v-d43904d6] {\r\n    grid-template-columns: 220px minmax(0, 1fr);\n}\n.acu-visualizer-surface__card-grid[data-v-d43904d6] {\r\n    grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr));\n}\n.acu-visualizer-surface__topbar[data-v-d43904d6] {\r\n    flex-wrap: wrap;\n}\n.acu-visualizer-surface__mode-tabs[data-v-d43904d6] {\r\n    order: 3;\r\n    width: min(420px, 100%);\n}\n}\n@media (max-width: 767px) {\n.acu-visualizer-surface[data-v-d43904d6] {\r\n    grid-template-columns: 1fr;\r\n    grid-template-rows: minmax(0, 1fr);\n}\n.acu-visualizer-surface__sidebar[data-v-d43904d6] {\r\n    display: none;\n}\n.acu-visualizer-surface__topbar[data-v-d43904d6] {\r\n    display: grid;\r\n    grid-template-columns: minmax(0, 1fr) auto;\r\n    gap: 8px;\r\n    min-height: 0;\r\n    padding: 8px;\n}\n.acu-visualizer-surface__topbar-context[data-v-d43904d6] {\r\n    grid-column: 1;\r\n    display: grid;\r\n    grid-template-columns: auto minmax(0, 1fr) auto;\r\n    align-items: center;\r\n    gap: 8px;\r\n    min-width: 0;\n}\n.acu-visualizer-surface__mobile-menu[data-v-d43904d6] {\r\n    display: inline-flex;\n}\n.acu-visualizer-surface__context-items[data-v-d43904d6] {\r\n    display: grid;\r\n    grid-template-columns: repeat(2, minmax(0, 1fr));\r\n    gap: 8px;\n}\n.acu-visualizer-surface__context-item[data-v-d43904d6]:first-child,\r\n  .acu-visualizer-surface__context-item + .acu-visualizer-surface__context-item[data-v-d43904d6] {\r\n    max-width: none;\n}\n.acu-visualizer-surface__mobile-nav-layer[data-v-d43904d6] {\r\n    display: flex;\n}\n.acu-visualizer-surface__close[data-v-d43904d6] {\r\n    grid-column: 2;\r\n    grid-row: 1;\r\n    align-self: center;\n}\n.acu-visualizer-surface__mode-tabs[data-v-d43904d6] {\r\n    grid-column: 1 / -1;\r\n    width: 100%;\n}\n.acu-visualizer-surface__workspace[data-v-d43904d6] {\r\n    padding: 10px;\n}\n.acu-visualizer-surface__data-toolbar[data-v-d43904d6],\n  .acu-visualizer-surface__database-toolbar[data-v-d43904d6] {\n    align-items: stretch;\n    flex-direction: column;\n}\n.acu-visualizer-surface__data-toolbar[data-v-d43904d6] .acu-btn,\n  .acu-visualizer-surface__database-toolbar[data-v-d43904d6] .acu-btn {\n    width: 100%;\n}\n.acu-visualizer-surface__data-toolbar-actions[data-v-d43904d6] {\n    align-items: stretch;\n    flex-direction: column;\n}\n.acu-visualizer-surface__pagination[data-v-d43904d6] {\n    align-items: center;\n    flex-direction: row;\n    flex-wrap: wrap;\n    gap: 6px;\n    padding: 2px 0 6px;\n}\n.acu-visualizer-surface__pagination-pages[data-v-d43904d6] {\n    flex: 0 1 auto;\n    align-items: center;\n    flex-direction: row;\n    flex-wrap: wrap;\n    gap: 5px;\n}\n.acu-visualizer-surface__page-button[data-v-d43904d6] {\n    width: 36px;\n    min-width: 36px;\n    height: 34px;\n    flex: 0 0 36px;\n}\n.acu-visualizer-surface__page-jump[data-v-d43904d6] {\n    flex: 0 0 54px;\n    width: 54px;\n}\n.acu-visualizer-surface__footer[data-v-d43904d6] {\r\n    display: grid;\r\n    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);\r\n    align-items: center;\r\n    gap: 8px;\r\n    padding: 8px;\n}\n.acu-visualizer-surface__footer > span[data-v-d43904d6] {\r\n    min-width: 0;\r\n    overflow: hidden;\r\n    text-overflow: ellipsis;\r\n    white-space: nowrap;\n}\n.acu-visualizer-surface__footer-actions[data-v-d43904d6] {\r\n    display: grid;\r\n    grid-template-columns: repeat(2, minmax(0, 1fr));\r\n    gap: 6px;\n}\n.acu-visualizer-surface__footer-actions[data-v-d43904d6] .acu-btn {\r\n    min-width: 0;\r\n    width: 100%;\n}\n}\n@media (max-width: 480px) {\n.acu-visualizer-surface__card-grid[data-v-d43904d6] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__fields[data-v-d43904d6] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__mode-tabs[data-v-d43904d6] {\r\n    width: 100%;\n}\n.acu-visualizer-surface__conflict-actions[data-v-d43904d6] {\r\n    display: flex;\r\n    margin: 8px 0 0;\n}\n.acu-visualizer-surface__footer[data-v-d43904d6] {\r\n    grid-template-columns: 1fr;\n}\n.acu-visualizer-surface__footer > span[data-v-d43904d6] {\r\n    display: none;\n}\n}\r\n", "src/presentation-v2/surfaces/visualizer/VisualizerSurface.vue#style-0-d43904d6");
+    var VisualizerSurface_vue_vue_type_style_index_0_scoped_d43904d6_lang = null;
 
     const _hoisted_1$1 = {
     	class: "acu-visualizer-surface",
@@ -90905,7 +91079,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		)) : createCommentVNode("v-if", true)
     	]);
     }
-    var VisualizerSurface = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["render", _sfc_render$1], ["__scopeId", "data-v-f2488d59"]]);
+    var VisualizerSurface = /* @__PURE__ */ _export_sfc(_sfc_main$1, [["render", _sfc_render$1], ["__scopeId", "data-v-d43904d6"]]);
 
     const THEME_MENU_LEAVE_MS = 120;
     const MOBILE_NAV_LEAVE_MS = 150;

@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { TABLE_ORDER_FIELD_ACU } from '../../../shared/constants';
-import { logWarn_ACU } from '../../../shared/utils';
+import { logDebug_ACU, logWarn_ACU } from '../../../shared/utils';
 import {
   currentJsonTableData_ACU,
   _set_currentJsonTableData_ACU,
@@ -22,6 +22,33 @@ import { useVisualizerStore, type VisualizerLockDraft } from '../../stores/visua
 
 function hasSheetData(data: any): boolean {
   return !!data && typeof data === 'object' && Object.keys(data).some(key => key.startsWith('sheet_'));
+}
+
+function nowMs(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function formatMs(value: number): string {
+  return `${Math.round(value)}ms`;
+}
+
+function getSheetKeys(data: any): string[] {
+  return data && typeof data === 'object'
+    ? Object.keys(data).filter(key => key.startsWith('sheet_'))
+    : [];
+}
+
+function summarizeData(data: any, currentSheetKey: string | null | undefined): string {
+  const keys = getSheetKeys(data);
+  const selectedKey = currentSheetKey && data?.[currentSheetKey]
+    ? currentSheetKey
+    : keys[0] || '';
+  const sheet = selectedKey ? data?.[selectedKey] : null;
+  const content = Array.isArray(sheet?.content) ? sheet.content : [];
+  const header = Array.isArray(content[0]) ? content[0] : [];
+  return `sheets=${keys.length} current=${selectedKey || 'none'} rows=${Math.max(0, content.length - 1)} cols=${Math.max(0, header.length - 1)}`;
 }
 
 function cloneData<T>(value: T): T {
@@ -99,30 +126,59 @@ export function useVisualizerData() {
   }
 
   async function loadFromCurrentContext(): Promise<boolean> {
+    const startedAt = nowMs();
     visualizer.setLoading(true);
     refreshTemplatePresetLabel();
 
     try {
       let data = currentJsonTableData_ACU;
+      const hadRuntimeSheetData = hasSheetData(data);
+      let loadMessagesElapsed = 0;
+      let mergeElapsed = 0;
+      let reorderElapsed = 0;
       if (!hasSheetData(data)) {
+        const loadMessagesStartedAt = nowMs();
         await loadAllChatMessages_ACU();
+        loadMessagesElapsed = nowMs() - loadMessagesStartedAt;
+        const mergeStartedAt = nowMs();
         const merged = await mergeAllIndependentTables_ACU();
+        mergeElapsed = nowMs() - mergeStartedAt;
         if (hasSheetData(merged)) {
+          const reorderStartedAt = nowMs();
           const stableKeys = getSortedSheetKeys_ACU(merged);
           data = reorderDataBySheetKeys_ACU(merged, stableKeys);
           _set_currentJsonTableData_ACU(cloneData(data));
+          reorderElapsed = nowMs() - reorderStartedAt;
         }
       }
 
       if (!hasSheetData(data)) {
+        const snapshotStartedAt = nowMs();
         visualizer.loadSnapshot({ mate: { type: 'chatSheets', version: 1 } }, []);
+        const snapshotElapsed = nowMs() - snapshotStartedAt;
+        const lockStartedAt = nowMs();
         visualizer.loadLockDrafts({});
+        const lockElapsed = nowMs() - lockStartedAt;
+        const totalElapsed = nowMs() - startedAt;
+        logDebug_ACU(
+          `[VisualizerPerf] loadData empty runtimeHadSheets=${hadRuntimeSheetData} loadMessages=${formatMs(loadMessagesElapsed)} merge=${formatMs(mergeElapsed)} reorder=${formatMs(reorderElapsed)} snapshot=${formatMs(snapshotElapsed)} locks=${formatMs(lockElapsed)} total=${formatMs(totalElapsed)}`,
+        );
         return true;
       }
 
+      const orderedStartedAt = nowMs();
       const orderedKeys = buildOrderedKeys(data);
+      const orderedElapsed = nowMs() - orderedStartedAt;
+      const snapshotStartedAt = nowMs();
       visualizer.loadSnapshot(data, orderedKeys);
+      const snapshotElapsed = nowMs() - snapshotStartedAt;
+      const lockStartedAt = nowMs();
       visualizer.loadLockDrafts(buildLockDrafts(orderedKeys));
+      const lockElapsed = nowMs() - lockStartedAt;
+      const totalElapsed = nowMs() - startedAt;
+      const message = `[VisualizerPerf] loadData runtimeHadSheets=${hadRuntimeSheetData} historyFallback=${!hadRuntimeSheetData} loadMessages=${formatMs(loadMessagesElapsed)} merge=${formatMs(mergeElapsed)} reorder=${formatMs(reorderElapsed)} order=${formatMs(orderedElapsed)} snapshot=${formatMs(snapshotElapsed)} locks=${formatMs(lockElapsed)} total=${formatMs(totalElapsed)} ${summarizeData(data, visualizer.currentSheetKey)}`;
+      logDebug_ACU(message);
+      if (totalElapsed >= 1000) logWarn_ACU(message);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '数据库编辑器载入失败。';
