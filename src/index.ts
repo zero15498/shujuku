@@ -86,7 +86,6 @@ import './presentation/triggers/settings-ui-sync';
 // 启动入口（油猴脚本模式）
 // ═══════════════════════════════════════════════════════════════
 import { mainInitialize_ACU } from './presentation/bootstrap/init';
-import { bootstrapAcuV2 } from './presentation-v2/bootstrap';
 
 // jQuery ready 回调
 declare const $: any;
@@ -98,5 +97,4 @@ $(function() {
     }
     console.log('ACU_INIT_DEBUG: Document is ready, attempting to initialize ACU script (Userscript mode).');
     mainInitialize_ACU();
-    bootstrapAcuV2();
 });

@@ -6,9 +6,9 @@ import process from 'node:process';
 
 const root = process.cwd();
 
-// spv3.8.1 still carries several legacy non-v2 import-direction exceptions.
-// Keep them as an explicit baseline so this guard can continue enforcing the
-// UI v2 rules without requiring an unrelated old-UI/data-layer refactor.
+// Current mainline still carries several legacy import-direction exceptions.
+// Keep them as an explicit baseline so this guard can enforce architecture
+// rules without requiring an unrelated old-UI/data-layer refactor.
 const legacyImportDirectionAllowlist = new Set([
   'src/data/models/chat-message-data.ts',
   'src/data/storage/vector-index-hot-cache.ts',
@@ -123,55 +123,6 @@ const checks = [
     dir: 'src/data',
     extensions: new Set(['.ts']),
     pattern: /showToastr|refreshMergedData|_notifyTableUpdate|deleteAllGeneratedEntries|refreshUI|renderUI/,
-  },
-  {
-    section: 'presentation-v2 component control checks',
-    label: '_lib hidden checkbox/radio inputs',
-    dir: 'src/presentation-v2/components/_lib',
-    extensions: new Set(['.vue']),
-    pattern: /type=["'](?:checkbox|radio)["']/,
-  },
-  {
-    label: '_lib clipped focusable controls',
-    dir: 'src/presentation-v2/components/_lib',
-    extensions: new Set(['.vue']),
-    pattern: /clip: rect\(0 0 0 0\)|position: absolute; width: 1px; height: 1px/,
-  },
-  {
-    label: 'presentation-v2 pages weighted panel columns',
-    dir: 'src/presentation-v2/pages',
-    extensions: new Set(['.vue']),
-    pattern: /grid-template-columns:.*(?:\d+\.\d+|[2-9]\d*)fr/,
-  },
-  {
-    section: 'presentation-v2 boundary checks (D17 / D21.2)',
-    label: 'presentation-v2 -> service/runtime/state-manager (D17, .vue only)',
-    dir: 'src/presentation-v2',
-    extensions: new Set(['.vue']),
-    pattern: /from ['"][^'"]*service\/runtime\/state-manager['"]/,
-  },
-  {
-    label: 'presentation-v2 -> service/* (D17, .vue only)',
-    dir: 'src/presentation-v2',
-    extensions: new Set(['.vue']),
-    pattern: /from ['"][^'"]*\/service\//,
-  },
-  {
-    label: 'presentation-v2 -> presentation/* (D21.2)',
-    dir: 'src/presentation-v2',
-    extensions: new Set(['.vue', '.ts']),
-    pattern: /from ['"][^'"]*\/presentation\/(?!v2)/,
-  },
-  {
-    section: 'presentation-v2 lifecycle checks (D25)',
-    label: 'manual UI-open refresh subscriptions',
-    dir: 'src/presentation-v2',
-    extensions: new Set(['.vue', '.ts']),
-    pattern: /useUiOpenRefreshTick|openRefreshTick/,
-    exclude: line =>
-      line.path === 'src/presentation-v2/components/MainArea.vue'
-      || line.path === 'src/presentation-v2/stores/root-shell-store.ts'
-      || line.path === 'src/presentation-v2/bootstrap/mount.ts',
   },
 ];
 

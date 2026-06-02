@@ -9,7 +9,6 @@ import { SillyTavern_API_ACU } from '../../shared/host-api';
 import { jQuery_API_ACU } from '../dom-utils';
 import { MENU_ITEM_ID_ACU, SCRIPT_ID_PREFIX_ACU } from '../../shared/constants';
 import { logDebug_ACU, logError_ACU } from '../../shared/utils';
-import { applyLegacyUiMenuVisibility } from '../../shared/legacy-ui-menu-entry';
 
   export function addAutoCardMenuItem_ACU() {
     const parentDoc = (window.parent || window).document;
@@ -36,13 +35,12 @@ import { applyLegacyUiMenuVisibility } from '../../shared/legacy-ui-menu-entry';
           }
           await openAutoCardPopup_ACU();
         });
-      applyLegacyUiMenuVisibility();
       return true;
     }
     $menuItemContainer = jQuery_API_ACU(
       `<div class="extension_container interactable" id="${MENU_ITEM_CONTAINER_ID_ACU}" tabindex="0"></div>`,
     );
-    const menuItemHTML = `<div class="list-group-item flex-container flexGap5 interactable" id="${MENU_ITEM_ID_ACU}" title="打开 SP·数据库 III 旧UI"><div class="fa-fw fa-solid fa-database extensionsMenuExtensionButton"></div><span>SP·数据库 III 旧UI</span></div>`;
+    const menuItemHTML = `<div class="list-group-item flex-container flexGap5 interactable" id="${MENU_ITEM_ID_ACU}" title="打开数据库自动更新工具"><div class="fa-fw fa-solid fa-database extensionsMenuExtensionButton"></div><span>SP·数据库 III</span></div>`;
     const $menuItem = jQuery_API_ACU(menuItemHTML);
     $menuItem.on(`click.${SCRIPT_ID_PREFIX_ACU}`, async function (e) {
       e.stopPropagation();
@@ -55,7 +53,6 @@ import { applyLegacyUiMenuVisibility } from '../../shared/legacy-ui-menu-entry';
     });
     $menuItemContainer.append($menuItem);
     extensionsMenu.append($menuItemContainer);
-    applyLegacyUiMenuVisibility();
     logDebug_ACU('ACU Menu item added.');
     return true;
   }
