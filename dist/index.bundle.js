@@ -71645,6 +71645,24 @@ Expected function or array of functions, received type ${typeof value}.`
             return -1;
         return presets.findIndex(p => p.name === normalized);
     }
+    const PLOT_RATE_FIELDS = ['rateMain', 'ratePersonal', 'rateErotic', 'rateCuckold', 'recallCount'];
+    function getDefaultPlotRateValueForV2(field) {
+        const n = Number(DEFAULT_PLOT_SETTINGS_ACU[field]);
+        return Number.isFinite(n) ? n : 0;
+    }
+    function coercePlotRateForExport(field, value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : getDefaultPlotRateValueForV2(field);
+    }
+    function stripDefaultPlotRatesForV2Export(target) {
+        if (!target || typeof target !== 'object')
+            return;
+        for (const field of PLOT_RATE_FIELDS) {
+            if (coercePlotRateForExport(field, target[field]) === getDefaultPlotRateValueForV2(field)) {
+                delete target[field];
+            }
+        }
+    }
     function normalizeImportedPresetPayloads(parsed) {
         if (!Array.isArray(parsed))
             return [];
@@ -71924,10 +71942,11 @@ Expected function or array of functions, received type ${typeof value}.`
             },
             /** 导出指定预设为 JSON。返回 string 或 null（找不到时）。 */
             exportPresetAsJson(name) {
-                const preset = findPlotPresetByName_ACU(name);
-                if (!preset)
+                const idx = findPresetIndex(this.presets, name);
+                if (idx < 0)
                     return null;
-                const exportable = stripPlotPresetWorldbookEntrySelectionForExport_ACU(preset);
+                const exportable = stripPlotPresetWorldbookEntrySelectionForExport_ACU(this.presets[idx].raw);
+                stripDefaultPlotRatesForV2Export(exportable);
                 return JSON.stringify([exportable], null, 2);
             },
         },
@@ -73449,6 +73468,24 @@ Expected function or array of functions, received type ${typeof value}.`
     function emptyContextRules() {
         return { extractRules: [], excludeRules: [] };
     }
+    function coercePlotRate(field, value) {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : getDefaultPlotRateValueForV2(field);
+    }
+    function readDraftRates(raw) {
+        return PLOT_RATE_FIELDS.reduce((acc, field) => {
+            acc[field] = coercePlotRate(field, raw?.[field]);
+            return acc;
+        }, {});
+    }
+    function writeDraftRates(raw, rates) {
+        for (const field of PLOT_RATE_FIELDS) {
+            raw[field] = coercePlotRate(field, rates[field]);
+        }
+    }
+    function emptyDraftRates() {
+        return readDraftRates(null);
+    }
     function defaultRawPreset() {
         return getDefaultPlotPresetRawForV2();
     }
@@ -73495,6 +73532,7 @@ Expected function or array of functions, received type ${typeof value}.`
         const originalName = ref('');
         const draftMeta = reactive(emptyDraftMeta());
         const contextRules = reactive(emptyContextRules());
+        const draftRates = reactive(emptyDraftRates());
         const draftRaw = ref(defaultRawPreset());
         const error = ref('');
         const initialSnapshot = ref('');
@@ -73524,6 +73562,7 @@ Expected function or array of functions, received type ${typeof value}.`
             return JSON.stringify({
                 meta: draftMeta,
                 contextRules,
+                rates: draftRates,
                 tasks: taskEditing.tasks.value,
                 directive: taskEditing.finalDirective.value,
             });
@@ -73544,6 +73583,7 @@ Expected function or array of functions, received type ${typeof value}.`
         function resetDraft() {
             Object.assign(draftMeta, emptyDraftMeta());
             Object.assign(contextRules, emptyContextRules());
+            Object.assign(draftRates, emptyDraftRates());
             draftRaw.value = defaultRawPreset();
             originalName.value = '';
             error.value = '';
@@ -73563,6 +73603,7 @@ Expected function or array of functions, received type ${typeof value}.`
             draftRaw.value = raw;
             contextRules.extractRules = normalizeRulePairs(raw.contextExtractRules, raw.contextExtractTags || '', 'extract');
             contextRules.excludeRules = normalizeRulePairs(raw.contextExcludeRules, raw.contextExcludeTags || '', 'exclude');
+            Object.assign(draftRates, readDraftRates(raw));
             taskEditing.loadFromRaw(raw.plotTasks || [], raw.finalSystemDirective || '');
             error.value = '';
             drawerView.value = 'create';
@@ -73579,6 +73620,7 @@ Expected function or array of functions, received type ${typeof value}.`
             draftRaw.value = JSON.parse(JSON.stringify(target.raw || {}));
             contextRules.extractRules = normalizeRulePairs(target.raw?.contextExtractRules, target.raw?.contextExtractTags || '', 'extract');
             contextRules.excludeRules = normalizeRulePairs(target.raw?.contextExcludeRules, target.raw?.contextExcludeTags || '', 'exclude');
+            Object.assign(draftRates, readDraftRates(target.raw || null));
             taskEditing.loadFromRaw(target.raw?.plotTasks || [], target.raw?.finalSystemDirective || '');
             error.value = '';
             drawerView.value = 'edit';
@@ -73621,6 +73663,9 @@ Expected function or array of functions, received type ${typeof value}.`
         function setContextExcludeRules(rules) {
             contextRules.excludeRules = coerceRulePairs$1(rules);
         }
+        function setDraftRate(field, value) {
+            draftRates[field] = coercePlotRate(field, value);
+        }
         function saveDraft() {
             if (!validate())
                 return false;
@@ -73628,6 +73673,7 @@ Expected function or array of functions, received type ${typeof value}.`
             merged.name = String(draftMeta.name || '').trim();
             merged.contextExtractRules = rulesForSave(contextRules.extractRules, 'extract');
             merged.contextExcludeRules = rulesForSave(contextRules.excludeRules, 'exclude');
+            writeDraftRates(merged, draftRates);
             delete merged.contextExtractTags;
             delete merged.contextExcludeTags;
             const ok = store.savePreset({ name: merged.name, raw: merged }, originalName.value);
@@ -73669,10 +73715,12 @@ Expected function or array of functions, received type ${typeof value}.`
             draftMeta,
             draftRaw,
             contextRules,
+            draftRates,
             presetMeta,
             taskEditing,
             setContextExtractRules,
             setContextExcludeRules,
+            setDraftRate,
             openManage,
             openCreate,
             openEdit,
@@ -73684,54 +73732,6 @@ Expected function or array of functions, received type ${typeof value}.`
             deletePreset,
             importFromJsonText,
             exportPresetAsText,
-        };
-    }
-
-    /**
-     * usePlotRates — 匹配替换字段（D23.5）的字段读写
-     *
-     * 这些字段是 settings_ACU.plotSettings 顶层（rateMain / ratePersonal / rateErotic /
-     * rateCuckold / recallCount），不是 preset-scoped。开发者选项关闭时不渲染。
-     */
-    function usePlotRates() {
-        const rateMain = ref(1);
-        const ratePersonal = ref(1);
-        const rateErotic = ref(0);
-        const rateCuckold = ref(1);
-        const recallCount = ref(20);
-        function refresh() {
-            const plot = (settings_ACU.plotSettings || {});
-            rateMain.value = Number(plot.rateMain ?? 1);
-            ratePersonal.value = Number(plot.ratePersonal ?? 1);
-            rateErotic.value = Number(plot.rateErotic ?? 0);
-            rateCuckold.value = Number(plot.rateCuckold ?? 1);
-            recallCount.value = Number(plot.recallCount ?? 20);
-        }
-        function setRate(field, value) {
-            if (!Number.isFinite(value))
-                return;
-            const plot = (settings_ACU.plotSettings || {});
-            plot[field] = value;
-            if (field === 'rateMain')
-                rateMain.value = value;
-            else if (field === 'ratePersonal')
-                ratePersonal.value = value;
-            else if (field === 'rateErotic')
-                rateErotic.value = value;
-            else if (field === 'rateCuckold')
-                rateCuckold.value = value;
-            else
-                recallCount.value = value;
-            saveSettings_ACU();
-        }
-        return {
-            rateMain,
-            ratePersonal,
-            rateErotic,
-            rateCuckold,
-            recallCount,
-            refresh,
-            setRate,
         };
     }
 
@@ -74166,8 +74166,8 @@ Expected function or array of functions, received type ${typeof value}.`
         }
     });
 
-    injectSfcStyle("\n.acu-v2-plot-match-fields[data-v-984adfc7] {\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-plot-match-fields legend[data-v-984adfc7] {\r\n  padding: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\n}\n.acu-v2-plot-match-fields__grid[data-v-984adfc7] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\r\n  gap: 10px;\n}\r\n", "src/presentation-v2/components/PlotMatchReplaceFields.vue#style-0-984adfc7");
-    var PlotMatchReplaceFields_vue_vue_type_style_index_0_scoped_984adfc7_lang = null;
+    injectSfcStyle("\n.acu-v2-plot-match-fields[data-v-8649d835] {\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-plot-match-fields legend[data-v-8649d835] {\r\n  padding: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\n}\n.acu-v2-plot-match-fields__grid[data-v-8649d835] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));\r\n  gap: 10px;\n}\r\n", "src/presentation-v2/components/PlotMatchReplaceFields.vue#style-0-8649d835");
+    var PlotMatchReplaceFields_vue_vue_type_style_index_0_scoped_8649d835_lang = null;
 
     const _hoisted_1$I = { class: "acu-v2-plot-match-fields" };
     const _hoisted_2$B = { class: "acu-v2-plot-match-fields__grid" };
@@ -74185,7 +74185,7 @@ Expected function or array of functions, received type ${typeof value}.`
     			class: "acu-v2-plot-match-fields__hint"
     		}, {
     			default: withCtx(() => [..._cache[5] || (_cache[5] = [createTextVNode(
-    				" 替换提示词占位符（sulv1~4、zhaohui）为全局参数，修改后即时生效并独立保存，不随预设导入导出。 ",
+    				" 替换提示词占位符（sulv1~4、zhaohui），随当前剧情推进预设保存；导出 JSON 时默认值会自动省略。 ",
     				-1
     				/* CACHED */
     			)])]),
@@ -74241,7 +74241,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		])
     	]);
     }
-    var PlotMatchReplaceFields = /* @__PURE__ */ _export_sfc(_sfc_main$J, [["render", _sfc_render$J], ["__scopeId", "data-v-984adfc7"]]);
+    var PlotMatchReplaceFields = /* @__PURE__ */ _export_sfc(_sfc_main$J, [["render", _sfc_render$J], ["__scopeId", "data-v-8649d835"]]);
 
     const DEFAULT_ROLE_OPTIONS = [
         { value: 'SYSTEM', label: 'SYSTEM' },
@@ -74465,11 +74465,9 @@ Expected function or array of functions, received type ${typeof value}.`
         props: {
             task: {},
             apiPresetOptions: {},
-            taskApiOverride: {},
-            showAdvancedRates: { type: Boolean },
-            rates: {}
+            taskApiOverride: {}
         },
-        emits: ["patch", "task-api-override", "update-rate", "segment-add", "segment-delete", "segment-move", "segment-update"],
+        emits: ["patch", "task-api-override", "segment-add", "segment-delete", "segment-move", "segment-update"],
         setup(__props, { expose: __expose, emit: __emit }) {
             __expose();
             const props = __props;
@@ -74481,14 +74479,14 @@ Expected function or array of functions, received type ${typeof value}.`
             function patch(value) {
                 emit("patch", value);
             }
-            const __returned__ = { props, emit, taskApiSelectOptions, patch, AcuFormRow, AcuInput, AcuSelect, AcuToggle, PlotMatchReplaceFields, PlotPromptSegments };
+            const __returned__ = { props, emit, taskApiSelectOptions, patch, AcuFormRow, AcuInput, AcuSelect, AcuToggle, PlotPromptSegments };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-v2-plot-task-editor[data-v-c45ea801] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  min-width: 0;\n}\n.acu-v2-plot-task-editor__section[data-v-c45ea801] {\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-plot-task-editor__section[data-v-c45ea801]:last-of-type {\r\n  padding-bottom: 0;\r\n  border-bottom: 0;\n}\n.acu-v2-plot-task-editor__section legend[data-v-c45ea801] {\r\n  padding: 0;\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\r\n  color: var(--acu-text-2);\n}\n.acu-v2-plot-task-editor__grid[data-v-c45ea801] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\r\n  gap: 10px;\n}\n.acu-v2-plot-task-editor__hint[data-v-c45ea801] {\r\n  margin: 0;\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  color: var(--acu-text-3);\r\n  line-height: var(--acu-line-height-caption, 1.5);\n}\n.acu-v2-plot-task-editor__empty[data-v-c45ea801] {\r\n  padding: 18px 0;\r\n  border: 0;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  text-align: center;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\r\n", "src/presentation-v2/components/PlotTaskEditor.vue#style-0-c45ea801");
-    var PlotTaskEditor_vue_vue_type_style_index_0_scoped_c45ea801_lang = null;
+    injectSfcStyle("\n.acu-v2-plot-task-editor[data-v-43b3ecc7] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  min-width: 0;\n}\n.acu-v2-plot-task-editor__section[data-v-43b3ecc7] {\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\r\n  min-width: 0;\n}\n.acu-v2-plot-task-editor__section[data-v-43b3ecc7]:last-of-type {\r\n  padding-bottom: 0;\r\n  border-bottom: 0;\n}\n.acu-v2-plot-task-editor__section legend[data-v-43b3ecc7] {\r\n  padding: 0;\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\r\n  color: var(--acu-text-2);\n}\n.acu-v2-plot-task-editor__grid[data-v-43b3ecc7] {\r\n  display: grid;\r\n  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));\r\n  gap: 10px;\n}\n.acu-v2-plot-task-editor__hint[data-v-43b3ecc7] {\r\n  margin: 0;\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  color: var(--acu-text-3);\r\n  line-height: var(--acu-line-height-caption, 1.5);\n}\n.acu-v2-plot-task-editor__empty[data-v-43b3ecc7] {\r\n  padding: 18px 0;\r\n  border: 0;\r\n  border-top: 1px solid color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  text-align: center;\r\n  color: var(--acu-text-3);\r\n  font-size: var(--acu-font-size-body, 12px);\n}\r\n", "src/presentation-v2/components/PlotTaskEditor.vue#style-0-43b3ecc7");
+    var PlotTaskEditor_vue_vue_type_style_index_0_scoped_43b3ecc7_lang = null;
 
     const _hoisted_1$G = {
     	key: 0,
@@ -74506,7 +74504,7 @@ Expected function or array of functions, received type ${typeof value}.`
     function _sfc_render$G(_ctx, _cache, $props, $setup, $data, $options) {
     	return $props.task ? (openBlock(), createElementBlock("div", _hoisted_1$G, [
     		createBaseVNode("fieldset", _hoisted_2$z, [
-    			_cache[13] || (_cache[13] = createBaseVNode(
+    			_cache[12] || (_cache[12] = createBaseVNode(
     				"legend",
     				null,
     				"基本字段",
@@ -74593,7 +74591,7 @@ Expected function or array of functions, received type ${typeof value}.`
     				})
     			])
     		]),
-    		createBaseVNode("fieldset", _hoisted_5$j, [_cache[14] || (_cache[14] = createBaseVNode(
+    		createBaseVNode("fieldset", _hoisted_5$j, [_cache[13] || (_cache[13] = createBaseVNode(
     			"legend",
     			null,
     			"当前任务使用的 API",
@@ -74611,22 +74609,7 @@ Expected function or array of functions, received type ${typeof value}.`
     			}, null, 8, ["options", "model-value"])]),
     			_: 1
     		})]),
-    		$props.showAdvancedRates ? (openBlock(), createBlock($setup["PlotMatchReplaceFields"], {
-    			key: 0,
-    			"rate-main": $props.rates.rateMain,
-    			"rate-personal": $props.rates.ratePersonal,
-    			"rate-erotic": $props.rates.rateErotic,
-    			"rate-cuckold": $props.rates.rateCuckold,
-    			"recall-count": $props.rates.recallCount,
-    			onUpdateRate: _cache[8] || (_cache[8] = (field, value) => _ctx.$emit("update-rate", field, value))
-    		}, null, 8, [
-    			"rate-main",
-    			"rate-personal",
-    			"rate-erotic",
-    			"rate-cuckold",
-    			"recall-count"
-    		])) : createCommentVNode("v-if", true),
-    		createBaseVNode("fieldset", _hoisted_6$h, [_cache[15] || (_cache[15] = createBaseVNode(
+    		createBaseVNode("fieldset", _hoisted_6$h, [_cache[14] || (_cache[14] = createBaseVNode(
     			"legend",
     			null,
     			"提示词段（promptGroup）",
@@ -74634,14 +74617,14 @@ Expected function or array of functions, received type ${typeof value}.`
     			/* CACHED */
     		)), createVNode($setup["PlotPromptSegments"], {
     			segments: $props.task.promptGroup,
-    			onAdd: _cache[9] || (_cache[9] = ($event) => _ctx.$emit("segment-add", $event)),
-    			onDelete: _cache[10] || (_cache[10] = ($event) => _ctx.$emit("segment-delete", $event)),
-    			onMove: _cache[11] || (_cache[11] = (index, delta) => _ctx.$emit("segment-move", index, delta)),
-    			onUpdate: _cache[12] || (_cache[12] = (index, patch) => _ctx.$emit("segment-update", index, patch))
+    			onAdd: _cache[8] || (_cache[8] = ($event) => _ctx.$emit("segment-add", $event)),
+    			onDelete: _cache[9] || (_cache[9] = ($event) => _ctx.$emit("segment-delete", $event)),
+    			onMove: _cache[10] || (_cache[10] = (index, delta) => _ctx.$emit("segment-move", index, delta)),
+    			onUpdate: _cache[11] || (_cache[11] = (index, patch) => _ctx.$emit("segment-update", index, patch))
     		}, null, 8, ["segments"])])
     	])) : (openBlock(), createElementBlock("div", _hoisted_7$f, " 请在上方选择一个任务进行编辑。 "));
     }
-    var PlotTaskEditor = /* @__PURE__ */ _export_sfc(_sfc_main$G, [["render", _sfc_render$G], ["__scopeId", "data-v-c45ea801"]]);
+    var PlotTaskEditor = /* @__PURE__ */ _export_sfc(_sfc_main$G, [["render", _sfc_render$G], ["__scopeId", "data-v-43b3ecc7"]]);
 
     var _sfc_main$F = /*@__PURE__*/ defineComponent({
         __name: 'PlotTaskList',
@@ -74793,14 +74776,14 @@ Expected function or array of functions, received type ${typeof value}.`
             function onTaskApiOverride(value) {
                 emit("update-task-api-override", value);
             }
-            const __returned__ = { props, emit, onTaskApiOverride, AcuButton, AcuDrawer, AcuFormRow, AcuIconButton, AcuInput, AcuRulePairList, AcuText, AcuTextarea, PlotTaskEditor, PlotTaskList };
+            const __returned__ = { props, emit, onTaskApiOverride, AcuButton, AcuDrawer, AcuFormRow, AcuIconButton, AcuInput, AcuRulePairList, AcuText, AcuTextarea, PlotMatchReplaceFields, PlotTaskEditor, PlotTaskList };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-v2-plot-drawer__create-btn[data-v-ebd15556] {\r\n  width: 100%;\n}\n.acu-v2-plot-drawer__empty[data-v-ebd15556] {\r\n  margin-top: 20px;\n}\n.acu-v2-plot-drawer__actions[data-v-ebd15556] {\r\n  display: flex;\r\n  justify-content: flex-end;\r\n  gap: 8px;\r\n  flex-wrap: wrap;\r\n  padding-top: 12px;\r\n  margin-top: 12px;\n}\r\n\r\n/* manage list */\n.acu-v2-manage-list[data-v-ebd15556] {\r\n  list-style: none;\r\n  margin: 0;\r\n  padding: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 6px;\n}\n.acu-v2-manage-item[data-v-ebd15556] {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 10px;\r\n  padding: 10px 12px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\n}\n.acu-v2-manage-item[data-v-ebd15556]:last-child {\r\n  border-bottom: 0;\n}\n.acu-v2-manage-item__info[data-v-ebd15556] {\r\n  flex: 1;\r\n  min-width: 0;\n}\n.acu-v2-manage-item__name[data-v-ebd15556] {\r\n  display: block;\r\n  font-size: var(--acu-font-size-list-title, 13px);\r\n  line-height: var(--acu-line-height-body, 1.45);\r\n  font-weight: 500;\r\n  color: var(--acu-text-1);\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-v2-manage-item__meta[data-v-ebd15556] {\r\n  display: block;\r\n  margin-top: 2px;\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  line-height: var(--acu-line-height-caption, 1.5);\r\n  color: var(--acu-text-3);\n}\n.acu-v2-manage-item__actions[data-v-ebd15556] {\r\n  display: flex;\r\n  gap: 4px;\n}\r\n\r\n/* form */\n.acu-v2-form[data-v-ebd15556] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 14px;\n}\n.acu-v2-form__section[data-v-ebd15556] {\r\n  min-width: 0;\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\n}\n.acu-v2-form__section[data-v-ebd15556]:last-of-type {\r\n  padding-bottom: 0;\r\n  border-bottom: 0;\n}\n.acu-v2-form__section legend[data-v-ebd15556] {\r\n  padding: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\n}\n.acu-v2-plot-drawer__rules[data-v-ebd15556] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  min-width: 0;\n}\n.acu-v2-error[data-v-ebd15556] {\r\n  padding: 8px 10px;\r\n  background: color-mix(in srgb, var(--acu-danger) 10%, transparent);\r\n  border: 0;\r\n  border-radius: var(--acu-radius-sm);\n}\r\n", "src/presentation-v2/components/PlotPresetDrawer.vue#style-0-ebd15556");
-    var PlotPresetDrawer_vue_vue_type_style_index_0_scoped_ebd15556_lang = null;
+    injectSfcStyle("\n.acu-v2-plot-drawer__create-btn[data-v-47605d60] {\r\n  width: 100%;\n}\n.acu-v2-plot-drawer__empty[data-v-47605d60] {\r\n  margin-top: 20px;\n}\n.acu-v2-plot-drawer__actions[data-v-47605d60] {\r\n  display: flex;\r\n  justify-content: flex-end;\r\n  gap: 8px;\r\n  flex-wrap: wrap;\r\n  padding-top: 12px;\r\n  margin-top: 12px;\n}\r\n\r\n/* manage list */\n.acu-v2-manage-list[data-v-47605d60] {\r\n  list-style: none;\r\n  margin: 0;\r\n  padding: 0;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 6px;\n}\n.acu-v2-manage-item[data-v-47605d60] {\r\n  display: flex;\r\n  align-items: center;\r\n  gap: 10px;\r\n  padding: 10px 12px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 14%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\n}\n.acu-v2-manage-item[data-v-47605d60]:last-child {\r\n  border-bottom: 0;\n}\n.acu-v2-manage-item__info[data-v-47605d60] {\r\n  flex: 1;\r\n  min-width: 0;\n}\n.acu-v2-manage-item__name[data-v-47605d60] {\r\n  display: block;\r\n  font-size: var(--acu-font-size-list-title, 13px);\r\n  line-height: var(--acu-line-height-body, 1.45);\r\n  font-weight: 500;\r\n  color: var(--acu-text-1);\r\n  overflow: hidden;\r\n  text-overflow: ellipsis;\r\n  white-space: nowrap;\n}\n.acu-v2-manage-item__meta[data-v-47605d60] {\r\n  display: block;\r\n  margin-top: 2px;\r\n  font-size: var(--acu-font-size-caption, 11px);\r\n  line-height: var(--acu-line-height-caption, 1.5);\r\n  color: var(--acu-text-3);\n}\n.acu-v2-manage-item__actions[data-v-47605d60] {\r\n  display: flex;\r\n  gap: 4px;\n}\r\n\r\n/* form */\n.acu-v2-form[data-v-47605d60] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 14px;\n}\n.acu-v2-form__section[data-v-47605d60] {\r\n  min-width: 0;\r\n  margin: 0;\r\n  padding: 0 0 14px;\r\n  border: 0;\r\n  border-bottom: 1px solid\r\n    color-mix(in srgb, var(--acu-text-3) 16%, transparent);\r\n  border-radius: 0;\r\n  background: transparent;\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 10px;\n}\n.acu-v2-form__section[data-v-47605d60]:last-of-type {\r\n  padding-bottom: 0;\r\n  border-bottom: 0;\n}\n.acu-v2-form__section legend[data-v-47605d60] {\r\n  padding: 0;\r\n  color: var(--acu-text-2);\r\n  font-size: var(--acu-font-size-section-title, 12px);\r\n  font-weight: 600;\n}\n.acu-v2-plot-drawer__rules[data-v-47605d60] {\r\n  display: flex;\r\n  flex-direction: column;\r\n  gap: 12px;\r\n  min-width: 0;\n}\n.acu-v2-error[data-v-47605d60] {\r\n  padding: 8px 10px;\r\n  background: color-mix(in srgb, var(--acu-danger) 10%, transparent);\r\n  border: 0;\r\n  border-radius: var(--acu-radius-sm);\n}\r\n", "src/presentation-v2/components/PlotPresetDrawer.vue#style-0-47605d60");
+    var PlotPresetDrawer_vue_vue_type_style_index_0_scoped_47605d60_lang = null;
 
     const _hoisted_1$E = {
     	key: 0,
@@ -74995,12 +74978,27 @@ Expected function or array of functions, received type ${typeof value}.`
     							"onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => _ctx.$emit("update-context-exclude-rules", $event))
     						}, null, 8, ["model-value"])])
     					]),
+    					$props.showAdvancedRates ? (openBlock(), createBlock($setup["PlotMatchReplaceFields"], {
+    						key: 0,
+    						"rate-main": $props.rates.rateMain,
+    						"rate-personal": $props.rates.ratePersonal,
+    						"rate-erotic": $props.rates.rateErotic,
+    						"rate-cuckold": $props.rates.rateCuckold,
+    						"recall-count": $props.rates.recallCount,
+    						onUpdateRate: _cache[4] || (_cache[4] = (field, value) => _ctx.$emit("update-rate", field, value))
+    					}, null, 8, [
+    						"rate-main",
+    						"rate-personal",
+    						"rate-erotic",
+    						"rate-cuckold",
+    						"recall-count"
+    					])) : createCommentVNode("v-if", true),
     					createVNode($setup["PlotTaskList"], {
     						tasks: $props.taskEditing.tasks.value,
     						"current-task-id": $props.taskEditing.currentTaskId.value,
     						onAdd: $props.taskEditing.addTask,
-    						onSelect: _cache[4] || (_cache[4] = ($event) => $props.taskEditing.selectTask($event)),
-    						onMove: _cache[5] || (_cache[5] = ($event) => $props.taskEditing.moveCurrent($event)),
+    						onSelect: _cache[5] || (_cache[5] = ($event) => $props.taskEditing.selectTask($event)),
+    						onMove: _cache[6] || (_cache[6] = ($event) => $props.taskEditing.moveCurrent($event)),
     						onDelete: $props.taskEditing.deleteCurrentTask
     					}, null, 8, [
     						"tasks",
@@ -75012,11 +75010,8 @@ Expected function or array of functions, received type ${typeof value}.`
     						task: $props.taskEditing.currentTask.value,
     						"api-preset-options": $props.apiPresetOptions,
     						"task-api-override": $props.currentTaskApiOverride,
-    						"show-advanced-rates": $props.showAdvancedRates,
-    						rates: $props.rates,
-    						onPatch: _cache[6] || (_cache[6] = ($event) => $props.taskEditing.patchCurrent($event)),
+    						onPatch: _cache[7] || (_cache[7] = ($event) => $props.taskEditing.patchCurrent($event)),
     						onTaskApiOverride: $setup.onTaskApiOverride,
-    						onUpdateRate: _cache[7] || (_cache[7] = (field, value) => _ctx.$emit("update-rate", field, value)),
     						onSegmentAdd: _cache[8] || (_cache[8] = ($event) => $props.taskEditing.addSegment($event)),
     						onSegmentDelete: _cache[9] || (_cache[9] = ($event) => $props.taskEditing.deleteSegment($event)),
     						onSegmentMove: _cache[10] || (_cache[10] = (index, delta) => $props.taskEditing.moveSegment(index, delta)),
@@ -75024,9 +75019,7 @@ Expected function or array of functions, received type ${typeof value}.`
     					}, null, 8, [
     						"task",
     						"api-preset-options",
-    						"task-api-override",
-    						"show-advanced-rates",
-    						"rates"
+    						"task-api-override"
     					]),
     					createBaseVNode("fieldset", _hoisted_7$d, [_cache[22] || (_cache[22] = createBaseVNode(
     						"legend",
@@ -75041,7 +75034,7 @@ Expected function or array of functions, received type ${typeof value}.`
     						"onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => $props.taskEditing.finalDirective.value = $event)
     					}, null, 8, ["model-value"])]),
     					$props.error ? (openBlock(), createBlock($setup["AcuText"], {
-    						key: 0,
+    						key: 1,
     						variant: "error",
     						class: "acu-v2-error",
     						role: "alert"
@@ -75086,7 +75079,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		"before-close"
     	]);
     }
-    var PlotPresetDrawer = /* @__PURE__ */ _export_sfc(_sfc_main$E, [["render", _sfc_render$E], ["__scopeId", "data-v-ebd15556"]]);
+    var PlotPresetDrawer = /* @__PURE__ */ _export_sfc(_sfc_main$E, [["render", _sfc_render$E], ["__scopeId", "data-v-47605d60"]]);
 
     var _sfc_main$D = /*@__PURE__*/ defineComponent({
         __name: 'PlotPresetPanel',
@@ -75102,7 +75095,6 @@ Expected function or array of functions, received type ${typeof value}.`
             const { apiStore, followActiveApiLabel, apiPresetSelectOptions: pageApiSelectOptions, } = useApiPresetSelectOptions();
             const management = usePlotPresetManagement();
             const devOptions = useDevOptions();
-            const rates = usePlotRates();
             const presetDropdownItems = computed(() => [
                 {
                     value: "",
@@ -75116,13 +75108,6 @@ Expected function or array of functions, received type ${typeof value}.`
                 })),
             ]);
             const apiPresetOptions = computed(() => apiStore.presets.map((p) => ({ name: p.name })));
-            const rateValues = computed(() => ({
-                rateMain: rates.rateMain.value,
-                ratePersonal: rates.ratePersonal.value,
-                rateErotic: rates.rateErotic.value,
-                rateCuckold: rates.rateCuckold.value,
-                recallCount: rates.recallCount.value,
-            }));
             const currentTaskApiOverride = computed(() => {
                 const taskId = management.taskEditing.currentTaskId.value;
                 if (!taskId)
@@ -75183,19 +75168,17 @@ Expected function or array of functions, received type ${typeof value}.`
             function refreshAll() {
                 store.refreshFromSettings();
                 apiStore.refreshFromSettings();
-                rates.refresh();
             }
             onMounted(refreshAll);
-            watch(() => store.activePresetName, () => rates.refresh());
             watch(useChatChangedTick(), refreshAll);
-            const __returned__ = { store, dialogStore, toast, apiStore, followActiveApiLabel, pageApiSelectOptions, management, devOptions, rates, presetDropdownItems, apiPresetOptions, rateValues, currentTaskApiOverride, onTaskApiOverride, onDelete, onExport, onImportFile, refreshAll, get plotCopy() { return plotCopy; }, AcuBadge, AcuFileButton, AcuFormRow, AcuIconButton, AcuPanel, AcuPresetDropdown, AcuSelect, AcuText, PlotPresetDrawer };
+            const __returned__ = { store, dialogStore, toast, apiStore, followActiveApiLabel, pageApiSelectOptions, management, devOptions, presetDropdownItems, apiPresetOptions, currentTaskApiOverride, onTaskApiOverride, onDelete, onExport, onImportFile, refreshAll, get plotCopy() { return plotCopy; }, AcuBadge, AcuFileButton, AcuFormRow, AcuIconButton, AcuPanel, AcuPresetDropdown, AcuSelect, AcuText, PlotPresetDrawer };
             Object.defineProperty(__returned__, '__isScriptSetup', { enumerable: false, value: true });
             return __returned__;
         }
     });
 
-    injectSfcStyle("\n.acu-plot-preset-panel__status-line[data-v-5ede3c34] {\r\n  margin: 0 0 10px;\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: var(--acu-line-height-body, 1.45);\n}\n.acu-plot-preset-panel__select-row[data-v-5ede3c34] {\r\n  display: grid;\r\n  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);\r\n  gap: 6px;\r\n  align-items: stretch;\r\n  margin-bottom: 12px;\r\n  min-width: 0;\n}\r\n", "src/presentation-v2/components/PlotPresetPanel.vue#style-0-5ede3c34");
-    var PlotPresetPanel_vue_vue_type_style_index_0_scoped_5ede3c34_lang = null;
+    injectSfcStyle("\n.acu-plot-preset-panel__status-line[data-v-021e572f] {\r\n  margin: 0 0 10px;\r\n  font-size: var(--acu-font-size-body, 12px);\r\n  line-height: var(--acu-line-height-body, 1.45);\n}\n.acu-plot-preset-panel__select-row[data-v-021e572f] {\r\n  display: grid;\r\n  grid-template-columns: minmax(0, 1fr) repeat(3, max-content);\r\n  gap: 6px;\r\n  align-items: stretch;\r\n  margin-bottom: 12px;\r\n  min-width: 0;\n}\r\n", "src/presentation-v2/components/PlotPresetPanel.vue#style-0-021e572f");
+    var PlotPresetPanel_vue_vue_type_style_index_0_scoped_021e572f_lang = null;
 
     const _hoisted_1$D = { class: "acu-text__value" };
     const _hoisted_2$w = { class: "acu-text__value" };
@@ -75347,7 +75330,7 @@ Expected function or array of functions, received type ${typeof value}.`
     				"task-editing": $setup.management.taskEditing,
     				"current-task-api-override": $setup.currentTaskApiOverride,
     				"show-advanced-rates": $setup.devOptions.plotAdvanced.value,
-    				rates: $setup.rateValues,
+    				rates: $setup.management.draftRates,
     				"before-close": () => $setup.management.confirmIfDirty(),
     				onClose: $setup.management.closeDrawer,
     				onBack: $setup.management.backToManage,
@@ -75361,7 +75344,7 @@ Expected function or array of functions, received type ${typeof value}.`
     				onUpdateContextExtractRules: $setup.management.setContextExtractRules,
     				onUpdateContextExcludeRules: $setup.management.setContextExcludeRules,
     				onUpdateTaskApiOverride: $setup.onTaskApiOverride,
-    				onUpdateRate: $setup.rates.setRate
+    				onUpdateRate: $setup.management.setDraftRate
     			}, null, 8, [
     				"is-open",
     				"view",
@@ -75389,7 +75372,7 @@ Expected function or array of functions, received type ${typeof value}.`
     		_: 1
     	}, 8, ["title", "description"]);
     }
-    var PlotPresetPanel = /* @__PURE__ */ _export_sfc(_sfc_main$D, [["render", _sfc_render$D], ["__scopeId", "data-v-5ede3c34"]]);
+    var PlotPresetPanel = /* @__PURE__ */ _export_sfc(_sfc_main$D, [["render", _sfc_render$D], ["__scopeId", "data-v-021e572f"]]);
 
     var _sfc_main$C = /*@__PURE__*/ defineComponent({
         __name: 'TablePresetDrawer',
