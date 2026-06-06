@@ -15270,7 +15270,7 @@ $CONTENT
         // 任务级世界书计算：基于当前任务实际使用的 {{tag}} 注入内容 + 本轮上下文触发，
         // 而不是固定使用整段上一轮剧情内容。
         // 标签来源与 renderPlotTaskMessages_ACU 一致：
-        // - 若本轮已完成任务产出目标标签：优先用本轮 relayTagMap
+        // - 若本轮先前阶段已产出目标标签：优先用本轮 relayTagMap
         // - 否则回退到 historyTagMap / lastPlotContent（上一轮历史）
         let taskWorldbookContent = '';
         try {
@@ -15457,30 +15457,29 @@ $CONTENT
                 }
             }
             logDebug_ACU(`[剧情推进] 阶段 ${stageGroup.stage} 开始执行，任务级API预设将按各任务独立决议。`);
-            const stageResults = [];
-            for (const task of stageGroup.tasks) {
+            const stageRelayTagMap = aggregatedTags;
+            const stageResults = await Promise.all(stageGroup.tasks.map(async (task) => {
                 const stageTask = stageEffectivePreset
                     ? { ...task, taskApiPreset: stageEffectivePreset }
                     : task;
-                const result = await executeSinglePlotTask_ACU(stageTask, sharedContext, {
-                    relayTagMap: aggregatedTags,
+                return await executeSinglePlotTask_ACU(stageTask, sharedContext, {
+                    relayTagMap: stageRelayTagMap,
                     historyTagMap,
                     historyLookupOptions,
                 });
-                stageResults.push(result);
-                if (result?.success) {
-                    completedSuccessfulResults = [...completedSuccessfulResults, result];
-                    const { aggregated: stageAggregated, injectOnlyTagNames: stageInjectOnly } = aggregatePlotTaskTags_ACU(completedSuccessfulResults);
-                    aggregatedTags = stageAggregated;
-                    stageInjectOnly.forEach((name) => aggregatedInjectOnlyTagNames.add(name));
-                }
-            }
+            }));
             checkPlotAbortRequested_ACU();
             const stageSuccessfulResults = stageResults.filter((result) => result?.success);
             const stageFailedResults = stageResults.filter((result) => result && !result.success);
             successfulResults.push(...stageSuccessfulResults);
             failedResults.push(...stageFailedResults);
             completedSuccessfulResults = [...successfulResults];
+            if (completedSuccessfulResults.length > 0) {
+                const { aggregated: stageAggregated, injectOnlyTagNames: stageInjectOnly } = aggregatePlotTaskTags_ACU(completedSuccessfulResults);
+                aggregatedTags = stageAggregated;
+                aggregatedInjectOnlyTagNames = new Set();
+                stageInjectOnly.forEach((name) => aggregatedInjectOnlyTagNames.add(name));
+            }
             if (stageFailedResults.length > 0) {
                 stageFailedResults.forEach((result) => {
                     logWarn_ACU(`[剧情推进] [阶段:${result.stage ?? stageGroup.stage}] [任务:${result.taskName || result.taskId || '未命名任务'}] 未产出有效结果: ${result.error || '未知错误'}`);
@@ -54548,7 +54547,7 @@ $CONTENT
     }
 
     /**
-    * @vue/shared v3.5.35
+    * @vue/shared v3.5.33
     * (c) 2018-present Yuxi (Evan) You and Vue contributors
     * @license MIT
     **/
@@ -55083,7 +55082,7 @@ $CONTENT
     }
 
     /**
-    * @vue/reactivity v3.5.35
+    * @vue/reactivity v3.5.33
     * (c) 2018-present Yuxi (Evan) You and Vue contributors
     * @license MIT
     **/
@@ -55114,18 +55113,12 @@ $CONTENT
          */
         this.cleanups = [];
         this._isPaused = false;
-        this._warnOnRun = true;
         this.__v_skip = true;
+        this.parent = activeEffectScope;
         if (!detached && activeEffectScope) {
-          if (activeEffectScope.active) {
-            this.parent = activeEffectScope;
-            this.index = (activeEffectScope.scopes || (activeEffectScope.scopes = [])).push(
-              this
-            ) - 1;
-          } else {
-            this._active = false;
-            this._warnOnRun = false;
-          }
+          this.index = (activeEffectScope.scopes || (activeEffectScope.scopes = [])).push(
+            this
+          ) - 1;
         }
       }
       get active() {
@@ -55173,7 +55166,7 @@ $CONTENT
           } finally {
             activeEffectScope = currentEffectScope;
           }
-        } else if (!!("production" !== "production") && this._warnOnRun) {
+        } else if (!!("production" !== "production")) {
           warn$2(`cannot run an inactive effect scope.`);
         }
       }
@@ -55297,12 +55290,8 @@ $CONTENT
          */
         this.cleanup = void 0;
         this.scheduler = void 0;
-        if (activeEffectScope) {
-          if (activeEffectScope.active) {
-            activeEffectScope.effects.push(this);
-          } else {
-            this.flags &= -2;
-          }
+        if (activeEffectScope && activeEffectScope.active) {
+          activeEffectScope.effects.push(this);
         }
       }
       pause() {
@@ -56467,6 +56456,9 @@ $CONTENT
           return 0 /* INVALID */;
       }
     }
+    function getTargetType(value) {
+      return value["__v_skip"] || !Object.isExtensible(value) ? 0 /* INVALID */ : targetTypeMap(toRawType(value));
+    }
     // @__NO_SIDE_EFFECTS__
     function reactive(target) {
       if (/* @__PURE__ */ isReadonly(target)) {
@@ -56524,16 +56516,13 @@ $CONTENT
       if (target["__v_raw"] && !(isReadonly2 && target["__v_isReactive"])) {
         return target;
       }
-      if (target["__v_skip"] || !Object.isExtensible(target)) {
+      const targetType = getTargetType(target);
+      if (targetType === 0 /* INVALID */) {
         return target;
       }
       const existingProxy = proxyMap.get(target);
       if (existingProxy) {
         return existingProxy;
-      }
-      const targetType = targetTypeMap(toRawType(target));
-      if (targetType === 0 /* INVALID */) {
-        return target;
       }
       const proxy = new Proxy(
         target,
@@ -57092,7 +57081,7 @@ $CONTENT
     }
 
     /**
-    * @vue/runtime-core v3.5.35
+    * @vue/runtime-core v3.5.33
     * (c) 2018-present Yuxi (Evan) You and Vue contributors
     * @license MIT
     **/
@@ -58250,18 +58239,19 @@ $CONTENT
           target,
           props
         } = vnode;
-        const shouldRemove = doRemove || !isTeleportDisabled(props);
+        let shouldRemove = doRemove || !isTeleportDisabled(props);
         const pendingMount = pendingMounts.get(vnode);
         if (pendingMount) {
           pendingMount.flags |= 8;
           pendingMounts.delete(vnode);
+          shouldRemove = false;
         }
         if (target) {
           hostRemove(targetStart);
           hostRemove(targetAnchor);
         }
         doRemove && hostRemove(anchor);
-        if (!pendingMount && shapeFlag & 16) {
+        if (shapeFlag & 16) {
           for (let i = 0; i < children.length; i++) {
             const child = children[i];
             unmount(
@@ -59230,16 +59220,20 @@ $CONTENT
               slotScopeIds,
               optimized
             );
-            if (next && !isMismatchAllowed(el, 1 /* CHILDREN */)) {
-              (!!("production" !== "production") || false) && warn$1(
-                `Hydration children mismatch on`,
-                el,
-                `
-Server rendered element contains more child nodes than client vdom.`
-              );
-              logMismatchError();
-            }
+            let hasWarned = false;
             while (next) {
+              if (!isMismatchAllowed(el, 1 /* CHILDREN */)) {
+                if ((!!("production" !== "production") || false) && !hasWarned) {
+                  warn$1(
+                    `Hydration children mismatch on`,
+                    el,
+                    `
+Server rendered element contains more child nodes than client vdom.`
+                  );
+                  hasWarned = true;
+                }
+                logMismatchError();
+              }
               const cur = next;
               next = next.nextSibling;
               remove(cur);
@@ -59313,7 +59307,7 @@ Server rendered element contains more child nodes than client vdom.`
         optimized = optimized || !!parentVNode.dynamicChildren;
         const children = parentVNode.children;
         const l = children.length;
-        let hasCheckedMismatch = false;
+        let hasWarned = false;
         for (let i = 0; i < l; i++) {
           const vnode = optimized ? children[i] : children[i] = normalizeVNode(children[i]);
           const isText = vnode.type === Text;
@@ -59341,17 +59335,17 @@ Server rendered element contains more child nodes than client vdom.`
           } else if (isText && !vnode.children) {
             insert(vnode.el = createText(""), container);
           } else {
-            if (!hasCheckedMismatch) {
-              hasCheckedMismatch = true;
-              if (!isMismatchAllowed(container, 1 /* CHILDREN */)) {
-                (!!("production" !== "production") || false) && warn$1(
+            if (!isMismatchAllowed(container, 1 /* CHILDREN */)) {
+              if ((!!("production" !== "production") || false) && !hasWarned) {
+                warn$1(
                   `Hydration children mismatch on`,
                   container,
                   `
 Server rendered element contains fewer child nodes than client vdom.`
                 );
-                logMismatchError();
+                hasWarned = true;
               }
+              logMismatchError();
             }
             patch(
               null,
@@ -62291,7 +62285,7 @@ If you want to remount the same app, move your app creation logic into a factory
       const receivedType = toRawType(value);
       const expectedValue = styleValue(value, expectedType);
       const receivedValue = styleValue(value, receivedType);
-      if (expectedTypes.length === 1 && isExplicable(expectedType) && isCoercible(expectedType, receivedType)) {
+      if (expectedTypes.length === 1 && isExplicable(expectedType) && !isBoolean(expectedType, receivedType)) {
         message += ` with value ${expectedValue}`;
       }
       message += `, got ${receivedType} `;
@@ -62301,9 +62295,7 @@ If you want to remount the same app, move your app creation logic into a factory
       return message;
     }
     function styleValue(value, type) {
-      if (isSymbol(value)) {
-        return value.toString();
-      } else if (type === "String") {
+      if (type === "String") {
         return `"${value}"`;
       } else if (type === "Number") {
         return `${Number(value)}`;
@@ -62315,11 +62307,8 @@ If you want to remount the same app, move your app creation logic into a factory
       const explicitTypes = ["string", "number", "boolean"];
       return explicitTypes.some((elem) => type.toLowerCase() === elem);
     }
-    function isCoercible(...args) {
-      return args.every((elem) => {
-        const value = elem.toLowerCase();
-        return value !== "boolean" && value !== "symbol";
-      });
+    function isBoolean(...args) {
+      return args.some((elem) => elem.toLowerCase() === "boolean");
     }
 
     const isInternalKey = (key) => key === "_" || key === "_ctx" || key === "$stable";
@@ -63675,13 +63664,9 @@ For more details, see https://link.vuejs.org/feature-flags.`
         const needTransition2 = moveType !== 2 && shapeFlag & 1 && transition;
         if (needTransition2) {
           if (moveType === 0) {
-            if (transition.persisted && !el[leaveCbKey]) {
-              hostInsert(el, container, anchor);
-            } else {
-              transition.beforeEnter(el);
-              hostInsert(el, container, anchor);
-              queuePostRenderEffect(() => transition.enter(el), parentSuspense);
-            }
+            transition.beforeEnter(el);
+            hostInsert(el, container, anchor);
+            queuePostRenderEffect(() => transition.enter(el), parentSuspense);
           } else {
             const { leave, delayLeave, afterLeave } = transition;
             const remove2 = () => {
@@ -63692,21 +63677,16 @@ For more details, see https://link.vuejs.org/feature-flags.`
               }
             };
             const performLeave = () => {
-              const wasLeaving = el._isLeaving || !!el[leaveCbKey];
               if (el._isLeaving) {
                 el[leaveCbKey](
                   true
                   /* cancelled */
                 );
               }
-              if (transition.persisted && !wasLeaving) {
+              leave(el, () => {
                 remove2();
-              } else {
-                leave(el, () => {
-                  remove2();
-                  afterLeave && afterLeave();
-                });
-              }
+                afterLeave && afterLeave();
+              });
             };
             if (delayLeave) {
               delayLeave(el, remove2, performLeave);
@@ -64386,14 +64366,13 @@ For more details, see https://link.vuejs.org/feature-flags.`
             suspense.isHydrating = false;
           } else if (!resume) {
             delayEnter = activeBranch && pendingBranch.transition && pendingBranch.transition.mode === "out-in";
-            let hasUpdatedAnchor = false;
             if (delayEnter) {
               activeBranch.transition.afterLeave = () => {
                 if (pendingId === suspense.pendingId) {
                   move(
                     pendingBranch,
                     container2,
-                    anchor === initialAnchor && !hasUpdatedAnchor ? next(activeBranch) : anchor,
+                    anchor === initialAnchor ? next(activeBranch) : anchor,
                     0
                   );
                   queuePostFlushCb(effects);
@@ -64406,7 +64385,6 @@ For more details, see https://link.vuejs.org/feature-flags.`
             if (activeBranch && !suspense.isFallbackMountPending) {
               if (parentNode(activeBranch.el) === container2) {
                 anchor = next(activeBranch);
-                hasUpdatedAnchor = true;
               }
               unmount(activeBranch, parentComponent2, suspense, true);
               if (!delayEnter && isInFallback && vnode2.ssFallback) {
@@ -65727,7 +65705,7 @@ Component that was made reactive: `,
       return true;
     }
 
-    const version = "3.5.35";
+    const version = "3.5.33";
     const warn = !!("production" !== "production") ? warn$1 : NOOP;
     const ErrorTypeStrings = ErrorTypeStrings$1 ;
     const devtools = !!("production" !== "production") || true ? devtools$1 : void 0;
@@ -65750,7 +65728,7 @@ Component that was made reactive: `,
     const DeprecationTypes = null;
 
     /**
-    * @vue/runtime-dom v3.5.35
+    * @vue/runtime-dom v3.5.33
     * (c) 2018-present Yuxi (Evan) You and Vue contributors
     * @license MIT
     **/
@@ -66490,37 +66468,12 @@ Component that was made reactive: `,
         } else if (e._vts <= invoker.attached) {
           return;
         }
-        const value = invoker.value;
-        if (isArray(value)) {
-          const originalStop = e.stopImmediatePropagation;
-          e.stopImmediatePropagation = () => {
-            originalStop.call(e);
-            e._stopped = true;
-          };
-          const handlers = value.slice();
-          const args = [e];
-          for (let i = 0; i < handlers.length; i++) {
-            if (e._stopped) {
-              break;
-            }
-            const handler = handlers[i];
-            if (handler) {
-              callWithAsyncErrorHandling(
-                handler,
-                instance,
-                5,
-                args
-              );
-            }
-          }
-        } else {
-          callWithAsyncErrorHandling(
-            value,
-            instance,
-            5,
-            [e]
-          );
-        }
+        callWithAsyncErrorHandling(
+          patchStopImmediatePropagation(e, invoker.value),
+          instance,
+          5,
+          [e]
+        );
       };
       invoker.value = initialValue;
       invoker.attached = getNow();
@@ -66535,6 +66488,20 @@ Component that was made reactive: `,
 Expected function or array of functions, received type ${typeof value}.`
       );
       return NOOP;
+    }
+    function patchStopImmediatePropagation(e, value) {
+      if (isArray(value)) {
+        const originalStop = e.stopImmediatePropagation;
+        e.stopImmediatePropagation = () => {
+          originalStop.call(e);
+          e._stopped = true;
+        };
+        return value.map(
+          (fn) => (e2) => !e2._stopped && fn && fn(e2)
+        );
+      } else {
+        return value;
+      }
     }
 
     const isNativeOn = (key) => key.charCodeAt(0) === 111 && key.charCodeAt(1) === 110 && // lowercase letter
@@ -67757,7 +67724,7 @@ Expected function or array of functions, received type ${typeof value}.`
     } ;
 
     /**
-    * vue v3.5.35
+    * vue v3.5.33
     * (c) 2018-present Yuxi (Evan) You and Vue contributors
     * @license MIT
     **/

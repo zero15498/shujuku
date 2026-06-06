@@ -630,14 +630,63 @@ describe('runPlotTasksRuntime_ACU', () => {
     expect(mockPlanningGuard.ignoreNextGenerationEndedCount).toBe(2);
   });
 
-  it('标签来源按任务执行顺序切换：T1/T2/T3 用历史，T3 产出后 T4/T5 用本轮', async () => {
+  it('同 stage 任务会并发启动，而不是等待前一个任务完成', async () => {
+    let resolveFirstTask!: (value: string) => void;
+    mockCallApiWithPlotPreset.mockImplementation(async (messages: any[]) => {
+      const content = messages[0]?.content;
+      if (content === 'same-stage-a') {
+        return await new Promise<string>((resolve) => {
+          resolveFirstTask = resolve;
+        });
+      }
+      if (content === 'same-stage-b') {
+        return '结果B';
+      }
+      return 'fallback';
+    });
+
+    const plotSettings = {
+      tasks: [
+        {
+          id: 'task-a',
+          name: '任务A',
+          stage: 1,
+          order: 1,
+          maxRetries: 1,
+          promptGroup: [{ role: 'user', content: 'same-stage-a' }],
+        },
+        {
+          id: 'task-b',
+          name: '任务B',
+          stage: 1,
+          order: 2,
+          maxRetries: 1,
+          promptGroup: [{ role: 'user', content: 'same-stage-b' }],
+        },
+      ],
+    };
+
+    const runPromise = runPlotTasksRuntime_ACU(plotSettings, '当前输入');
+    for (let i = 0; i < 10 && mockCallApiWithPlotPreset.mock.calls.length < 2; i++) {
+      await Promise.resolve();
+    }
+    const callsBeforeFirstTaskResolved = mockCallApiWithPlotPreset.mock.calls.length;
+
+    resolveFirstTask('结果A');
+    const result = await runPromise;
+
+    expect(callsBeforeFirstTaskResolved).toBe(2);
+    expect(result.successfulResults.map((item: any) => item.taskId)).toEqual(['task-a', 'task-b']);
+  });
+
+  it('标签来源按 stage 切换：同 stage 用历史，后续 stage 用前一 stage 聚合结果', async () => {
     const plotSettings = {
       tasks: [
         { id: 't1', name: '任务1', stage: 1, order: 1, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T1 {{recall}}' }] },
         { id: 't2', name: '任务2', stage: 1, order: 2, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T2 {{recall}}' }] },
         { id: 't3', name: '任务3', stage: 1, order: 3, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T3 {{recall}}' }] },
-        { id: 't4', name: '任务4', stage: 1, order: 4, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T4 {{recall}}' }] },
-        { id: 't5', name: '任务5', stage: 1, order: 5, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T5 {{recall}}' }] },
+        { id: 't4', name: '任务4', stage: 2, order: 1, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T4 {{recall}}' }] },
+        { id: 't5', name: '任务5', stage: 2, order: 2, maxRetries: 1, extractTags: 'recall', promptGroup: [{ role: 'user', content: 'T5 {{recall}}' }] },
       ],
     };
 
@@ -697,7 +746,7 @@ describe('runPlotTasksRuntime_ACU', () => {
     expect(calls[3][2]).toBe(historyTagMap);
     expect(calls[4][2]).toBe(historyTagMap);
 
-    // T1/T2/T3 渲染时本轮无 recall；T4/T5 渲染时本轮已含 recall
+    // T1/T2/T3 同 stage 渲染时本轮无 recall；T4/T5 下一 stage 渲染时本轮已含 recall
     expect(calls[0][1] instanceof Map ? calls[0][1].has('recall') : false).toBe(false);
     expect(calls[1][1] instanceof Map ? calls[1][1].has('recall') : false).toBe(false);
     expect(calls[2][1] instanceof Map ? calls[2][1].has('recall') : false).toBe(false);

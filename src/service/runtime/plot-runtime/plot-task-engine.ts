@@ -331,7 +331,7 @@ import { abortableDelay } from '../../../shared/abortable-delay';
     // 任务级世界书计算：基于当前任务实际使用的 {{tag}} 注入内容 + 本轮上下文触发，
     // 而不是固定使用整段上一轮剧情内容。
     // 标签来源与 renderPlotTaskMessages_ACU 一致：
-    // - 若本轮已完成任务产出目标标签：优先用本轮 relayTagMap
+    // - 若本轮先前阶段已产出目标标签：优先用本轮 relayTagMap
     // - 否则回退到 historyTagMap / lastPlotContent（上一轮历史）
     let taskWorldbookContent = '';
     try {
@@ -537,24 +537,17 @@ import { abortableDelay } from '../../../shared/abortable-delay';
 
       logDebug_ACU(`[剧情推进] 阶段 ${stageGroup.stage} 开始执行，任务级API预设将按各任务独立决议。`);
 
-      const stageResults: any[] = [];
-      for (const task of stageGroup.tasks) {
+      const stageRelayTagMap = aggregatedTags;
+      const stageResults: any[] = await Promise.all(stageGroup.tasks.map(async (task: any) => {
         const stageTask = stageEffectivePreset
           ? { ...task, taskApiPreset: stageEffectivePreset }
           : task;
-        const result = await executeSinglePlotTask_ACU(stageTask, sharedContext, {
-          relayTagMap: aggregatedTags,
+        return await executeSinglePlotTask_ACU(stageTask, sharedContext, {
+          relayTagMap: stageRelayTagMap,
           historyTagMap,
           historyLookupOptions,
         });
-        stageResults.push(result);
-        if (result?.success) {
-          completedSuccessfulResults = [...completedSuccessfulResults, result];
-          const { aggregated: stageAggregated, injectOnlyTagNames: stageInjectOnly } = aggregatePlotTaskTags_ACU(completedSuccessfulResults);
-          aggregatedTags = stageAggregated;
-          stageInjectOnly.forEach((name: string) => aggregatedInjectOnlyTagNames.add(name));
-        }
-      }
+      }));
       checkPlotAbortRequested_ACU();
 
       const stageSuccessfulResults = stageResults.filter((result: any) => result?.success);
@@ -562,6 +555,12 @@ import { abortableDelay } from '../../../shared/abortable-delay';
       successfulResults.push(...stageSuccessfulResults);
       failedResults.push(...stageFailedResults);
       completedSuccessfulResults = [...successfulResults];
+      if (completedSuccessfulResults.length > 0) {
+        const { aggregated: stageAggregated, injectOnlyTagNames: stageInjectOnly } = aggregatePlotTaskTags_ACU(completedSuccessfulResults);
+        aggregatedTags = stageAggregated;
+        aggregatedInjectOnlyTagNames = new Set<string>();
+        stageInjectOnly.forEach((name: string) => aggregatedInjectOnlyTagNames.add(name));
+      }
 
       if (stageFailedResults.length > 0) {
         stageFailedResults.forEach((result: any) => {
