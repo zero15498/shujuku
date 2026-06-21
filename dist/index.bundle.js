@@ -15918,7 +15918,29 @@ $CONTENT
         ensurePlotPresetBindingsStore_ACU();
         const chatScopeState = getCurrentChatPlotScopeState_ACU();
         if (chatScopeState?.snapshot) {
-            logDebug_ACU(`[剧情推进] Applying chat override snapshot for chat "${currentChatFileIdentifier_ACU || 'unknown'}".`);
+            const snapshotPresetName = normalizePlotPresetSelectionValue_ACU(chatScopeState.presetName || '');
+            const linkedPreset = snapshotPresetName ? findPlotPresetByName_ACU(snapshotPresetName) : null;
+            if (linkedPreset) {
+                logDebug_ACU(`[剧情推进] Migrating chat override snapshot to preset link for chat "${currentChatFileIdentifier_ACU || 'unknown'}": "${snapshotPresetName}".`);
+                applyPlotPresetToSettings_ACU(plotSettings, linkedPreset);
+                setPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU, linkedPreset.name, {
+                    source: 'migrate_chat_snapshot_link',
+                    isExplicit: true,
+                });
+                clearCurrentChatPlotScopeState_ACU();
+                _set_currentPlotTaskEditorId_ACU('');
+                syncCurrentEditablePlotPresetState_ACU({ source: 'migrate_chat_snapshot_link' });
+                saveSettings_ACU();
+                try {
+                    await saveChatToHost_ACU();
+                }
+                catch (error) {
+                    logWarn_ACU('[剧情推进] 保存旧聊天快照迁移结果失败:', error);
+                }
+                logDebug_ACU('[剧情推进] Chat override snapshot migrated to global preset link.');
+                return;
+            }
+            logDebug_ACU(`[剧情推进] Applying legacy chat override snapshot for chat "${currentChatFileIdentifier_ACU || 'unknown'}" because no valid global preset link was found.`);
             replaceCurrentPlotSettingsWithSnapshot_ACU(plotSettings, chatScopeState.snapshot);
             _set_currentPlotTaskEditorId_ACU('');
             syncCurrentEditablePlotPresetState_ACU({ source: 'load_chat_override' });
@@ -15948,41 +15970,27 @@ $CONTENT
             }
             else {
                 const legacyPresetToLoad = findPlotPresetByName_ACU(legacyPresetName);
-                const canMigrateToChatSnapshot = isDefaultPlotPresetSelection_ACU(legacyPresetName) || !!legacyPresetToLoad;
-                if (canMigrateToChatSnapshot) {
-                    if (legacyPresetToLoad) {
-                        logDebug_ACU(`[剧情推进] Migrating legacy binding to chat snapshot for chat "${currentChatFileIdentifier_ACU || 'unknown'}": "${legacyPresetName}"`);
-                        applyPlotPresetToSettings_ACU(plotSettings, legacyPresetToLoad);
-                    }
-                    else {
-                        logDebug_ACU(`[剧情推进] Migrating legacy default binding to chat snapshot for chat "${currentChatFileIdentifier_ACU || 'unknown'}".`);
-                        resetPlotSettingsToDefault_ACU(plotSettings);
-                    }
-                    _set_currentPlotTaskEditorId_ACU('');
-                    const migratedScopeState = buildChatPlotScopeStateFromSettings_ACU(plotSettings, {
-                        presetName: legacyPresetName,
-                        source: `legacy_binding_${legacyBinding.source || 'inherit'}`,
-                        originGlobalName: globalPresetName,
-                        originGlobalRevision: getPlotGlobalRevision_ACU(),
-                        updatedAt: legacyBinding.updatedAt || Date.now(),
+                if (legacyPresetToLoad) {
+                    logDebug_ACU(`[剧情推进] Applying explicit chat preset binding for chat "${currentChatFileIdentifier_ACU || 'unknown'}": "${legacyPresetName}"`);
+                    applyPlotPresetToSettings_ACU(plotSettings, legacyPresetToLoad);
+                    setPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU, legacyPresetToLoad.name, {
+                        source: legacyBinding.source || 'ui',
+                        isExplicit: true,
                     });
-                    if (migratedScopeState) {
-                        setCurrentChatPlotScopeState_ACU(migratedScopeState, { reason: 'migrate_legacy_plot_binding' });
-                        clearPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU);
-                        syncCurrentEditablePlotPresetState_ACU({ source: 'migrate_legacy_plot_binding' });
-                        saveSettings_ACU();
-                        try {
-                            await saveChatToHost_ACU();
-                        }
-                        catch (error) {
-                            logWarn_ACU('[剧情推进] 保存迁移后的聊天级剧情推进快照失败:', error);
-                        }
-                        logDebug_ACU('[剧情推进] Legacy plotPresetBindings entry migrated to chat metadata snapshot.');
-                        return;
-                    }
+                    _set_currentPlotTaskEditorId_ACU('');
+                    syncCurrentEditablePlotPresetState_ACU({ source: 'load_chat_preset_binding' });
+                    saveSettings_ACU();
+                    logDebug_ACU('[剧情推进] Current chat is using a global preset link.');
+                    return;
                 }
-                logWarn_ACU(`[剧情推进] Legacy binding preset "${legacyPresetName}" could not be migrated. Falling back to inherit global/default.`);
-                clearPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU);
+                if (isDefaultPlotPresetSelection_ACU(legacyPresetName)) {
+                    clearPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU);
+                    logDebug_ACU(`[剧情推进] Cleared default-style explicit binding for chat "${currentChatFileIdentifier_ACU || 'unknown'}".`);
+                }
+                else {
+                    logWarn_ACU(`[剧情推进] Legacy binding preset "${legacyPresetName}" no longer exists. Falling back to inherit global/default.`);
+                    clearPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU);
+                }
             }
         }
         if (globalPresetToLoad) {
@@ -16055,6 +16063,10 @@ $CONTENT
             for (let i = upperBound; i >= 0; i--) {
                 const message = chat[i];
                 if (message && message.qrf_plot_tasks && typeof message.qrf_plot_tasks === 'object') {
+                    const plotPresetName = message.qrf_plot_preset || '';
+                    if (currentPresetName !== '' && plotPresetName !== currentPresetName) {
+                        continue;
+                    }
                     const taskContent = message.qrf_plot_tasks[targetTaskId];
                     if (typeof taskContent === 'string' && taskContent.trim()) {
                         logDebug_ACU(`[剧情推进] [Plot] ✓ 在消息 ${i} 找到任务 "${targetTaskId}" 的 qrf_plot_tasks 数据，长度: ${taskContent.length}`);
@@ -28228,44 +28240,32 @@ $CONTENT
         if (!settings_ACU?.plotSettings)
             return null;
         const normalizedPresetName = getCurrentRuntimePlotPresetName_ACU({ fallbackToGlobal: true });
-        const plotScopeState = buildChatPlotScopeStateFromSettings_ACU(settings_ACU.plotSettings, {
-            presetName: normalizedPresetName,
-            source,
-            originGlobalName: normalizePlotPresetSelectionValue_ACU(settings_ACU.plotSettings.lastUsedPresetName || ''),
-            originGlobalRevision: getPlotGlobalRevision_ACU(),
-            updatedAt: Date.now(),
-        });
-        if (!plotScopeState)
-            return null;
-        setCurrentChatPlotScopeState_ACU(plotScopeState, { reason: `plot_scope_${source}` });
+        const hadLegacyChatScopeSnapshot = !!getCurrentChatPlotScopeState_ACU();
+        if (hadLegacyChatScopeSnapshot) {
+            clearCurrentChatPlotScopeState_ACU();
+        }
         setPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU, normalizedPresetName, {
             source,
             isExplicit: source !== 'inherit',
         });
         if (save) {
             saveSettings_ACU();
-            queueSaveCurrentChatPlotScope_ACU(source);
+            if (hadLegacyChatScopeSnapshot) {
+                queueSaveCurrentChatPlotScope_ACU(`${source}_clear_legacy_plot_scope`);
+            }
         }
-        return plotScopeState;
+        return getPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU);
     }
     function persistPlotPresetSelectionState_ACU(presetName, options = {}) {
         const { source = 'ui', updateGlobal = false, save = true, persistChatScope = !updateGlobal } = options;
         const normalizedPresetName = normalizePlotPresetSelectionValue_ACU(presetName);
-        let shouldSaveChat = false;
+        const hadLegacyChatScopeSnapshot = !!getCurrentChatPlotScopeState_ACU();
         if (updateGlobal && settings_ACU?.plotSettings) {
             settings_ACU.plotSettings.lastUsedPresetName = normalizedPresetName;
         }
         else if (persistChatScope && settings_ACU?.plotSettings) {
-            const plotScopeState = buildChatPlotScopeStateFromSettings_ACU(settings_ACU.plotSettings, {
-                presetName: normalizedPresetName,
-                source,
-                originGlobalName: normalizePlotPresetSelectionValue_ACU(settings_ACU.plotSettings.lastUsedPresetName || ''),
-                originGlobalRevision: getPlotGlobalRevision_ACU(),
-                updatedAt: Date.now(),
-            });
-            if (plotScopeState) {
-                setCurrentChatPlotScopeState_ACU(plotScopeState, { reason: `plot_scope_${source}` });
-                shouldSaveChat = true;
+            if (hadLegacyChatScopeSnapshot) {
+                clearCurrentChatPlotScopeState_ACU();
             }
             setPlotPresetBindingForChat_ACU(currentChatFileIdentifier_ACU, normalizedPresetName, {
                 source,
@@ -28280,10 +28280,10 @@ $CONTENT
         }
         if (save) {
             saveSettings_ACU();
-            if (shouldSaveChat) {
+            if (hadLegacyChatScopeSnapshot && !updateGlobal) {
                 Promise.resolve()
                     .then(() => saveChatToHost_ACU())
-                    .catch(error => logWarn_ACU('[剧情推进] 保存聊天级预设快照失败:', error));
+                    .catch(error => logWarn_ACU('[剧情推进] 清理旧聊天级预设快照失败:', error));
             }
         }
         return normalizedPresetName;
@@ -79686,18 +79686,6 @@ Expected function or array of functions, received type ${typeof value}.`
             /** D23.2：切换"当前聊天使用"——即 PresetDropdown 主操作。 */
             setActivePresetForCurrentChat(name) {
                 const normalized = normalizePlotPresetSelectionValue_ACU(name);
-                if (isDefaultPlotPresetSelection_ACU(normalized)) {
-                    clearCurrentChatPlotScopeState_ACU();
-                    resetPlotSettingsToDefault_ACU(settings_ACU.plotSettings);
-                    persistPlotPresetSelectionState_ACU('', {
-                        source: 'ui_v2_select_default',
-                        updateGlobal: false,
-                        save: true,
-                        persistChatScope: false,
-                    });
-                    this.refreshFromSettings();
-                    return true;
-                }
                 const result = switchCurrentChatPlotPreset_ACU(normalized, { source: 'ui_v2', save: true });
                 if (!result)
                     return false;
