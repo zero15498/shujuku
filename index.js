@@ -9194,6 +9194,10 @@ $CONTENT
         if (!target) {
             return { saved: false, error: 'no AI message found' };
         }
+        options.transactionContext?.assertFresh?.('persistTableMutationLogV2:before_persist');
+        if (!chat[target.index] || chat[target.index] !== target.message || target.message.is_user) {
+            return { saved: false, error: 'target AI message changed before persist; abort stale table write.' };
+        }
         const isolationKey = options.isolationKey ?? getCurrentIsolationKey_ACU();
         const afterData = deepClone_ACU$2(options.afterData);
         const filledSheetKeys = normalizeKeys_ACU(options.filledSheetKeys, afterData);
@@ -9624,6 +9628,7 @@ $CONTENT
                 logError_ACU(TABLE_PERSIST_COMMIT_MODEL_REQUIRED_ACU);
                 return { saved: false, error: TABLE_PERSIST_COMMIT_MODEL_REQUIRED_ACU };
             }
+            transactionContext.assertFresh?.('persistTablesToChatMessage:before_v2_persist');
             return persistV2InTransaction(transactionContext);
         };
         return persistCore();
@@ -9666,6 +9671,11 @@ $CONTENT
             if (!targetMessage) {
                 logWarn_ACU('Save failed: No AI message found.');
                 return { saved: false, error: 'no AI message found' };
+            }
+            const transactionContext = options.transactionContext;
+            transactionContext?.assertFresh?.('persistTablesToChatMessage:before_legacy_persist');
+            if (finalIndex < 0 || !chat[finalIndex] || chat[finalIndex] !== targetMessage || targetMessage.is_user) {
+                return { saved: false, error: 'target AI message changed before legacy persist; abort stale table write.' };
             }
             // 查找上一个 AI 楼层的 tagData 作为 delta 的 base
             let prevTagData = null;
@@ -11949,6 +11959,12 @@ $CONTENT
         }
         return `runtime:${revision}`;
     }
+    function invalidateTableRuntimeRevision_ACU(parts = {}) {
+        const chatKey = normalizeScopePart_ACU(parts.chatKey ?? currentChatFileIdentifier_ACU, 'current-chat');
+        const isolationKey = normalizeScopePart_ACU(parts.isolationKey ?? getCurrentIsolationKey_ACU(), 'default');
+        const scopeKey = getRuntimeScopeKey_ACU({ chatKey, isolationKey });
+        return bumpRuntimeRevision_ACU(scopeKey, [{ kind: 'all' }]);
+    }
     function getLock_ACU(scopeKey) {
         let lock = keyedLocks_ACU.get(scopeKey);
         if (!lock) {
@@ -14048,6 +14064,7 @@ $CONTENT
      * 不切换模式，只重新从聊天消息加载
      */
     async function reloadStorageProvider() {
+        invalidateTableRuntimeRevision_ACU({ reason: 'reloadStorageProvider' });
         if (!currentProvider) {
             await initStorageProvider();
             return;
